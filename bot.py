@@ -823,4 +823,3 @@ def create_app() -> web.Application:
 if __name__ == "__main__":
     logger.info("Starting JPW Mini App & Telegram Bot Server on port %s...", PORT)
     web.run_app(create_app(), host="0.0.0.0", port=PORT)
-```
