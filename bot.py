@@ -41,10 +41,17 @@ import requests
 from aiohttp import web
 
 # ================= CONFIGURATION =================
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "YOUR_TELEGRAM_BOT_TOKEN_HERE")
-WEBAPP_URL = os.environ.get("WEBAPP_URL", "https://your-mini-app-url.example.com")
-ADMIN_CHAT_ID = int(os.environ.get("ADMIN_CHAT_ID", "0"))
-PORT = int(os.environ.get("PORT", "8080"))
+def _safe_int(val: str | None, default: int = 0) -> int:
+    try:
+        return int(str(val or "").strip())
+    except Exception:
+        return default
+
+
+BOT_TOKEN = (os.environ.get("BOT_TOKEN") or "YOUR_TELEGRAM_BOT_TOKEN_HERE").strip()
+WEBAPP_URL = (os.environ.get("WEBAPP_URL") or "https://your-mini-app-url.example.com").strip()
+ADMIN_CHAT_ID = _safe_int(os.environ.get("ADMIN_CHAT_ID"), 0)
+PORT = _safe_int(os.environ.get("PORT"), 8080)
 
 CASHTREE_REGISTER_API = "https://cashtree.space/api/register"
 CASHTREE_LOGIN_API = "https://cashtree.space/api/login"
