@@ -1,4 +1,4 @@
-```python
+python
 #!/usr/bin/env python3
 """
 JPW Order & Wallet Portal — Telegram Bot + Mini App Backend (bot.py)
