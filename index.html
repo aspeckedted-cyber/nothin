@@ -195,11 +195,14 @@
         </div>
       </div>
 
-      <!-- Import / Export JSON Accordion -->
+      <!-- Import / Export JSON Accordion (Supports Copy, .JSON File Download & File/Text Restore) -->
       <div class="card-box p-3.5 space-y-2.5">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-bold text-slate-700">📄 Backup / Import Profiles (JSON)</span>
+        <div class="flex flex-wrap items-center justify-between gap-1.5">
+          <span class="text-xs font-bold text-slate-700">💾 Backup / Restore Accounts</span>
           <div class="flex items-center gap-1.5">
+            <button id="downloadJsonFileBtn" type="button" class="px-2.5 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-[11px] font-extrabold">
+              📥 Save .JSON
+            </button>
             <button id="exportJsonBtn" type="button" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold">
               Copy JSON
             </button>
@@ -209,7 +212,11 @@
           </div>
         </div>
         <div id="importJsonAreaWrap" class="space-y-2 hidden">
-          <textarea id="importJsonTextarea" rows="3" placeholder='Paste JSON array of profiles...'
+          <div class="p-2 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
+            <span class="text-slate-600 font-semibold text-[11px]">📂 Select Backup .json File:</span>
+            <input id="importJsonFileInput" type="file" accept=".json,application/json" class="text-[11px] text-slate-600 max-w-[180px]" />
+          </div>
+          <textarea id="importJsonTextarea" rows="3" placeholder='Or paste JSON backup here...'
             class="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono"></textarea>
           <button id="confirmImportJsonBtn" type="button" class="w-full py-2 rounded-xl bg-slate-900 text-white text-xs font-bold">
             Import Profiles Now
@@ -350,55 +357,84 @@
         </button>
       </div>
 
-      <div class="card-box p-4 space-y-3.5">
+      <div class="card-box p-4 space-y-3.5 border-pink-100">
         <div class="flex items-center justify-between">
-          <span class="text-xs font-extrabold text-slate-800 flex items-center gap-1.5">
-            <span>🔗</span> Service Order Details
+          <span class="text-xs font-extrabold text-pink-700 flex items-center gap-1.5">
+            <span>⚡</span> Direct Real Reach Order (<code class="font-mono text-[10px]">/api/order</code>)
           </span>
-          <span id="orderTopRightId" class="text-xs font-mono text-slate-400">0690766275</span>
+          <span id="orderTopRightId" class="text-xs font-mono font-bold text-slate-700">0690766275</span>
+        </div>
+
+        <!-- Service Window Notice -->
+        <div class="px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-800 flex items-center justify-between">
+          <span>⏰ <strong>Service Time:</strong> 09:30 AM – 10:15 PM (IST)</span>
+          <span class="font-extrabold text-emerald-700">Cost: 1 Coin</span>
         </div>
 
         <div class="space-y-2.5">
           <div>
             <label for="orderTargetIdInput" class="block text-[11px] font-bold uppercase text-slate-400 mb-1">
-              TARGET NUMBER / SERVICE ID
+              TARGET ID / NUMBER (<code class="text-pink-600">targetId</code>) <span class="text-rose-500">*</span>
             </label>
-            <input id="orderTargetIdInput" type="text" placeholder="Enter target ID or mobile number..." value="0689728278"
-              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-900 focus:outline-none focus:border-pink-500" />
+            <input id="orderTargetIdInput" type="text" placeholder="Enter targetId (e.g. 1234567 or mobile)..." value=""
+              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold font-mono text-slate-900 focus:outline-none focus:border-pink-500" />
           </div>
 
           <div>
             <label for="orderNotesInput" class="block text-[11px] font-bold uppercase text-slate-400 mb-1">
-              REFERENCE / PASSWORD / NOTES
+              TARGET PASSWORD (<code class="text-pink-600">targetPass</code>) <span class="text-rose-500">*</span>
             </label>
-            <input id="orderNotesInput" type="text" placeholder="Enter reference or notes..." value="Standard Reach"
-              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 focus:outline-none focus:border-pink-500" />
+            <input id="orderNotesInput" type="text" placeholder="Enter targetPass (e.g. 0987 or 12345)..." value=""
+              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-mono text-slate-900 focus:outline-none focus:border-pink-500" />
           </div>
 
-          <button id="previewOrderBtn" type="button" class="w-full py-2.5 rounded-xl border-2 border-pink-500 text-pink-700 font-bold text-xs hover:bg-pink-50 transition">
+          <!-- Auto-Route from >=1.00 Coin ID checkbox -->
+          <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2">
+              <input type="checkbox" id="autoUseReadyCoinIdCheck" checked class="w-4 h-4 text-pink-600 rounded focus:ring-pink-500" />
+              <label for="autoUseReadyCoinIdCheck" class="text-slate-700 font-semibold cursor-pointer">
+                Auto-use any saved ID with <strong>≥ 1.00 Coin</strong>
+              </label>
+            </div>
+            <span class="text-[10px] font-mono text-emerald-700 font-bold">Smart Pick</span>
+          </div>
+
+          <button id="previewOrderBtn" type="button" class="w-full py-2 rounded-xl border-2 border-pink-500 text-pink-700 font-bold text-xs hover:bg-pink-50 transition">
             🔍 Calculate Summary
           </button>
         </div>
       </div>
 
-      <!-- Order Summary Card -->
+      <!-- Order Summary & Real API Execution Card -->
       <div class="card-box p-4 space-y-3">
         <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
           <div>
             <p class="text-xs font-extrabold text-slate-800">⚡ Service Reach Request</p>
-            <p id="summaryTargetPreview" class="text-[11px] text-slate-500">Target: 0689728278</p>
+            <p id="summaryTargetPreview" class="text-[11px] text-slate-500 font-mono">Target: Ready</p>
           </div>
-          <span class="text-sm font-extrabold text-slate-900">1 Credit (₹20)</span>
+          <span class="text-xs font-extrabold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800">1.00 Coin / 1 Cr</span>
         </div>
 
-        <div class="flex items-center justify-between text-xs font-bold">
-          <span class="text-slate-500">Available Credits</span>
-          <span id="summaryCreditsAvail" class="text-emerald-600">3 Credits</span>
+        <div class="grid grid-cols-2 gap-2 text-xs font-bold">
+          <div class="p-2 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between">
+            <span class="text-amber-800">Selected Coins:</span>
+            <span id="summarySelectedCoins" class="text-amber-900 font-extrabold">🪙 0.00</span>
+          </div>
+          <div class="p-2 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between">
+            <span class="text-emerald-800">Wallet Credits:</span>
+            <span id="summaryCreditsAvail" class="text-emerald-700 font-extrabold">3 Credits</span>
+          </div>
         </div>
 
-        <button id="submitServiceOrderBtn" type="button" class="w-full py-3.5 rounded-xl brand-btn text-sm shadow-lg">
+        <button id="submitServiceOrderBtn" type="button" class="w-full py-3.5 rounded-xl brand-btn text-sm shadow-lg flex items-center justify-center gap-2">
           🚀 Submit Order Now (Deduct 1 Credit)
         </button>
+
+        <!-- Real API Response Box -->
+        <div id="realOrderApiResultBox" class="hidden p-3 rounded-xl bg-slate-900 text-white text-xs space-y-1 font-mono">
+          <p id="realOrderApiStatusTitle" class="font-bold text-emerald-400"></p>
+          <p id="realOrderApiMessage" class="text-[11px] text-slate-300"></p>
+        </div>
       </div>
     </section>
 
@@ -609,6 +645,7 @@
     const DEFAULT_API_REGISTER = 'https://cashtree.space/api/register';
     const DEFAULT_API_LOGIN = 'https://cashtree.space/api/login';
     const DEFAULT_API_CLAIM_BONUS = 'https://cashtree.space/api/claim-daily-bonus';
+    const DEFAULT_API_ORDER = 'https://cashtree.space/api/order';
 
     const defaultState = {
       activeTab: 'accounts',
@@ -1252,7 +1289,42 @@
       return { ok: response.ok, status: response.status, data };
     }
 
-    // Feature 4: Calculate 24-Hour Daily Bonus Cooldown Status & Remaining Time
+    // Call Real Cashtree Reach Order API: POST https://cashtree.space/api/order
+    // Payload from screenshot 1000575917.jpg: { "telegramChatId": "WEB_0690766275", "targetId": "1234567", "targetPass": "0987" }
+    async function callRealReachOrderApi(prof, targetId, targetPass) {
+      const customId = String(prof.id).trim();
+      let chatId = prof.telegramChatId || ('WEB_' + customId);
+
+      // Refresh login session first so server has an active token
+      const loginInfo = await callLoginApiForToken(prof);
+      if (loginInfo.data && loginInfo.data.user && loginInfo.data.user.telegramChatId) {
+        chatId = loginInfo.data.user.telegramChatId;
+        prof.telegramChatId = chatId;
+      }
+
+      const token = prof.authToken || buildWebBearerToken(chatId);
+      const headers = {
+        'Content-Type': 'application/json',
+        'Accept': '*/*',
+        'Authorization': token.startsWith('Bearer ') ? token : ('Bearer ' + token)
+      };
+
+      const payload = {
+        telegramChatId: chatId,
+        targetId: String(targetId).trim(),
+        targetPass: String(targetPass).trim()
+      };
+
+      const response = await fetch(DEFAULT_API_ORDER, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json().catch(() => ({}));
+      return { ok: response.ok && Boolean(data && data.success), status: response.status, data };
+    }
+
+    // Feature 4: Calculate Daily Bonus Eligibility based on 12:00 AM Midnight IST (UTC+5:30) Reset!
     function getBonusCooldownInfo(prof) {
       if (!prof || !prof.lastBonusTime) {
         return { ready: true, label: '🟢 Bonus Ready', remainingMs: 0 };
@@ -1261,19 +1333,34 @@
       if (isNaN(lastMs)) {
         return { ready: true, label: '🟢 Bonus Ready', remainingMs: 0 };
       }
-      const COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
-      const elapsed = Date.now() - lastMs;
-      const rem = COOLDOWN_MS - elapsed;
+
+      const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000; // +05:30 IST in milliseconds
+      const DAY_MS = 24 * 60 * 60 * 1000;
+      const nowMs = Date.now();
+
+      // Compare IST calendar day number of lastBonusTime vs current IST calendar day number
+      const lastIstDay = Math.floor((lastMs + IST_OFFSET_MS) / DAY_MS);
+      const nowIstDay = Math.floor((nowMs + IST_OFFSET_MS) / DAY_MS);
+
+      if (nowIstDay > lastIstDay) {
+        // Midnight 12:00 AM IST has passed since last claim -> Eligible immediately!
+        return { ready: true, label: '🟢 Bonus Ready', remainingMs: 0 };
+      }
+
+      // Already claimed today in IST -> Calculate time remaining until next 12:00 AM Midnight IST
+      const nextMidnightIstUtcMs = ((nowIstDay + 1) * DAY_MS) - IST_OFFSET_MS;
+      const rem = Math.max(0, nextMidnightIstUtcMs - nowMs);
       if (rem <= 0) {
         return { ready: true, label: '🟢 Bonus Ready', remainingMs: 0 };
       }
+
       const hrs = Math.floor(rem / (1000 * 60 * 60));
       const mins = Math.floor((rem % (1000 * 60 * 60)) / (1000 * 60));
       const secs = Math.floor((rem % (1000 * 60)) / 1000);
       const pad = n => String(n).padStart(2, '0');
       return {
         ready: false,
-        label: `⏳ ${pad(hrs)}h ${pad(mins)}m ${pad(secs)}s`,
+        label: `⏳ 12AM: ${pad(hrs)}h ${pad(mins)}m ${pad(secs)}s`,
         remainingMs: rem
       };
     }
@@ -1483,9 +1570,13 @@
       renderQr();
 
       // Render Order Tab
-      document.getElementById('orderFromProfileText').textContent = `${activeProf.id} (${activeProf.name})`;
+      document.getElementById('orderFromProfileText').textContent = `${activeProf.id} (${activeProf.name}) — 🪙 ${Number(activeProf.jpwCoins || 0).toFixed(2)} Coins`;
       document.getElementById('orderTopRightId').textContent = activeProf.id;
       document.getElementById('summaryCreditsAvail').textContent = activeProf.credits + ' Credits';
+      const selCoinsEl = document.getElementById('summarySelectedCoins');
+      if (selCoinsEl) {
+        selCoinsEl.textContent = '🪙 ' + Number(activeProf.jpwCoins || 0).toFixed(2);
+      }
 
       // Render Orders Status List
       const ordEl = document.getElementById('ordersListContainer');
@@ -1784,27 +1875,80 @@
       }
     });
 
-    // JSON Export / Import
+    // JSON Export / Download / Restore (Compatible with both Telegram Bot backup files & profile arrays)
     document.getElementById('exportJsonBtn').addEventListener('click', () => {
       copySafe(JSON.stringify(state.profiles, null, 2), 'Profiles JSON');
+    });
+
+    document.getElementById('downloadJsonFileBtn').addEventListener('click', () => {
+      try {
+        const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `jpw_backup_${state.profiles.length}ids.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('📥 Downloaded Backup JSON file!');
+      } catch (e) {
+        copySafe(JSON.stringify(state.profiles, null, 2), 'Backup JSON');
+      }
     });
 
     document.getElementById('toggleImportBoxBtn').addEventListener('click', () => {
       document.getElementById('importJsonAreaWrap').classList.toggle('hidden');
     });
 
-    document.getElementById('confirmImportJsonBtn').addEventListener('click', () => {
+    function applyRestoredJsonString(rawStr) {
       try {
-        const arr = JSON.parse(document.getElementById('importJsonTextarea').value.trim());
-        if (Array.isArray(arr) && arr.length > 0) {
-          state.profiles = arr;
+        const parsed = JSON.parse(rawStr.trim());
+        const incomingArr = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.profiles) ? parsed.profiles : null);
+        if (incomingArr && incomingArr.length > 0) {
+          const existingMap = new Map(state.profiles.map(p => [String(p.id), p]));
+          let added = 0;
+          incomingArr.forEach(ip => {
+            if (!ip || !ip.id) return;
+            const pid = String(ip.id);
+            if (existingMap.has(pid)) {
+              const ep = existingMap.get(pid);
+              const maxCoins = Math.max(Number(ep.jpwCoins || 0), Number(ip.jpwCoins || 0));
+              Object.assign(ep, ip, { jpwCoins: maxCoins });
+            } else {
+              state.profiles.unshift(ip);
+              existingMap.set(pid, ip);
+              added++;
+            }
+          });
           document.getElementById('importJsonAreaWrap').classList.add('hidden');
+          window._initialServerPullDone = true;
+          saveState();
           renderAll();
-          showToast('✅ Imported ' + arr.length + ' profiles!');
+          showToast(`✅ Restored ${incomingArr.length} profiles (${added} new) & synced to server!`);
+          return true;
         }
+        showToast('❌ No valid profiles found in JSON');
       } catch (e) {
         showToast('❌ Invalid JSON format');
       }
+      return false;
+    }
+
+    document.getElementById('importJsonFileInput').addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const content = String(ev.target.result || '');
+        document.getElementById('importJsonTextarea').value = content;
+        applyRestoredJsonString(content);
+      };
+      reader.readAsText(file);
+    });
+
+    document.getElementById('confirmImportJsonBtn').addEventListener('click', () => {
+      applyRestoredJsonString(document.getElementById('importJsonTextarea').value);
     });
 
     // Wallet & UTR Submission
@@ -1841,34 +1985,87 @@
       showToast('✔ Order summary updated');
     });
 
-    document.getElementById('submitServiceOrderBtn').addEventListener('click', () => {
-      const prof = getActiveProfile();
+    document.getElementById('submitServiceOrderBtn').addEventListener('click', async () => {
       const targetVal = document.getElementById('orderTargetIdInput').value.trim();
-      const notesVal = document.getElementById('orderNotesInput').value.trim() || 'Reach Order';
+      const targetPassVal = document.getElementById('orderNotesInput').value.trim();
+      const autoPickCheck = document.getElementById('autoUseReadyCoinIdCheck');
+      const resBox = document.getElementById('realOrderApiResultBox');
+      const resTitle = document.getElementById('realOrderApiStatusTitle');
+      const resMsg = document.getElementById('realOrderApiMessage');
+      const submitBtn = document.getElementById('submitServiceOrderBtn');
+
       if (!targetVal) {
-        showToast('⚠️ Enter Target Number / Service ID');
+        showToast('⚠️ Enter Target ID / Number (targetId)');
+        document.getElementById('orderTargetIdInput').focus();
         return;
       }
-      if (prof.credits < 1) {
-        showToast('⚠️ 0 Credits! Please recharge ₹60 in Wallet first.');
-        state.activeTab = 'wallet';
-        renderAll();
+      if (!targetPassVal) {
+        showToast('⚠️ Enter Target Password (targetPass)');
+        document.getElementById('orderNotesInput').focus();
         return;
       }
-      prof.credits -= 1;
-      prof.rupees = Math.max(0, prof.rupees - 20);
-      const woId = Math.floor(7100000000 + Math.random() * 899999999);
-      state.orders.unshift({
-        id: woId,
-        profileId: prof.id,
-        targetId: targetVal,
-        notes: notesVal,
-        status: 'IN PROGRESS',
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      });
-      state.activeTab = 'orders';
-      renderAll();
-      showToast('🚀 Order Placed! Work Order #' + woId);
+
+      // Smart Auto-Pick: If selected profile has < 1.00 Coin and auto-use is enabled, pick any saved account with >= 1.00 Coin!
+      let prof = getActiveProfile();
+      if (autoPickCheck && autoPickCheck.checked && Number(prof.jpwCoins || 0) < 1.0) {
+        const readyList = state.profiles.filter(p => Number(p.jpwCoins || 0) >= 1.0);
+        if (readyList.length > 0) {
+          readyList.sort((a, b) => Number(b.jpwCoins || 0) - Number(a.jpwCoins || 0));
+          prof = readyList[0];
+          state.selectedProfileId = prof.id;
+          renderAll();
+        }
+      }
+
+      submitBtn.classList.add('api-busy');
+      resBox.classList.remove('hidden');
+      resTitle.className = 'font-bold text-amber-300';
+      resTitle.textContent = `⏳ Sending POST /api/order from ${prof.id} (${prof.name})...`;
+      resMsg.textContent = `Payload: { telegramChatId: "WEB_${prof.id}", targetId: "${targetVal}", targetPass: "${targetPassVal}" }`;
+
+      try {
+        const apiRes = await callRealReachOrderApi(prof, targetVal, targetPassVal);
+        const srvMsg = (apiRes.data && (apiRes.data.message || apiRes.data.error)) || (apiRes.ok ? 'Order submitted successfully!' : 'Order rejected by server');
+
+        if (apiRes.ok) {
+          // Deduct 1 Coin (and 1 Credit if available)
+          const u = (apiRes.data && apiRes.data.user) || {};
+          prof.jpwCoins = u.jpwCoins !== undefined ? Number(u.jpwCoins) : Math.max(0, Number(prof.jpwCoins || 0) - 1.0);
+          if (prof.credits > 0) {
+            prof.credits -= 1;
+            prof.rupees = Math.max(0, prof.rupees - 20);
+          }
+
+          const woId = (apiRes.data && apiRes.data.order && apiRes.data.order.id) || Math.floor(7100000000 + Math.random() * 899999999);
+          state.orders.unshift({
+            id: woId,
+            profileId: prof.id,
+            targetId: targetVal,
+            notes: `Pass: ${targetPassVal} | ${srvMsg}`,
+            status: 'COMPLETED',
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          });
+
+          resTitle.className = 'font-bold text-emerald-400';
+          resTitle.textContent = `✅ Real Order Success! (From ID: ${prof.id})`;
+          resMsg.textContent = srvMsg;
+          saveState();
+          renderAll();
+          showToast(`🚀 ${srvMsg}`);
+        } else {
+          resTitle.className = 'font-bold text-rose-400';
+          resTitle.textContent = `⚠️ Server Response (${prof.id}):`;
+          resMsg.textContent = srvMsg;
+          showToast(`⚠️ ${srvMsg}`);
+        }
+      } catch (err) {
+        resTitle.className = 'font-bold text-rose-400';
+        resTitle.textContent = '❌ Network Error calling /api/order';
+        resMsg.textContent = String(err);
+        showToast('⚠️ Could not reach /api/order endpoint');
+      } finally {
+        submitBtn.classList.remove('api-busy');
+      }
     });
 
     // Orders list copy & CSV export
@@ -2082,7 +2279,7 @@
         iconEl.textContent = '🎁';
         textEl.textContent = 'Claim All Bonus';
         titleEl.textContent = `⏳ All ${state.profiles.length} Accounts Already Claimed Today!`;
-        logEl.textContent = 'Wait for the 24h cooldown timer on your accounts, or register a new random account.';
+        logEl.textContent = 'Next Daily Bonus reset at 12:00 AM Midnight (IST) tonight, or register a new random account.';
         showToast('⏳ All saved accounts have already claimed today\'s bonus!');
         renderAll();
         return;
@@ -2275,17 +2472,24 @@
       autoSelectBestCoinAccount('order');
     });
 
-    // Feature 4: Live 1-second Cooldown Countdown Ticker for 24h Bonus Timers
+    // Feature 4: Live 1-second Countdown Ticker until 12:00 AM Midnight IST (auto-refreshes UI at midnight!)
     if (window._bonusCooldownTicker) clearInterval(window._bonusCooldownTicker);
     window._bonusCooldownTicker = setInterval(() => {
+      let flippedToReady = false;
       document.querySelectorAll('[data-cooldown-badge]').forEach(el => {
         const pid = el.getAttribute('data-cooldown-badge');
         const prof = state.profiles.find(p => p.id === pid);
         if (prof) {
           const cd = getBonusCooldownInfo(prof);
+          if (cd.ready && el.textContent.indexOf('Bonus Ready') === -1) {
+            flippedToReady = true;
+          }
           el.textContent = cd.label;
         }
       });
+      if (flippedToReady) {
+        renderAll();
+      }
     }, 1000);
 
     // Initial Render
