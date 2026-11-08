@@ -92,7 +92,7 @@ DEFAULT_STATE = {
             "telegramChatId": "WEB_0690766275",
         },
         {
-            "id": "0691113840",
+            "id": "0524343545",
             "name": "Main Node",
             "password": "12345",
             "credits": 3,
@@ -105,7 +105,7 @@ DEFAULT_STATE = {
     ],
     "orders": [
         {
-            "id": 7127438722,
+            "id": 000,
             "profileId": "0690766275",
             "targetId": "0689728278",
             "notes": "Standard Reach",
