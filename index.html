@@ -64,15 +64,20 @@
           <p class="text-[10px] uppercase tracking-wider text-pink-100 font-semibold">CUSTOMER & WALLET PORTAL</p>
         </div>
       </div>
-      <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur text-xs font-extrabold">
-        <span>👤</span>
-        <span id="headerProfileCount">4</span>
+      <div class="flex items-center gap-1.5">
+        <button id="toggleApkCustomerModeBtn" type="button" class="px-2.5 py-1 rounded-full bg-amber-400 hover:bg-amber-300 text-slate-950 text-[11px] font-extrabold shadow-sm transition">
+          📱 Customer APK
+        </button>
+        <div id="adminProfileCountBadge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur text-xs font-extrabold">
+          <span>👤</span>
+          <span id="headerProfileCount">4</span>
+        </div>
       </div>
     </div>
   </header>
 
   <!-- Selected Account Floating Banner -->
-  <div class="max-w-md mx-auto px-4 pt-3">
+  <div id="adminActiveBannerWrap" class="max-w-md mx-auto px-4 pt-3">
     <div class="px-3.5 py-2.5 rounded-xl bg-white border border-pink-200 flex items-center justify-between shadow-sm">
       <div class="flex items-center gap-2 text-xs truncate mr-2">
         <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 inline-flex items-center justify-center font-bold shrink-0">✔</span>
@@ -492,6 +497,87 @@
         </p>
       </div>
 
+      <!-- Scam-Proof Real Bank Auto-Verification Settings (BharatPe API + SMS Forwarder Webhook) -->
+      <div class="card-box p-4 space-y-3 text-xs border-emerald-200 bg-emerald-50/20">
+        <div class="flex items-center justify-between">
+          <h3 class="font-extrabold text-slate-900 text-sm">🛡️ Real Bank Payment Auto-Verifier</h3>
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-extrabold">Anti-Fake UTR</span>
+        </div>
+        <p class="text-[11px] text-slate-600 leading-relaxed">
+          Koi bhi fake UTR daal kar free ₹20 nahi le sakta! Payment auto-verify karne ke <strong>2 real tarike</strong> hain:
+        </p>
+
+        <!-- Method A: SMS Forwarder / MacroDroid Webhook -->
+        <div class="p-2.5 rounded-xl bg-white border border-slate-200 space-y-1">
+          <p class="font-extrabold text-pink-700 text-[11px]">📲 Method 1: Phone Bank/UPI SMS Auto-Webhook (Free)</p>
+          <p class="text-[10px] text-slate-500">Apne phone me <strong>SMS Forwarder</strong> app me yeh Webhook URL daal dein (Bank/UPI SMS aate hi ₹20 1 second me auto-verify ho jayega):</p>
+          <input id="admWebhookUrlDisplay" type="text" readonly value="https://nothin-7d7i.onrender.com/api/payment-webhook"
+            class="w-full px-2.5 py-1.5 rounded-lg bg-slate-100 border border-slate-200 font-mono text-[10px] text-slate-800" />
+        </div>
+
+        <!-- Method 0 (24x7 Cloud Without Phone!): Freecharge Mobile No. + OTP Auto-Login -->
+        <div class="p-3 rounded-xl bg-white border-2 border-amber-400 space-y-2.5 shadow-sm">
+          <div class="flex items-center justify-between">
+            <p class="font-extrabold text-amber-800 text-[11px]">⚡ Freecharge Mobile + OTP Auto-Connect (24×7 Cloud)</p>
+            <span id="admFcStatusBadge" class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-extrabold">1-Click OTP Login</span>
+          </div>
+          <p class="text-[10px] text-slate-500">
+            Apna Freecharge Mobile Number aur OTP daalein — server khud <code>app_fc</code> session token aur <code>@freecharge</code> UPI ID set kar dega!
+          </p>
+
+          <!-- Step 1: Mobile Number + Send OTP -->
+          <div class="flex items-center gap-1.5">
+            <input id="admFcMobileInput" type="text" maxlength="10" placeholder="10-Digit Freecharge Mobile"
+              class="flex-1 px-2.5 py-2 rounded-lg bg-slate-50 border border-slate-200 font-mono text-xs font-bold text-slate-900" />
+            <button id="admFcSendOtpBtn" type="button" class="px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-[11px] shrink-0">
+              📲 Send OTP
+            </button>
+          </div>
+
+          <!-- Step 2: Enter OTP + Auto-Connect -->
+          <div id="admFcOtpVerifyRow" class="flex items-center gap-1.5">
+            <input id="admFcOtpInput" type="text" maxlength="6" placeholder="Enter OTP..."
+              class="flex-1 px-2.5 py-2 rounded-lg bg-slate-50 border border-slate-200 font-mono text-xs font-bold text-slate-900" />
+            <button id="admFcVerifyOtpBtn" type="button" class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-[11px] shrink-0">
+              ✅ Verify & Auto-Set
+            </button>
+          </div>
+
+          <p id="admFcOtpFeedbackText" class="text-[10px] text-emerald-700 font-semibold hidden"></p>
+
+          <!-- Auto-Filled Session Cookie Box -->
+          <div class="pt-1 border-t border-slate-100">
+            <label for="admFreechargeCookieInput" class="block text-[9px] font-bold uppercase text-slate-400 mb-0.5">
+              Auto-Saved Freecharge Session Token (app_fc)
+            </label>
+            <input id="admFreechargeCookieInput" type="password" placeholder="Auto-filled on OTP verify (or paste manually)..."
+              class="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 font-mono text-[10px] text-slate-800" />
+          </div>
+        </div>
+
+        <!-- Method 1 (Best): Razorpay Gateway (Exact Flipkart / Amazon Instant UPI Sheet) -->
+        <div class="p-2.5 rounded-xl bg-white border border-pink-200 space-y-2">
+          <p class="font-extrabold text-pink-700 text-[11px]">⚡ Method 1 (Flipkart/Amazon Style): Razorpay Gateway</p>
+          <div class="grid grid-cols-2 gap-1.5">
+            <input id="admRazorpayKeyIdInput" type="text" placeholder="Razorpay Key ID (rzp_live_...)"
+              class="px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 font-mono text-[11px]" />
+            <input id="admRazorpaySecretInput" type="password" placeholder="Razorpay Key Secret"
+              class="px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 font-mono text-[11px]" />
+          </div>
+        </div>
+
+        <!-- Method B: BharatPe Merchant API (Zero-UTR Unique Paise ₹20.01 Auto-Match) -->
+        <div class="p-2.5 rounded-xl bg-white border border-slate-200 space-y-2">
+          <p class="font-extrabold text-teal-700 text-[11px]">🏦 Method 2: BharatPe Merchant API (Auto ₹20.01 Match)</p>
+          <div class="grid grid-cols-2 gap-1.5">
+            <input id="admBharatpeMidInput" type="text" placeholder="BharatPe MID"
+              class="px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 font-mono text-[11px]" />
+            <input id="admBharatpeTokenInput" type="password" placeholder="BharatPe Token"
+              class="px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 font-mono text-[11px]" />
+          </div>
+        </div>
+      </div>
+
       <!-- Admin UPI & App Title Settings -->
       <div class="card-box p-4 space-y-3 text-xs">
         <h3 class="font-extrabold text-slate-800 text-sm">⚙️ UPI & App Configuration</h3>
@@ -513,6 +599,35 @@
             Reset
           </button>
         </div>
+      </div>
+
+      <!-- Customer APK Users Manager (Technician ID, Password & Wallet Balance) -->
+      <div class="card-box p-4 space-y-3 border-pink-200">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="font-extrabold text-slate-900 text-sm">👥 Customer APK Users (ID / Pass / ₹)</h3>
+            <p class="text-[11px] text-slate-500">Users registered in the ₹20 Customer APK</p>
+          </div>
+          <span id="admTotalUsersBadge" class="px-2.5 py-0.5 rounded-full bg-pink-100 text-pink-700 text-xs font-extrabold">1 User</span>
+        </div>
+
+        <!-- Quick Add / Credit Customer User Form -->
+        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
+          <p class="font-bold text-slate-700 text-[11px] uppercase">➕ Add User / Update ₹ Balance</p>
+          <div class="grid grid-cols-3 gap-1.5">
+            <input id="admNewCustIdInput" type="text" placeholder="Tech ID"
+              class="px-2.5 py-2 rounded-lg bg-white border border-slate-200 font-mono text-xs" />
+            <input id="admNewCustPassInput" type="text" placeholder="Password"
+              class="px-2.5 py-2 rounded-lg bg-white border border-slate-200 font-mono text-xs" />
+            <input id="admNewCustBalInput" type="number" placeholder="₹ Bal (20)" value="20"
+              class="px-2.5 py-2 rounded-lg bg-white border border-slate-200 font-bold text-xs" />
+          </div>
+          <button id="admSaveCustomerUserBtn" type="button" class="w-full py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs">
+            💾 Save APK User & Balance
+          </button>
+        </div>
+
+        <div id="admCustomerUsersList" class="space-y-2"></div>
       </div>
 
       <!-- Admin Order Fulfillment Queue -->
@@ -603,10 +718,169 @@
         <button id="jpwGoToRechargeBtn" type="button"></button>
       </div>
     </section>
-    </main>
+      <!-- ================= CUSTOMER APK STANDALONE INTERFACE (₹20 = 1 REACH) ================= -->
+    <section id="tabSectionCustomerApk" class="space-y-4 hidden">
+      <!-- Top Customer Wallet Bar (Shows Technician ID & Live ₹20 Wallet Balance) -->
+      <div class="card-box p-4 bg-gradient-to-br from-slate-900 to-slate-800 text-white border-pink-500/40 shadow-xl space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <span class="px-2 py-0.5 rounded bg-pink-600 text-white text-[10px] font-extrabold uppercase tracking-wider">
+              TECHNICIAN PORTAL
+            </span>
+            <p class="text-sm font-extrabold mt-1 font-mono" id="custApkActiveTechIdDisplay">Not Logged In</p>
+          </div>
+          <div class="text-right">
+            <p class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">WALLET BALANCE</p>
+            <p class="text-2xl font-extrabold text-emerald-400">₹<span id="custApkWalletRupees">0</span></p>
+          </div>
+        </div>
+        <div class="flex items-center justify-between text-[11px] border-t border-slate-700/80 pt-2 text-slate-300">
+          <span>⚡ Rate: <strong class="text-white">₹20 = 1 Reach Order</strong></span>
+          <button id="custApkLogoutBtn" type="button" class="text-rose-400 hover:underline font-bold hidden">🚪 Logout ID</button>
+        </div>
+      </div>
+
+      <!-- STEP 1: TECHNICIAN LOGIN / SIGNUP CARD (Shown when customer is not logged in) -->
+      <div id="custApkLoginCard" class="card-box p-4 space-y-3.5 border-pink-200">
+        <div>
+          <h3 class="text-base font-extrabold text-slate-900">👷 Technician Login / Register</h3>
+          <p class="text-xs text-slate-500">Apना Technician ID aur Password daal kar login karein (Naya ID apne-aap ban jayega)</p>
+        </div>
+
+        <div class="space-y-2.5">
+          <div>
+            <label for="custApkLoginIdInput" class="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+              TECHNICIAN ID / MOBILE NO. <span class="text-rose-500">*</span>
+            </label>
+            <input id="custApkLoginIdInput" type="text" placeholder="e.g. 0691112222 or TECH101" value="TECH101"
+              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-mono font-bold text-slate-900 focus:outline-none focus:border-pink-500" />
+          </div>
+          <div>
+            <label for="custApkLoginPassInput" class="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+              PASSWORD <span class="text-rose-500">*</span>
+            </label>
+            <input id="custApkLoginPassInput" type="password" placeholder="Enter your password" value="12345"
+              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-mono text-slate-900 focus:outline-none focus:border-pink-500" />
+          </div>
+          <button id="custApkLoginSubmitBtn" type="button" class="w-full py-3 rounded-xl brand-btn text-sm shadow-md">
+            🔐 Login / Create Technician ID
+          </button>
+        </div>
+      </div>
+
+      <!-- STEP 2: LOGGED-IN CUSTOMER DASHBOARD (₹20 Auto-Verified Payment + 1 Reach Order Submission) -->
+      <div id="custApkDashboardWrap" class="space-y-4 hidden">
+
+        <!-- A. SUBMIT 1 REACH ORDER CARD (Unlocks when Wallet >= ₹20) -->
+        <div class="card-box p-4 space-y-3.5 border-2 border-emerald-500/80 shadow-md">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-extrabold text-emerald-800 flex items-center gap-1.5">
+              <span>🚀</span> Submit 1 Reach Order
+            </span>
+            <span id="custApkOrderReadyBadge" class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold">
+              Cost: ₹20 / Reach
+            </span>
+          </div>
+
+          <div class="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600 flex items-center justify-between">
+            <span>⏰ Service Time: <strong>09:30 AM – 10:15 PM</strong></span>
+            <span class="text-pink-600 font-bold">Auto-Instant Reach</span>
+          </div>
+
+          <div class="space-y-2.5">
+            <div>
+              <label for="custApkTargetIdInput" class="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+                TARGET ID / CUSTOMER NUMBER <span class="text-rose-500">*</span>
+              </label>
+              <input id="custApkTargetIdInput" type="text" placeholder="Enter Target ID (e.g. 0689728278)"
+                class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-mono font-bold text-slate-900 focus:outline-none focus:border-emerald-500" />
+            </div>
+            <div>
+              <label for="custApkTargetPassInput" class="block text-[11px] font-bold uppercase text-slate-500 mb-1">
+                TARGET PASSWORD <span class="text-rose-500">*</span>
+              </label>
+              <input id="custApkTargetPassInput" type="text" placeholder="Enter Target Password (e.g. 12345)"
+                class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-mono text-slate-900 focus:outline-none focus:border-emerald-500" />
+            </div>
+
+            <button id="custApkSubmitOrderBtn" type="button" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-sm shadow-lg transition">
+              🚀 Place 1 Reach Order Now (Deduct ₹20)
+            </button>
+
+            <div id="custApkOrderLiveResult" class="hidden p-3 rounded-xl bg-slate-900 text-white text-xs font-mono space-y-1"></div>
+          </div>
+        </div>
+
+        <!-- B. ₹20 AUTOMATIC UPI PAYMENT & INSTANT VERIFICATION CARD -->
+        <div class="card-box p-4 space-y-3.5 text-center">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-extrabold text-pink-700">💳 Add Money (₹20 = 1 Reach)</span>
+            <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-extrabold">⚡ Auto-Verify</span>
+          </div>
+
+          <!-- Amount Selector (₹20 / ₹40 / ₹60) -->
+          <div class="grid grid-cols-3 gap-2">
+            <button type="button" data-cust-amt="20" class="cust-amt-btn py-2 rounded-xl border-2 border-pink-500 bg-pink-50 text-pink-700 font-extrabold text-xs">
+              ₹20 (1 Reach)
+            </button>
+            <button type="button" data-cust-amt="40" class="cust-amt-btn py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-bold text-xs">
+              ₹40 (2 Reach)
+            </button>
+            <button type="button" data-cust-amt="60" class="cust-amt-btn py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-bold text-xs">
+              ₹60 (3 Reach)
+            </button>
+          </div>
+
+          <!-- Flipkart / Amazon Style Instant Auto-Pay Session Card -->
+          <div class="p-3.5 rounded-2xl bg-slate-900 text-white border border-pink-500/40 flex flex-col items-center space-y-2.5">
+            <div class="flex items-center justify-between w-full text-[11px]">
+              <span class="text-teal-300 font-bold">⚡ Zero-UTR Instant UPI</span>
+              <span id="custApkUniqueSessionBadge" class="px-2 py-0.5 rounded bg-pink-600 text-white font-mono text-[10px] font-bold">Auto-Detect Active</span>
+            </div>
+
+            <div id="custApkQrBox" class="bg-white p-2 rounded-xl border border-slate-200 min-w-[140px] min-h-[140px] flex items-center justify-center"></div>
+
+            <p class="text-[11px] text-slate-300">
+              Pay Exact: <strong id="custApkExactUniqueAmt" class="text-amber-300 font-mono text-sm">₹20.00</strong>
+              <span class="text-slate-400">• UPI:</span> <strong id="custApkUpiIdText" class="font-mono text-white">jpwportal@ybl</strong>
+            </p>
+
+            <button id="custApkStartAutoPayBtn" type="button" class="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 text-xs font-extrabold shadow-lg transition">
+              ⚡ Pay ₹<span id="custApkPayBtnAmt">20</span> Now (Auto-Add to Wallet)
+            </button>
+
+            <a id="custApkUpiDeepLink" href="upi://pay?pa=jpwportal@ybl&pn=JPW%20Portal&am=20.00&cu=INR" class="hidden"></a>
+
+            <p id="custApkAutoListenStatus" class="text-[11px] text-amber-300 font-medium hidden">
+              🔄 Waiting for UPI Payment completion... (Auto-adds ₹20 as soon as paid!)
+            </p>
+          </div>
+
+          <!-- Automatic 12-Digit UTR Verification (No Manual Approval Needed!) -->
+          <div class="space-y-2 text-left pt-1">
+            <label for="custApkUtrInput" class="block text-xs font-bold text-slate-700">
+              Enter 12-Digit UPI UTR No. (Instant Auto-Add ₹<span id="custApkUtrLabelAmt">20</span>)
+            </label>
+            <input id="custApkUtrInput" type="text" maxlength="12" placeholder="12-digit UTR (e.g. 431298765432)"
+              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-mono text-slate-900 focus:outline-none focus:border-pink-500" />
+            <button id="custApkVerifyUtrBtn" type="button" class="w-full py-3 rounded-xl brand-btn text-xs shadow-md">
+              ⚡ Auto-Verify Payment & Add ₹<span id="custApkVerifyBtnAmt">20</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- C. CUSTOMER'S RECENT ORDERS -->
+        <div class="card-box p-4 space-y-2.5">
+          <h4 class="text-xs font-extrabold text-slate-800 uppercase">📦 My Recent Reach Orders</h4>
+          <div id="custApkOrdersList" class="space-y-2 text-xs text-slate-500"></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
 
   <!-- Bottom Navigation Bar -->
-  <nav class="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 shadow-lg">
+  <nav id="adminBottomNavBar" class="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 shadow-lg">
     <div class="max-w-md mx-auto grid grid-cols-6 py-1.5">
       <button type="button" data-nav-tab="accounts" class="nav-tab-btn flex flex-col items-center justify-center py-1 text-pink-600 font-bold">
         <span class="text-base">👤</span>
@@ -712,6 +986,13 @@
           note: 'No active pack'
         }
       ],
+      customers: [
+        { techId: 'TECH101', password: '12345', name: 'Demo Technician', balance: 20, totalOrders: 0 }
+      ],
+      usedUtrs: [],
+      customerApkMode: false,
+      customerPayAmt: 20,
+      loggedInCustomer: null,
       orders: [
         {
           id: 7127438722,
@@ -763,6 +1044,7 @@
                 orders: state.orders,
                 stats: state.stats,
                 settings: state.settings,
+                customers: state.customers || [],
                 deletedProfileIds: window._deletedProfileIds || []
               })
             }).then(() => {
@@ -858,6 +1140,29 @@
               }
             }
           });
+        }
+
+        // 2b. Merge Customer APK Users (ID, Password, Balance)
+        if (Array.isArray(serverState.customers)) {
+          if (!Array.isArray(state.customers)) state.customers = [];
+          const localCustMap = new Map(state.customers.map(c => [String(c.techId), c]));
+          serverState.customers.forEach(sc => {
+            if (!sc || !sc.techId) return;
+            const tid = String(sc.techId);
+            if (!localCustMap.has(tid)) {
+              state.customers.unshift(sc);
+              localCustMap.set(tid, sc);
+              mergedAny = true;
+            } else {
+              const lc = localCustMap.get(tid);
+              Object.assign(lc, sc);
+              mergedAny = true;
+            }
+          });
+          if (state.loggedInCustomer) {
+            const updatedSelf = state.customers.find(c => String(c.techId) === String(state.loggedInCustomer.techId));
+            if (updatedSelf) state.loggedInCustomer = updatedSelf;
+          }
         }
 
         // 3. Merge Admin Stats if server has higher collected total
@@ -1395,7 +1700,13 @@
       document.getElementById('activeBannerCredits').textContent = activeProf.credits;
       document.getElementById('activeBannerRupees').textContent = activeProf.rupees;
 
-      // Switch visible tab section
+      // Check if URL has ?mode=customer (Standalone APK link)
+      const isStandaloneCustomerUrl = window.location && window.location.search && window.location.search.indexOf('mode=customer') !== -1;
+      if (isStandaloneCustomerUrl) {
+        state.customerApkMode = true;
+      }
+
+      // Switch visible tab section (or show Customer APK Standalone View)
       const tabs = {
         accounts: 'tabSectionAccounts',
         livesite: 'tabSectionLiveSite',
@@ -1404,11 +1715,34 @@
         orders: 'tabSectionOrders',
         admin: 'tabSectionAdmin'
       };
-      Object.keys(tabs).forEach(k => {
-        const el = document.getElementById(tabs[k]);
-        if (state.activeTab === k) el.classList.remove('hidden');
-        else el.classList.add('hidden');
-      });
+      const custSec = document.getElementById('tabSectionCustomerApk');
+      const admBanner = document.getElementById('adminActiveBannerWrap');
+      const admNav = document.getElementById('adminBottomNavBar');
+      const admBadge = document.getElementById('adminProfileCountBadge');
+      const apkToggleBtn = document.getElementById('toggleApkCustomerModeBtn');
+
+      if (state.customerApkMode) {
+        Object.keys(tabs).forEach(k => document.getElementById(tabs[k]).classList.add('hidden'));
+        if (custSec) custSec.classList.remove('hidden');
+        if (admBanner) admBanner.classList.add('hidden');
+        if (admNav) admNav.classList.add('hidden');
+        if (admBadge) admBadge.classList.add('hidden');
+        if (apkToggleBtn) {
+          if (isStandaloneCustomerUrl) apkToggleBtn.classList.add('hidden');
+          else apkToggleBtn.textContent = '🛡️ Back to Admin';
+        }
+      } else {
+        if (custSec) custSec.classList.add('hidden');
+        if (admBanner) admBanner.classList.remove('hidden');
+        if (admNav) admNav.classList.remove('hidden');
+        if (admBadge) admBadge.classList.remove('hidden');
+        if (apkToggleBtn) apkToggleBtn.textContent = '📱 Customer APK';
+        Object.keys(tabs).forEach(k => {
+          const el = document.getElementById(tabs[k]);
+          if (state.activeTab === k) el.classList.remove('hidden');
+          else el.classList.add('hidden');
+        });
+      }
 
       document.querySelectorAll('.nav-tab-btn').forEach(btn => {
         const k = btn.getAttribute('data-nav-tab');
@@ -1608,7 +1942,60 @@
       document.getElementById('admProfitText').textContent = state.stats.profit;
       document.getElementById('admUpiInput').value = state.settings.upiId || '';
       document.getElementById('admTitleInput').value = state.settings.appTitle || '';
+      const fcCookEl = document.getElementById('admFreechargeCookieInput');
+      if (fcCookEl) fcCookEl.value = state.settings.freechargeCookie || '';
+      const fcMobEl = document.getElementById('admFcMobileInput');
+      if (fcMobEl && !fcMobEl.value && state.settings.freechargeMobile) {
+        fcMobEl.value = state.settings.freechargeMobile;
+      }
+      const fcBadgeEl = document.getElementById('admFcStatusBadge');
+      if (fcBadgeEl) {
+        if (state.settings.freechargeCookie) {
+          fcBadgeEl.textContent = '✔ Connected 24×7';
+          fcBadgeEl.className = 'px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[9px] font-extrabold';
+        } else {
+          fcBadgeEl.textContent = '1-Click OTP Login';
+          fcBadgeEl.className = 'px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-extrabold';
+        }
+      }
+      const rzpIdEl = document.getElementById('admRazorpayKeyIdInput');
+      const rzpSecEl = document.getElementById('admRazorpaySecretInput');
+      if (rzpIdEl) rzpIdEl.value = state.settings.razorpayKeyId || '';
+      if (rzpSecEl) rzpSecEl.value = state.settings.razorpayKeySecret || '';
+      const bpMidEl = document.getElementById('admBharatpeMidInput');
+      const bpTokEl = document.getElementById('admBharatpeTokenInput');
+      const whUrlEl = document.getElementById('admWebhookUrlDisplay');
+      if (bpMidEl) bpMidEl.value = state.settings.bharatpeMid || '';
+      if (bpTokEl) bpTokEl.value = state.settings.bharatpeToken || '';
+      if (whUrlEl && window.location && window.location.origin && window.location.origin.startsWith('http')) {
+        whUrlEl.value = window.location.origin + '/api/payment-webhook';
+      }
       document.getElementById('admApiUrlInput').value = state.settings.registerApiUrl || DEFAULT_API_REGISTER;
+
+      // Render Admin Customer APK Users List (Technician ID, Password, ₹ Balance)
+      if (!Array.isArray(state.customers)) {
+        state.customers = [{ techId: 'TECH101', password: '12345', name: 'Demo Technician', balance: 20, totalOrders: 0 }];
+      }
+      const admUsersBadge = document.getElementById('admTotalUsersBadge');
+      if (admUsersBadge) admUsersBadge.textContent = state.customers.length + ' Users';
+      const admCustListEl = document.getElementById('admCustomerUsersList');
+      if (admCustListEl) {
+        admCustListEl.innerHTML = state.customers.map(c => `
+          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-2 text-xs">
+            <div>
+              <p class="font-extrabold text-slate-900 font-mono">👷 ${c.techId} <span class="text-slate-500 font-sans font-normal">• Pass:</span> <span class="text-pink-700 font-mono">${c.password}</span></p>
+              <p class="text-[11px] text-slate-500 mt-0.5">Wallet: <strong class="text-emerald-700">₹${Number(c.balance || 0)}</strong> (${Math.floor(Number(c.balance || 0) / 20)} Reach) • Orders: ${c.totalOrders || 0}</p>
+            </div>
+            <div class="flex items-center gap-1">
+              <button type="button" data-add-cust-bal="${c.techId}" class="px-2 py-1 rounded-lg bg-emerald-600 text-white text-[10px] font-extrabold">+₹20</button>
+              <button type="button" data-del-cust="${c.techId}" class="px-2 py-1 rounded-lg bg-rose-100 text-rose-700 text-[10px] font-bold">🗑️</button>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // Render Customer APK Interface
+      renderCustomerApkView();
 
       const admPendingEl = document.getElementById('admPendingOrdersList');
       const pendList = state.orders.filter(o => o.status !== 'COMPLETED');
@@ -2087,8 +2474,20 @@
       state.settings.upiId = document.getElementById('admUpiInput').value.trim() || 'jpwportal@ybl';
       state.settings.appTitle = document.getElementById('admTitleInput').value.trim() || 'JPW Order Mini App';
       state.settings.registerApiUrl = document.getElementById('admApiUrlInput').value.trim() || DEFAULT_API_REGISTER;
+      const fcCookSaveEl = document.getElementById('admFreechargeCookieInput');
+      if (fcCookSaveEl) state.settings.freechargeCookie = fcCookSaveEl.value.trim();
+      const rzpIdEl = document.getElementById('admRazorpayKeyIdInput');
+      const rzpSecEl = document.getElementById('admRazorpaySecretInput');
+      if (rzpIdEl) state.settings.razorpayKeyId = rzpIdEl.value.trim();
+      if (rzpSecEl) state.settings.razorpayKeySecret = rzpSecEl.value.trim();
+      const bpMidEl = document.getElementById('admBharatpeMidInput');
+      const bpTokEl = document.getElementById('admBharatpeTokenInput');
+      if (bpMidEl) state.settings.bharatpeMid = bpMidEl.value.trim();
+      if (bpTokEl) state.settings.bharatpeToken = bpTokEl.value.trim();
+      window._initialServerPullDone = true;
+      saveState();
       renderAll();
-      showToast('✅ Admin & API Settings Saved');
+      showToast('✅ Admin, UPI & Bank Verifier Settings Saved');
     });
 
     document.getElementById('resetMiniAppDataBtn').addEventListener('click', () => {
@@ -2491,6 +2890,538 @@
         renderAll();
       }
     }, 1000);
+
+    function renderCustomerApkView() {
+      const loginCard = document.getElementById('custApkLoginCard');
+      const dashWrap = document.getElementById('custApkDashboardWrap');
+      const logoutBtn = document.getElementById('custApkLogoutBtn');
+      const idDisp = document.getElementById('custApkActiveTechIdDisplay');
+      const balDisp = document.getElementById('custApkWalletRupees');
+      if (!loginCard || !dashWrap) return;
+
+      const cust = state.loggedInCustomer;
+      if (!cust) {
+        loginCard.classList.remove('hidden');
+        dashWrap.classList.add('hidden');
+        logoutBtn.classList.add('hidden');
+        idDisp.textContent = 'Please Login Below';
+        balDisp.textContent = '0';
+        return;
+      }
+
+      loginCard.classList.add('hidden');
+      dashWrap.classList.remove('hidden');
+      logoutBtn.classList.remove('hidden');
+      idDisp.textContent = `Tech ID: ${cust.techId}`;
+      balDisp.textContent = String(Number(cust.balance || 0));
+
+      const submitBtn = document.getElementById('custApkSubmitOrderBtn');
+      if (Number(cust.balance || 0) >= 20) {
+        submitBtn.textContent = `🚀 Place 1 Reach Order Now (Deduct ₹20)`;
+        submitBtn.className = 'w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-sm shadow-lg transition';
+      } else {
+        submitBtn.textContent = `🔒 Pay ₹20 Below to Unlock Reach Order`;
+        submitBtn.className = 'w-full py-3.5 rounded-xl bg-slate-300 text-slate-600 font-extrabold text-sm transition';
+      }
+
+      // Render ₹20 UPI QR inside Customer APK
+      const amt = Number(state.customerPayAmt || 20);
+      const upi = state.settings.upiId || 'jpwportal@ybl';
+      const uri = `upi://pay?pa=${encodeURIComponent(upi)}&pn=${encodeURIComponent(state.settings.appTitle || 'JPW Portal')}&am=${amt}.00&cu=INR`;
+      document.getElementById('custApkUpiIdText').textContent = upi;
+      document.getElementById('custApkPayBtnAmt').textContent = String(amt);
+      document.getElementById('custApkUtrLabelAmt').textContent = String(amt);
+      document.getElementById('custApkVerifyBtnAmt').textContent = String(amt);
+      document.getElementById('custApkUpiDeepLink').setAttribute('href', uri);
+
+      document.querySelectorAll('.cust-amt-btn').forEach(b => {
+        if (Number(b.getAttribute('data-cust-amt')) === amt) {
+          b.className = 'cust-amt-btn py-2 rounded-xl border-2 border-pink-500 bg-pink-50 text-pink-700 font-extrabold text-xs';
+        } else {
+          b.className = 'cust-amt-btn py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-bold text-xs';
+        }
+      });
+
+      const qrBox = document.getElementById('custApkQrBox');
+      if (qrBox && typeof qrcode === 'function') {
+        try {
+          const qr = qrcode(0, 'M');
+          qr.addData(uri);
+          qr.make();
+          qrBox.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2 });
+        } catch (e) {}
+      }
+
+      // Render Customer's Recent Orders
+      const myOrders = state.orders.filter(o => String(o.customerTechId || '') === String(cust.techId));
+      const ordListEl = document.getElementById('custApkOrdersList');
+      if (ordListEl) {
+        ordListEl.innerHTML = myOrders.length === 0
+          ? `<p class="text-center text-slate-400 py-2">No orders placed yet from ${cust.techId}.</p>`
+          : myOrders.map(o => `
+            <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+              <div>
+                <p class="font-bold text-slate-900">Target: <span class="font-mono text-pink-700">${o.targetId}</span></p>
+                <p class="text-[10px] text-slate-400">WO #${o.id} • ${o.time}</p>
+              </div>
+              <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-extrabold">${o.status}</span>
+            </div>
+          `).join('');
+      }
+    }
+
+    // Toggle Customer APK Mode
+    document.getElementById('toggleApkCustomerModeBtn').addEventListener('click', () => {
+      state.customerApkMode = !state.customerApkMode;
+      renderAll();
+    });
+
+    // Admin: Save / Update Customer APK User & Balance
+    document.getElementById('admSaveCustomerUserBtn').addEventListener('click', () => {
+      const tid = document.getElementById('admNewCustIdInput').value.trim();
+      const pwd = document.getElementById('admNewCustPassInput').value.trim() || '12345';
+      const bal = Number(document.getElementById('admNewCustBalInput').value || 0);
+      if (!tid) {
+        showToast('⚠️ Enter Technician ID');
+        return;
+      }
+      if (!Array.isArray(state.customers)) state.customers = [];
+      const existing = state.customers.find(c => String(c.techId) === tid);
+      if (existing) {
+        existing.password = pwd;
+        existing.balance = bal;
+      } else {
+        state.customers.unshift({ techId: tid, password: pwd, name: 'Tech_' + tid.slice(-4), balance: bal, totalOrders: 0 });
+      }
+      document.getElementById('admNewCustIdInput').value = '';
+      document.getElementById('admNewCustPassInput').value = '';
+      window._initialServerPullDone = true;
+      saveState();
+      renderAll();
+      showToast(`✅ Saved APK User ${tid} (Balance: ₹${bal})`);
+    });
+
+    // Admin Customer Users List Actions (+₹20 & Delete)
+    document.getElementById('admCustomerUsersList').addEventListener('click', (e) => {
+      const addBtn = e.target.closest('[data-add-cust-bal]');
+      if (addBtn) {
+        const tid = addBtn.getAttribute('data-add-cust-bal');
+        const cust = (state.customers || []).find(c => String(c.techId) === String(tid));
+        if (cust) {
+          cust.balance = Number(cust.balance || 0) + 20;
+          if (state.loggedInCustomer && String(state.loggedInCustomer.techId) === String(tid)) {
+            state.loggedInCustomer.balance = cust.balance;
+          }
+          window._initialServerPullDone = true;
+          saveState();
+          renderAll();
+          showToast(`➕ Added ₹20 to ${tid} (New Bal: ₹${cust.balance})`);
+        }
+        return;
+      }
+      const delBtn = e.target.closest('[data-del-cust]');
+      if (delBtn) {
+        const tid = delBtn.getAttribute('data-del-cust');
+        state.customers = (state.customers || []).filter(c => String(c.techId) !== String(tid));
+        window._initialServerPullDone = true;
+        saveState();
+        renderAll();
+        showToast(`🗑️ Deleted user ${tid}`);
+      }
+    });
+
+    // Customer APK: Login / Auto-Register Technician ID
+    document.getElementById('custApkLoginSubmitBtn').addEventListener('click', async () => {
+      const tid = document.getElementById('custApkLoginIdInput').value.trim();
+      const pwd = document.getElementById('custApkLoginPassInput').value.trim();
+      if (!tid || !pwd) {
+        showToast('⚠️ Enter Technician ID and Password');
+        return;
+      }
+
+      // Try backend /api/customer/auth first if running on Render server
+      const orig = window.location && window.location.origin ? window.location.origin : '';
+      if (orig.startsWith('http')) {
+        try {
+          const res = await fetch(orig + '/api/customer/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ techId: tid, password: pwd })
+          });
+          const data = await res.json().catch(() => null);
+          if (data && data.ok && data.customer) {
+            state.loggedInCustomer = data.customer;
+            const existing = (state.customers || []).find(c => String(c.techId) === tid);
+            if (existing) Object.assign(existing, data.customer);
+            else state.customers.unshift(data.customer);
+            renderAll();
+            showToast(`✅ Welcome Technician ${tid}!`);
+            return;
+          } else if (data && !data.ok) {
+            showToast(data.message || '❌ Login failed');
+            return;
+          }
+        } catch (e) {}
+      }
+
+      // Local fallback (Canvas preview)
+      if (!Array.isArray(state.customers)) state.customers = [];
+      let cust = state.customers.find(c => String(c.techId) === tid);
+      if (cust) {
+        if (String(cust.password) !== pwd) {
+          showToast('❌ Wrong Password for this Technician ID!');
+          return;
+        }
+      } else {
+        cust = { techId: tid, password: pwd, name: 'Tech_' + tid.slice(-4), balance: 0, totalOrders: 0 };
+        state.customers.unshift(cust);
+      }
+      state.loggedInCustomer = cust;
+      saveState();
+      renderAll();
+      showToast(`✅ Logged in as ${tid}`);
+    });
+
+    document.getElementById('custApkLogoutBtn').addEventListener('click', () => {
+      state.loggedInCustomer = null;
+      renderAll();
+      showToast('👋 Logged out');
+    });
+
+    // Customer APK: Select Recharge Pack (₹20 / ₹40 / ₹60)
+    document.querySelectorAll('.cust-amt-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.customerPayAmt = Number(btn.getAttribute('data-cust-amt') || 20);
+        renderCustomerApkView();
+      });
+    });
+
+    // Customer APK: Automatic 12-Digit UTR Payment Verification (No Manual Approval!)
+    document.getElementById('custApkVerifyUtrBtn').addEventListener('click', async () => {
+      const cust = state.loggedInCustomer;
+      if (!cust) return;
+      const rawUtr = document.getElementById('custApkUtrInput').value.replace(/\D/g, '');
+      const amt = Number(state.customerPayAmt || 20);
+
+      if (rawUtr.length !== 12 || rawUtr[0] === '0' || new Set(rawUtr.split('')).size < 3) {
+        showToast('⚠️ Invalid UTR! Enter valid 12-digit UPI UTR number.');
+        return;
+      }
+
+      const orig = window.location && window.location.origin ? window.location.origin : '';
+      if (orig.startsWith('http')) {
+        try {
+          const res = await fetch(orig + '/api/customer/pay', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ techId: cust.techId, utr: rawUtr, amount: amt })
+          });
+          const data = await res.json().catch(() => null);
+          if (data && data.ok && data.customer) {
+            state.loggedInCustomer = data.customer;
+            const existing = (state.customers || []).find(c => String(c.techId) === String(cust.techId));
+            if (existing) Object.assign(existing, data.customer);
+            document.getElementById('custApkUtrInput').value = '';
+            renderAll();
+            showToast(data.message || `🎉 ₹${amt} Auto-Verified!`);
+            return;
+          } else if (data && !data.ok) {
+            showToast(data.message || '❌ UTR Verification Failed');
+            return;
+          }
+        } catch (e) {}
+      }
+
+      // Never credit unverified UTRs locally! Show pending bank verification message
+      showToast('⏳ Checking UTR with Bank Server... Fake UTR is strictly blocked!');
+    });
+
+    // Live Wallet Auto-Poller for Customer APK Mode (Checks server every 4 seconds so when Bank SMS Webhook or Admin 1-Tap confirms payment, ₹20 appears at the top automatically!)
+    if (window._customerWalletPoller) clearInterval(window._customerWalletPoller);
+    window._customerWalletPoller = setInterval(async () => {
+      if (!state.customerApkMode || !state.loggedInCustomer) return;
+      const prevBal = Number(state.loggedInCustomer.balance || 0);
+      await syncProfilesWithBotServer();
+      const newBal = Number(state.loggedInCustomer.balance || 0);
+      if (newBal > prevBal) {
+        renderAll();
+        showToast(`🎉 Payment Confirmed by Bank! Wallet Balance: ₹${newBal}`);
+      }
+    }, 4000);
+
+    // Customer APK: Submit 1 Reach Order (Deducts ₹20 & Automatically uses Backend Node with >= 1.00 Coin!)
+    document.getElementById('custApkSubmitOrderBtn').addEventListener('click', async () => {
+      const cust = state.loggedInCustomer;
+      if (!cust) return;
+      if (Number(cust.balance || 0) < 20) {
+        showToast('⚠️ Balance ₹0! Please pay ₹20 below to unlock Reach Order.');
+        document.getElementById('custApkUtrInput').focus();
+        return;
+      }
+
+      const targetId = document.getElementById('custApkTargetIdInput').value.trim();
+      const targetPass = document.getElementById('custApkTargetPassInput').value.trim();
+      const resBox = document.getElementById('custApkOrderLiveResult');
+      const submitBtn = document.getElementById('custApkSubmitOrderBtn');
+
+      if (!targetId || !targetPass) {
+        showToast('⚠️ Enter both Target ID and Target Password');
+        return;
+      }
+
+      submitBtn.classList.add('api-busy');
+      resBox.classList.remove('hidden');
+      resBox.innerHTML = `<p class="text-amber-300 font-bold">⏳ Processing your Reach Order via Backend Service Node...</p>`;
+
+      // 1. Try server /api/customer/order first
+      const orig = window.location && window.location.origin ? window.location.origin : '';
+      if (orig.startsWith('http')) {
+        try {
+          const res = await fetch(orig + '/api/customer/order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ techId: cust.techId, targetId, targetPass })
+          });
+          const data = await res.json().catch(() => null);
+          if (data && data.ok && data.customer) {
+            state.loggedInCustomer = data.customer;
+            const existing = (state.customers || []).find(c => String(c.techId) === String(cust.techId));
+            if (existing) Object.assign(existing, data.customer);
+            if (data.order) state.orders.unshift(data.order);
+            resBox.innerHTML = `<p class="text-emerald-400 font-bold">${data.message}</p>`;
+            document.getElementById('custApkTargetIdInput').value = '';
+            document.getElementById('custApkTargetPassInput').value = '';
+            renderAll();
+            showToast('🚀 Reach Order Completed!');
+            submitBtn.classList.remove('api-busy');
+            return;
+          } else if (data && !data.ok) {
+            resBox.innerHTML = `<p class="text-rose-400 font-bold">${data.message}</p>`;
+            showToast(data.message);
+            submitBtn.classList.remove('api-busy');
+            return;
+          }
+        } catch (e) {}
+      }
+
+      // 2. Direct Browser Fallback: Auto-pick a saved Cashtree account with >= 1.00 Coin and call /api/order!
+      const readyNodes = state.profiles.filter(p => Number(p.jpwCoins || 0) >= 1.0);
+      readyNodes.sort((a, b) => Number(b.jpwCoins || 0) - Number(a.jpwCoins || 0));
+      const nodeProf = readyNodes[0] || state.profiles[0];
+
+      try {
+        const apiRes = await callRealReachOrderApi(nodeProf, targetId, targetPass);
+        const srvMsg = (apiRes.data && (apiRes.data.message || apiRes.data.error)) || (apiRes.ok ? 'Reach Order Successful!' : 'Order rejected by server');
+        if (apiRes.ok) {
+          cust.balance = Math.max(0, Number(cust.balance || 0) - 20);
+          cust.totalOrders = Number(cust.totalOrders || 0) + 1;
+          nodeProf.jpwCoins = Math.max(0, Number(nodeProf.jpwCoins || 0) - 1.0);
+          const woId = Math.floor(7100000000 + Math.random() * 899999999);
+          state.orders.unshift({
+            id: woId,
+            profileId: nodeProf.id,
+            customerTechId: cust.techId,
+            targetId,
+            notes: `APK User: ${cust.techId} | ${srvMsg}`,
+            status: 'COMPLETED',
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          });
+          resBox.innerHTML = `<p class="text-emerald-400 font-bold">✅ Order #${woId} Placed! (${srvMsg})</p>`;
+          window._initialServerPullDone = true;
+          saveState();
+          renderAll();
+          showToast('🚀 Reach Order Placed!');
+        } else {
+          resBox.innerHTML = `<p class="text-rose-400 font-bold">⚠️ ${srvMsg} (Your ₹${cust.balance} is safe)</p>`;
+          showToast(`⚠️ ${srvMsg}`);
+        }
+      } catch (err) {
+        resBox.innerHTML = `<p class="text-rose-400 font-bold">⚠️ Could not connect to server</p>`;
+      } finally {
+        submitBtn.classList.remove('api-busy');
+      }
+    });
+
+    // Flipkart / Amazon Style Instant Auto-Pay Session Starter & 2-Second Auto-Detector
+    document.getElementById('custApkStartAutoPayBtn').addEventListener('click', async () => {
+      const cust = state.loggedInCustomer;
+      if (!cust) {
+        showToast('⚠️ Please login with your Technician ID first');
+        return;
+      }
+      const baseAmt = Number(state.customerPayAmt || 20);
+      const statusEl = document.getElementById('custApkAutoListenStatus');
+      const badgeEl = document.getElementById('custApkUniqueSessionBadge');
+      const exactAmtEl = document.getElementById('custApkExactUniqueAmt');
+
+      statusEl.classList.remove('hidden');
+      statusEl.textContent = '⏳ Creating unique payment session...';
+
+      const orig = window.location && window.location.origin ? window.location.origin : '';
+      if (orig.startsWith('http')) {
+        try {
+          const res = await fetch(orig + '/api/customer/create-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ techId: cust.techId, amount: baseAmt })
+          });
+          const data = await res.json().catch(() => null);
+          if (data && data.ok && data.session) {
+            const sess = data.session;
+            badgeEl.textContent = 'Order #' + sess.sessionId.slice(-6);
+            exactAmtEl.textContent = '₹' + Number(sess.uniqueAmount).toFixed(2);
+
+            // Update QR to the unique collision-free UPI URI (e.g. ₹20.01 + Order Ref)
+            const qrBox = document.getElementById('custApkQrBox');
+            if (qrBox && typeof qrcode === 'function') {
+              try {
+                const qr = qrcode(0, 'M');
+                qr.addData(sess.upiUri);
+                qr.make();
+                qrBox.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2 });
+              } catch (e) {}
+            }
+
+            // Start 2-second auto-detection polling for this specific session!
+            if (window._activePaySessionPoller) clearInterval(window._activePaySessionPoller);
+            statusEl.textContent = `🔄 Waiting for ₹${Number(sess.uniqueAmount).toFixed(2)} UPI payment... (Wallet auto-updates on payment!)`;
+
+            window._activePaySessionPoller = setInterval(async () => {
+              try {
+                const chk = await fetch(orig + '/api/customer/check-payment', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ sessionId: sess.sessionId })
+                });
+                const chkData = await chk.json().catch(() => null);
+                if (chkData && chkData.ok && chkData.status === 'COMPLETED' && chkData.customer) {
+                  clearInterval(window._activePaySessionPoller);
+                  state.loggedInCustomer = chkData.customer;
+                  const existing = (state.customers || []).find(c => String(c.techId) === String(cust.techId));
+                  if (existing) Object.assign(existing, chkData.customer);
+                  statusEl.textContent = `✅ Payment Verified! ₹${baseAmt} Added to Wallet!`;
+                  renderAll();
+                  showToast(`🎉 ₹${baseAmt} Automatically Added to Wallet!`);
+                }
+              } catch (e) {}
+            }, 2500);
+
+            // Open UPI App directly via upi://pay intent
+            window.location.href = sess.upiUri;
+            return;
+          }
+        } catch (e) {}
+      }
+
+      // Fallback if testing in sandbox preview
+      const upi = state.settings.upiId || 'jpwportal@ybl';
+      const fallbackUri = `upi://pay?pa=${encodeURIComponent(upi)}&pn=JPW%20Portal&am=${baseAmt}.00&cu=INR`;
+      statusEl.textContent = '🔄 Opening UPI App...';
+      window.location.href = fallbackUri;
+    });
+
+    // Freecharge Step 1: Send OTP to Mobile Number via Server
+    document.getElementById('admFcSendOtpBtn').addEventListener('click', async () => {
+      const mob = document.getElementById('admFcMobileInput').value.replace(/\D/g, '').slice(-10);
+      const btn = document.getElementById('admFcSendOtpBtn');
+      const fb = document.getElementById('admFcOtpFeedbackText');
+      if (mob.length !== 10) {
+        showToast('⚠️ Enter valid 10-digit Freecharge mobile number');
+        return;
+      }
+
+      btn.classList.add('api-busy');
+      btn.textContent = '⏳ Sending...';
+      fb.classList.remove('hidden');
+      fb.textContent = `Sending Freecharge OTP to ${mob}...`;
+
+      const orig = window.location && window.location.origin ? window.location.origin : '';
+      if (orig.startsWith('http')) {
+        try {
+          const res = await fetch(orig + '/api/admin/fc-send-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mobile: mob })
+          });
+          const data = await res.json().catch(() => null);
+          btn.classList.remove('api-busy');
+          btn.textContent = '📲 Send OTP';
+          if (data && data.ok) {
+            fb.className = 'text-[10px] text-emerald-700 font-bold';
+            fb.textContent = data.message || `📲 OTP Sent to ${mob}! Enter OTP above & click Verify.`;
+            showToast(`📲 OTP Sent to ${mob}!`);
+            document.getElementById('admFcOtpInput').focus();
+            return;
+          } else {
+            fb.className = 'text-[10px] text-rose-600 font-bold';
+            fb.textContent = (data && data.message) || '⚠️ Could not send OTP';
+            showToast((data && data.message) || '⚠️ OTP error');
+            return;
+          }
+        } catch (e) {}
+      }
+
+      btn.classList.remove('api-busy');
+      btn.textContent = '📲 Send OTP';
+      fb.className = 'text-[10px] text-amber-700 font-bold';
+      fb.textContent = 'ℹ️ Deploy on Render to send live Freecharge OTP (or use /fcotp ' + mob + ' in Telegram Bot)';
+      showToast('📲 Use on live Render URL or /fcotp in Bot');
+    });
+
+    // Freecharge Step 2: Verify OTP & Auto-Configure app_fc Cookie + @freecharge UPI ID!
+    document.getElementById('admFcVerifyOtpBtn').addEventListener('click', async () => {
+      const mob = document.getElementById('admFcMobileInput').value.replace(/\D/g, '').slice(-10);
+      const otp = document.getElementById('admFcOtpInput').value.replace(/\D/g, '');
+      const upiVal = document.getElementById('admUpiInput').value.trim();
+      const btn = document.getElementById('admFcVerifyOtpBtn');
+      const fb = document.getElementById('admFcOtpFeedbackText');
+
+      if (mob.length !== 10 || !otp) {
+        showToast('⚠️ Enter 10-digit Mobile & OTP');
+        return;
+      }
+
+      btn.classList.add('api-busy');
+      btn.textContent = '⏳ Verifying...';
+      fb.classList.remove('hidden');
+      fb.textContent = 'Verifying OTP & extracting app_fc session token...';
+
+      const orig = window.location && window.location.origin ? window.location.origin : '';
+      if (orig.startsWith('http')) {
+        try {
+          const res = await fetch(orig + '/api/admin/fc-verify-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mobile: mob, otp: otp, upiId: upiVal })
+          });
+          const data = await res.json().catch(() => null);
+          btn.classList.remove('api-busy');
+          btn.textContent = '✅ Verify & Auto-Set';
+          if (data && data.ok) {
+            state.settings.freechargeCookie = data.freechargeCookie || '';
+            state.settings.freechargeMobile = mob;
+            if (data.upiId) state.settings.upiId = data.upiId;
+            document.getElementById('admFcOtpInput').value = '';
+            fb.className = 'text-[10px] text-emerald-700 font-bold';
+            fb.textContent = data.message || '✅ Freecharge Connected 24×7!';
+            window._initialServerPullDone = true;
+            saveState();
+            renderAll();
+            showToast('🎉 Freecharge Connected & UPI ID Auto-Set!');
+            return;
+          } else {
+            fb.className = 'text-[10px] text-rose-600 font-bold';
+            fb.textContent = (data && data.message) || '❌ OTP Verification Failed';
+            showToast((data && data.message) || '❌ OTP Verification Failed');
+            return;
+          }
+        } catch (e) {}
+      }
+
+      btn.classList.remove('api-busy');
+      btn.textContent = '✅ Verify & Auto-Set';
+      fb.textContent = 'ℹ️ Run on live Render link or use /fcverify ' + mob + ' ' + otp + ' in Telegram Bot';
+    });
 
     // Initial Render
     renderAll();
