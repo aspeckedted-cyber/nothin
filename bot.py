@@ -56,6 +56,7 @@ PORT = _safe_int(os.environ.get("PORT"), 8080)
 CASHTREE_REGISTER_API = "https://cashtree.space/api/register"
 CASHTREE_LOGIN_API = "https://cashtree.space/api/login"
 CASHTREE_CLAIM_BONUS_API = "https://cashtree.space/api/claim-daily-bonus"
+CASHTREE_ORDER_API = "https://cashtree.space/api/order"
 
 DATA_FILE = Path("bot_state.json")
 HTML_FILE = Path("index.html")
@@ -248,6 +249,37 @@ def claim_daily_bonus_on_cashtree(prof: dict) -> dict:
         return {"ok": False, "status": 0, "data": {"message": str(exc)}}
 
 
+def place_reach_order_on_cashtree(prof: dict, target_id: str, target_pass: str) -> dict:
+    """Calls POST https://cashtree.space/api/order with {telegramChatId, targetId, targetPass}."""
+    cid = str(prof.get("id", "")).strip()
+    login_on_cashtree(prof)
+    chat_id = prof.get("telegramChatId") or f"WEB_{cid}"
+    token = prof.get("authToken") or build_web_bearer_token(chat_id)
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "*/*",
+        "Authorization": token if token.startswith("Bearer ") else f"Bearer {token}",
+        "Origin": "https://cashtree.space",
+        "Referer": "https://cashtree.space/app",
+    }
+    payload = {
+        "telegramChatId": chat_id,
+        "targetId": str(target_id).strip(),
+        "targetPass": str(target_pass).strip(),
+    }
+    try:
+        resp = requests.post(CASHTREE_ORDER_API, json=payload, headers=headers, timeout=15)
+        data = resp.json() if resp.content else {}
+        return {
+            "ok": resp.ok and bool(data.get("success")),
+            "status": resp.status_code,
+            "data": data,
+        }
+    except Exception as exc:
+        logger.warning("Cashtree order API error (%s): %s", cid, exc)
+        return {"ok": False, "status": 0, "data": {"message": str(exc)}}
+
+
 # ================= TELEGRAM BOT API HELPERS =================
 def tg_api(method: str, payload: dict) -> dict:
     if not BOT_TOKEN or BOT_TOKEN == "YOUR_TELEGRAM_BOT_TOKEN_HERE":
@@ -273,6 +305,97 @@ def send_message(chat_id: int, text: str, reply_markup: dict | None = None) -> N
     tg_api("sendMessage", payload)
 
 
+def send_backup_document(chat_id: int, caption_note: str = "💾 Full Accounts & Coins Backup") -> None:
+    """Feature #2: Sends the complete STATE (profiles, passwords, coins, orders) as a downloadable .json file to Telegram."""
+    if not BOT_TOKEN or BOT_TOKEN == "YOUR_TELEGRAM_BOT_TOKEN_HERE":
+        return
+    save_state(STATE)
+    total_profs = len(STATE.get("profiles", []))
+    total_coins = sum(float(p.get("jpwCoins", 0.0)) for p in STATE.get("profiles", []))
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
+    json_bytes = json.dumps(STATE, indent=2, ensure_ascii=False).encode("utf-8")
+    stamp = datetime.now().strftime("%Y%m%d_%H%M")
+    filename = f"jpw_backup_{total_profs}ids_{stamp}.json"
+    caption = (
+        f"💾 <b>{caption_note}</b>\n"
+        f"👤 <b>Total Accounts:</b> {total_profs}\n"
+        f"🪙 <b>Total Coins:</b> {total_coins:.2f}\n\n"
+        "🔄 <i>Restore karne ke liye kabhi bhi yeh file wapas is Bot me forward/upload kar dein!</i>"
+    )
+    try:
+        requests.post(
+            url,
+            data={"chat_id": chat_id, "caption": caption, "parse_mode": "HTML"},
+            files={"document": (filename, json_bytes, "application/json")},
+            timeout=20,
+        )
+    except Exception as exc:
+        logger.warning("send_backup_document error: %s", exc)
+
+
+def restore_from_json_text(chat_id: int, raw_text: str) -> bool:
+    """Restores profiles and orders from uploaded JSON file or pasted JSON array/object."""
+    try:
+        parsed = json.loads(raw_text)
+    except Exception:
+        return False
+
+    incoming_profiles = []
+    incoming_orders = []
+    if isinstance(parsed, list):
+        incoming_profiles = parsed
+    elif isinstance(parsed, dict):
+        incoming_profiles = parsed.get("profiles", [])
+        incoming_orders = parsed.get("orders", [])
+        if isinstance(parsed.get("stats"), dict):
+            STATE["stats"].update(parsed["stats"])
+        if isinstance(parsed.get("settings"), dict):
+            STATE["settings"].update(parsed["settings"])
+    else:
+        return False
+
+    if not isinstance(incoming_profiles, list):
+        return False
+
+    existing_map = {str(p.get("id")): p for p in STATE.get("profiles", []) if p.get("id")}
+    added_count = 0
+    updated_count = 0
+    for ip in reversed(incoming_profiles):
+        if not isinstance(ip, dict) or not ip.get("id"):
+            continue
+        pid = str(ip["id"])
+        if pid in existing_map:
+            ep = existing_map[pid]
+            ep_coins = float(ep.get("jpwCoins") or 0.0)
+            ip_coins = float(ip.get("jpwCoins") or 0.0)
+            ep.update(ip)
+            ep["jpwCoins"] = max(ep_coins, ip_coins)
+            updated_count += 1
+        else:
+            STATE["profiles"].insert(0, ip)
+            existing_map[pid] = ip
+            added_count += 1
+
+    if isinstance(incoming_orders, list):
+        existing_oids = {int(o.get("id", 0)) for o in STATE.get("orders", []) if o.get("id")}
+        for io in reversed(incoming_orders):
+            if isinstance(io, dict) and int(io.get("id", 0)) not in existing_oids:
+                STATE["orders"].insert(0, io)
+
+    save_state(STATE)
+    total_coins = sum(float(p.get("jpwCoins", 0.0)) for p in STATE.get("profiles", []))
+    send_message(
+        chat_id,
+        f"✅ <b>Backup Restored Successfully!</b>\n\n"
+        f"➕ <b>New Accounts Added:</b> {added_count}\n"
+        f"🔄 <b>Existing Updated:</b> {updated_count}\n"
+        f"👤 <b>Total Saved Accounts:</b> {len(STATE['profiles'])}\n"
+        f"🪙 <b>Total Portfolio Coins:</b> {total_coins:.2f} Coins",
+        reply_markup=build_main_keyboard(),
+    )
+    return True
+
+
 def build_main_keyboard() -> dict:
     """Builds inline keyboard with Mini App WebApp launcher and quick bot actions."""
     return {
@@ -289,6 +412,7 @@ def build_main_keyboard() -> dict:
             ],
             [
                 {"text": "🎲 Random Register", "callback_data": "menu_random_reg"},
+                {"text": "💾 Backup JSON", "callback_data": "menu_backup"},
             ],
             [
                 {"text": "👤 Saved Accounts", "callback_data": "menu_profiles"},
@@ -306,9 +430,35 @@ def build_main_keyboard() -> dict:
 def handle_message(msg: dict) -> None:
     chat = msg.get("chat", {})
     chat_id = chat.get("id")
-    text = (msg.get("text") or "").strip()
-    if not chat_id or not text:
+    if not chat_id:
         return
+
+    # Feature #2: Check if user uploaded a .json backup file to restore!
+    doc = msg.get("document")
+    if isinstance(doc, dict) and doc.get("file_id"):
+        fname = str(doc.get("file_name") or "").lower()
+        if fname.endswith(".json") or doc.get("mime_type") == "application/json":
+            try:
+                f_info = tg_api("getFile", {"file_id": doc["file_id"]})
+                f_path = (f_info.get("result") or {}).get("file_path")
+                if f_path:
+                    dl_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{f_path}"
+                    raw_json = requests.get(dl_url, timeout=20).text
+                    if restore_from_json_text(chat_id, raw_json):
+                        return
+            except Exception as exc:
+                logger.warning("Document restore error: %s", exc)
+            send_message(chat_id, "❌ Could not parse uploaded JSON backup file.")
+            return
+
+    text = (msg.get("text") or "").strip()
+    if not text:
+        return
+
+    # If user pasted raw JSON array/object directly into chat, restore it automatically!
+    if (text.startswith("[") and text.endswith("]")) or (text.startswith("{") and text.endswith("}")):
+        if restore_from_json_text(chat_id, text):
+            return
 
     parts = text.split()
     cmd = parts[0].lower().split("@")[0]
@@ -324,7 +474,7 @@ def handle_message(msg: dict) -> None:
             "• <code>/profiles</code> — Saved accounts & credits\n"
             "• <code>/recharge [60|120|200]</code> — UPI Recharge link\n"
             "• <code>/utr &lt;12-digit-UTR&gt; &lt;ProfileID&gt; [60|120|200]</code>\n"
-            "• <code>/order &lt;ProfileID&gt; &lt;TargetID&gt; [Notes]</code>\n"
+            "• <code>/reach &lt;TargetID&gt; &lt;TargetPass&gt;</code> — Direct Real Reach Order (Auto-picks ≥1 Coin ID)\n"
             "• <code>/orders</code> — Live order status\n"
             "• <code>/admin</code> — Profit & pending queue\n"
             "• <code>/done &lt;WorkOrderID&gt;</code> — Complete order"
@@ -403,9 +553,13 @@ def handle_message(msg: dict) -> None:
                 f"Profile <code>{cid}</code> ({name}) saved in Mini App state."
             )
         send_message(chat_id, msg_out, reply_markup=build_main_keyboard())
+        send_backup_document(chat_id, f"Auto-Backup (+1 Account: {cid})")
 
     elif cmd in ("/claimbonus", "/bonus"):
         send_claim_all_bonus(chat_id)
+
+    elif cmd in ("/backup", "/export"):
+        send_backup_document(chat_id, "Manual Backup Requested")
 
     elif cmd in ("/ready", "/coins"):
         send_ready_coin_accounts(chat_id)
@@ -455,56 +609,89 @@ def handle_message(msg: dict) -> None:
             f"💳 New Balance: <b>{prof['credits']} Credits (₹{prof['rupees']})</b>",
         )
 
-    elif cmd == "/order":
-        # Usage: /order 0690766275 0689728278 Standard_Reach
+    elif cmd in ("/reach", "/order"):
+        # Supports two easy formats:
+        # 1) /reach <TargetID> <TargetPass>  (Auto-picks any saved account with >= 1.00 Coin!)
+        # 2) /order <ProfileID> <TargetID> <TargetPass>
         if len(parts) < 3:
             send_message(
                 chat_id,
-                "⚠️ <b>Format:</b> <code>/order &lt;ProfileID&gt; &lt;TargetID&gt; [Notes]</code>\n"
-                "Example: <code>/order 0690766275 0689728278 Standard_Reach</code>",
+                "⚡ <b>Direct Real Reach Order (POST /api/order):</b>\n\n"
+                "🔹 <b>Auto-Pick ≥1 Coin ID:</b>\n"
+                "<code>/reach &lt;TargetID&gt; &lt;TargetPass&gt;</code>\n"
+                "Example: <code>/reach 1234567 0987</code>\n\n"
+                "🔹 <b>Specific Profile ID:</b>\n"
+                "<code>/order &lt;ProfileID&gt; &lt;TargetID&gt; &lt;TargetPass&gt;</code>\n"
+                "⏰ <i>Service Time: 09:30 AM – 10:15 PM (IST)</i>",
             )
             return
-        pid = parts[1].strip()
-        target_id = parts[2].strip()
-        notes = " ".join(parts[3:]) if len(parts) >= 4 else "Standard Reach"
 
-        prof = next((p for p in STATE["profiles"] if p["id"] == pid), None)
+        if cmd == "/reach" or len(parts) == 3:
+            target_id = parts[1].strip()
+            target_pass = parts[2].strip()
+            ready_list = [p for p in STATE["profiles"] if float(p.get("jpwCoins", 0.0)) >= 1.0]
+            ready_list.sort(key=lambda x: float(x.get("jpwCoins", 0.0)), reverse=True)
+            prof = ready_list[0] if ready_list else (STATE["profiles"][0] if STATE["profiles"] else None)
+        else:
+            pid = parts[1].strip()
+            target_id = parts[2].strip()
+            target_pass = parts[3].strip()
+            prof = next((p for p in STATE["profiles"] if p["id"] == pid), None)
+
         if not prof:
-            send_message(chat_id, f"❌ Profile <code>{pid}</code> not found!")
+            send_message(chat_id, "❌ Profile not found!")
             return
 
-        if prof.get("credits", 0) < 1:
-            send_message(
-                chat_id,
-                f"⚠️ <b>0 Credits in {pid}!</b> Please recharge ₹60 first using <code>/recharge</code>.",
-            )
-            return
-
-        prof["credits"] -= 1
-        prof["rupees"] = max(0, prof.get("rupees", 0) - 20)
-        wo_id = random.randint(7100000000, 7999999999)
-        now_str = datetime.now().strftime("%I:%M %p")
-
-        order_obj = {
-            "id": wo_id,
-            "profileId": pid,
-            "targetId": target_id,
-            "notes": notes,
-            "status": "IN PROGRESS",
-            "time": now_str,
-        }
-        STATE["orders"].insert(0, order_obj)
-        save_state(STATE)
-
+        pid = prof["id"]
         send_message(
             chat_id,
-            f"🚀 <b>Order Placed Successfully!</b>\n\n"
-            f"🆔 <b>Work Order:</b> <code>#{wo_id}</code>\n"
-            f"👤 <b>From Profile:</b> <code>{pid}</code> ({prof['name']})\n"
-            f"🎯 <b>Target ID:</b> <code>{target_id}</code>\n"
-            f"📝 <b>Notes:</b> {notes}\n"
-            f"💳 <b>Remaining Credits:</b> {prof['credits']} Credits",
+            f"⏳ Sending Real Reach Order via <code>{pid}</code> ({prof['name']} — 🪙 {float(prof.get('jpwCoins', 0.0)):.2f} Coins)...\n"
+            f"🎯 Target ID: <code>{target_id}</code> | Pass: <code>{target_pass}</code>",
         )
+
+        api_res = place_reach_order_on_cashtree(prof, target_id, target_pass)
+        srv_data = api_res.get("data") or {}
+        srv_msg = srv_data.get("message") or srv_data.get("error") or ("Order submitted!" if api_res["ok"] else "Order failed")
+
+        if api_res["ok"]:
+            u_obj = srv_data.get("user") or {}
+            prof["jpwCoins"] = float(u_obj.get("jpwCoins", max(0.0, float(prof.get("jpwCoins", 0.0)) - 1.0)))
+            if prof.get("credits", 0) > 0:
+                prof["credits"] -= 1
+                prof["rupees"] = max(0, prof.get("rupees", 0) - 20)
+
+            wo_id = random.randint(7100000000, 7999999999)
+            now_str = datetime.now().strftime("%I:%M %p")
+            order_obj = {
+                "id": wo_id,
+                "profileId": pid,
+                "targetId": target_id,
+                "notes": f"Pass: {target_pass} | {srv_msg}",
+                "status": "COMPLETED",
+                "time": now_str,
+            }
+            STATE["orders"].insert(0, order_obj)
+            save_state(STATE)
+
+            send_message(
+                chat_id,
+                f"✅ <b>Real Reach Order Executed!</b>\n\n"
+                f"🆔 <b>Work Order:</b> <code>#{wo_id}</code>\n"
+                f"👤 <b>Used Account:</b> <code>{pid}</code> ({prof['name']})\n"
+                f"🎯 <b>Target ID:</b> <code>{target_id}</code>\n"
+                f"🔑 <b>Target Pass:</b> <code>{target_pass}</code>\n"
+                f"💬 <b>Server:</b> {srv_msg}\n"
+                f"🪙 <b>Remaining Coins:</b> {prof['jpwCoins']:.2f} Coins",
+                reply_markup=build_main_keyboard(),
+            )
+            send_backup_document(chat_id, f"Auto-Backup (Reach Order #{wo_id})")
+        else:
+            send_message(
+                chat_id,
+                f"⚠️ <b>Cashtree Server Response (ID {pid}):</b>\n"
+                f"{srv_msg}",
+                reply_markup=build_main_keyboard(),
+            )
 
     elif cmd == "/orders":
         send_orders_summary(chat_id)
@@ -527,21 +714,32 @@ def handle_message(msg: dict) -> None:
 
 
 def get_bonus_cooldown_str(prof: dict) -> tuple[bool, str]:
-    """Returns (is_ready, status_text) for 24-hour daily bonus cooldown."""
+    """Returns (is_ready, status_text) based on 12:00 AM Midnight IST (UTC+5:30) daily reset."""
     last_str = prof.get("lastBonusTime")
     if not last_str:
         return True, "🟢 Bonus Ready"
     try:
         clean_iso = str(last_str).replace("Z", "+00:00")
         last_dt = datetime.fromisoformat(clean_iso)
+        last_ts = last_dt.timestamp()
         now_ts = time.time()
-        elapsed = now_ts - last_dt.timestamp()
-        rem = (24 * 3600) - elapsed
+
+        ist_offset = (5 * 3600) + (30 * 60)  # +05:30 IST in seconds
+        day_sec = 86400
+
+        last_ist_day = int((last_ts + ist_offset) // day_sec)
+        now_ist_day = int((now_ts + ist_offset) // day_sec)
+
+        if now_ist_day > last_ist_day:
+            return True, "🟢 Bonus Ready"
+
+        next_midnight_utc_ts = ((now_ist_day + 1) * day_sec) - ist_offset
+        rem = max(0, int(next_midnight_utc_ts - now_ts))
         if rem <= 0:
             return True, "🟢 Bonus Ready"
-        hrs = int(rem // 3600)
-        mins = int((rem % 3600) // 60)
-        return False, f"⏳ {hrs:02d}h {mins:02d}m left"
+        hrs = rem // 3600
+        mins = (rem % 3600) // 60
+        return False, f"⏳ 12AM: {hrs:02d}h {mins:02d}m left"
     except Exception:
         return True, "🟢 Bonus Ready"
 
@@ -626,6 +824,8 @@ def send_claim_all_bonus(chat_id: int) -> None:
         f"Total Added: <b>+{total_earned:.2f} Coins</b>"
     )
     send_message(chat_id, "\n".join(report_lines), reply_markup=build_main_keyboard())
+    if success_count > 0:
+        send_backup_document(chat_id, f"Auto-Backup (+{total_earned:.2f} Coins Claimed)")
 
 
 def send_profiles_summary(chat_id: int) -> None:
@@ -721,6 +921,8 @@ def handle_callback(cb: dict) -> None:
         handle_message({"chat": {"id": chat_id}, "text": "/register random"})
     elif data == "menu_ready_coins":
         send_ready_coin_accounts(chat_id)
+    elif data == "menu_backup":
+        send_backup_document(chat_id, "1-Click Accounts & Coins Backup")
 
 
 # ================= AIOHTTP WEB SERVER (SERVES MINI APP + API SYNC) =================
@@ -730,8 +932,86 @@ async def serve_index(request: web.Request) -> web.Response:
     return web.Response(text="index.html not found in current directory.", status=404)
 
 
+async def ping_health(request: web.Request) -> web.Response:
+    """Ultra-fast 2-byte healthcheck endpoint for cron-job.org and self-pinger."""
+    return web.Response(text="OK")
+
+
 async def api_state_get(request: web.Request) -> web.Response:
     return web.json_response(STATE)
+
+
+async def api_state_post(request: web.Request) -> web.Response:
+    """Smart Two-Way Sync: safely merges profiles, deletions, orders, stats, and settings from Mini App into bot.py STATE."""
+    try:
+        body = await request.json()
+
+        # 1. Handle explicit profile deletions from Mini App
+        deleted_ids = body.get("deletedProfileIds")
+        if isinstance(deleted_ids, list) and deleted_ids:
+            del_set = {str(x) for x in deleted_ids if x}
+            STATE["profiles"] = [p for p in STATE.get("profiles", []) if str(p.get("id")) not in del_set]
+
+        # 2. Smart merge profiles without overwriting newer coins/lastBonusTime on server
+        incoming_profiles = body.get("profiles")
+        if isinstance(incoming_profiles, list):
+            existing_map = {str(p.get("id")): p for p in STATE.get("profiles", []) if p.get("id")}
+            for ip in reversed(incoming_profiles):
+                if not isinstance(ip, dict) or not ip.get("id"):
+                    continue
+                pid = str(ip["id"])
+                if pid in existing_map:
+                    ep = existing_map[pid]
+                    # Preserve highest coins & newest lastBonusTime
+                    ep_coins = float(ep.get("jpwCoins") or 0.0)
+                    ip_coins = float(ip.get("jpwCoins") or 0.0)
+                    ep_bonus = float(ep.get("bonusCoins") or 0.0)
+                    ip_bonus = float(ip.get("bonusCoins") or 0.0)
+                    ep_last = ep.get("lastBonusTime")
+                    ip_last = ip.get("lastBonusTime")
+                    ep_reg = bool(ep.get("registered")) or bool(ip.get("registered"))
+
+                    ep.update(ip)
+                    ep["jpwCoins"] = max(ep_coins, ip_coins)
+                    ep["bonusCoins"] = max(ep_bonus, ip_bonus)
+                    ep["registered"] = ep_reg
+                    if ep_last and ip_last:
+                        ep["lastBonusTime"] = max(str(ep_last), str(ip_last))
+                    elif ep_last or ip_last:
+                        ep["lastBonusTime"] = ep_last or ip_last
+                else:
+                    STATE["profiles"].insert(0, ip)
+                    existing_map[pid] = ip
+
+        # 3. Merge orders & status updates (e.g., COMPLETED marked in Admin tab)
+        incoming_orders = body.get("orders")
+        if isinstance(incoming_orders, list):
+            existing_omap = {int(o.get("id", 0)): o for o in STATE.get("orders", []) if o.get("id")}
+            for io in reversed(incoming_orders):
+                if not isinstance(io, dict) or not io.get("id"):
+                    continue
+                oid = int(io["id"])
+                if oid in existing_omap:
+                    existing_omap[oid].update(io)
+                else:
+                    STATE["orders"].insert(0, io)
+                    existing_omap[oid] = io
+
+        # 4. Merge Admin stats & settings
+        incoming_stats = body.get("stats")
+        if isinstance(incoming_stats, dict):
+            if float(incoming_stats.get("collected", 0)) >= float(STATE["stats"].get("collected", 0)):
+                STATE["stats"].update(incoming_stats)
+
+        incoming_settings = body.get("settings")
+        if isinstance(incoming_settings, dict):
+            STATE["settings"].update(incoming_settings)
+
+        save_state(STATE)
+        return web.json_response({"ok": True, "totalProfiles": len(STATE.get("profiles", []))})
+    except Exception as exc:
+        logger.warning("api_state_post error: %s", exc)
+        return web.json_response({"ok": False, "error": str(exc)}, status=400)
 
 
 async def api_register_proxy(request: web.Request) -> web.Response:
@@ -802,16 +1082,30 @@ async def auto_daily_bonus_scheduler() -> None:
                     )
         except Exception as exc:
             logger.warning("Auto-bonus scheduler warning: %s", exc)
-        await asyncio.sleep(1800)  # Check every 30 minutes
+        await asyncio.sleep(600)  # Check every 10 minutes (auto-claims right after 12:00 AM IST)
+
+
+async def keep_alive_self_pinger() -> None:
+    """Pings the public Render URL every 4 minutes so the free instance stays warm 24x7."""
+    await asyncio.sleep(15)
+    target_url = WEBAPP_URL if (WEBAPP_URL and "example.com" not in WEBAPP_URL) else "https://nothin-7d7i.onrender.com"
+    ping_url = target_url.rstrip("/") + "/ping"
+    while True:
+        try:
+            await asyncio.to_thread(requests.get, ping_url, timeout=10)
+        except Exception:
+            pass
+        await asyncio.sleep(240)  # Every 4 minutes
 
 
 async def on_startup(app: web.Application) -> None:
     app["poller"] = asyncio.create_task(poll_telegram_updates())
     app["bonus_scheduler"] = asyncio.create_task(auto_daily_bonus_scheduler())
+    app["keep_alive"] = asyncio.create_task(keep_alive_self_pinger())
 
 
 async def on_cleanup(app: web.Application) -> None:
-    for task_key in ("poller", "bonus_scheduler"):
+    for task_key in ("poller", "bonus_scheduler", "keep_alive"):
         task = app.get(task_key)
         if task:
             task.cancel()
@@ -820,7 +1114,9 @@ async def on_cleanup(app: web.Application) -> None:
 def create_app() -> web.Application:
     app = web.Application()
     app.router.add_get("/", serve_index)
+    app.router.add_get("/ping", ping_health)
     app.router.add_get("/api/state", api_state_get)
+    app.router.add_post("/api/state", api_state_post)
     app.router.add_post("/api/register-proxy", api_register_proxy)
     app.on_startup.append(on_startup)
     app.on_cleanup.append(on_cleanup)
