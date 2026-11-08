@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 """
 JPW Order & Wallet Portal — Telegram Bot + Mini App Backend (bot.py)
@@ -31,8 +30,11 @@ import json
 import logging
 import os
 import random
+import re
 from datetime import datetime
 import base64
+import hashlib
+import hmac
 import time
 from pathlib import Path
 from urllib.parse import quote
@@ -92,7 +94,7 @@ DEFAULT_STATE = {
             "telegramChatId": "WEB_0690766275",
         },
         {
-            "id": "0524343545",
+            "id": "0691113840",
             "name": "Main Node",
             "password": "12345",
             "credits": 3,
@@ -105,7 +107,7 @@ DEFAULT_STATE = {
     ],
     "orders": [
         {
-            "id": 000,
+            "id": 7127438722,
             "profileId": "0690766275",
             "targetId": "0689728278",
             "notes": "Standard Reach",
@@ -113,6 +115,17 @@ DEFAULT_STATE = {
             "time": "10:25 PM",
         }
     ],
+    "customers": [
+        {
+            "techId": "TECH101",
+            "password": "12345",
+            "name": "Demo Technician",
+            "balance": 20,
+            "totalOrders": 0,
+            "createdAt": "2026-11-08",
+        }
+    ],
+    "used_utrs": [],
 }
 
 
@@ -133,6 +146,17 @@ def save_state(state: dict) -> None:
 
 
 STATE = load_state()
+STATE.setdefault("customers", DEFAULT_STATE["customers"])
+STATE.setdefault("used_utrs", [])
+STATE.setdefault("verified_bank_utrs", {})  # { "12_digit_utr": amount_float } received from Bank SMS Webhook or BharatPe API
+STATE.setdefault("pending_payments", [])
+STATE["settings"].setdefault("freechargeCookie", os.environ.get("FREECHARGE_COOKIE", ""))
+STATE["settings"].setdefault("bharatpeMid", os.environ.get("BHARATPE_MID", ""))
+STATE["settings"].setdefault("bharatpeToken", os.environ.get("BHARATPE_TOKEN", ""))
+STATE["settings"].setdefault("razorpayKeyId", os.environ.get("RAZORPAY_KEY_ID", ""))
+STATE["settings"].setdefault("razorpayKeySecret", os.environ.get("RAZORPAY_KEY_SECRET", ""))
+STATE["settings"].setdefault("webhookSecret", os.environ.get("WEBHOOK_SECRET", "jpw123"))
+STATE.setdefault("payment_sessions", {})  # { session_id: { techId, baseAmount, uniqueAmount, status, createdAt, rzpOrderId } }
 
 
 # ================= CASHTREE API HELPERS =================
@@ -419,6 +443,9 @@ def build_main_keyboard() -> dict:
                 {"text": "💳 Wallet & UPI QR", "callback_data": "menu_wallet"},
             ],
             [
+                {"text": "👥 App Users (ID/Pass/₹)", "callback_data": "menu_app_users"},
+            ],
+            [
                 {"text": "📦 Order Status", "callback_data": "menu_orders"},
                 {"text": "🛡️ Admin & Profit", "callback_data": "menu_admin"},
             ],
@@ -696,6 +723,60 @@ def handle_message(msg: dict) -> None:
     elif cmd == "/orders":
         send_orders_summary(chat_id)
 
+    elif cmd == "/fcotp":
+        if len(parts) < 2:
+            send_message(chat_id, "⚠️ <b>Format:</b> <code>/fcotp &lt;10-Digit-Mobile&gt;</code>")
+            return
+        res = fc_send_otp_request(parts[1])
+        send_message(
+            chat_id,
+            res["message"] + ("\n👉 Verify karne ke liye bhejein: <code>/fcverify " + parts[1] + " &lt;OTP&gt;</code>" if res.get("ok") else ""),
+        )
+
+    elif cmd == "/fcverify":
+        if len(parts) < 3:
+            send_message(chat_id, "⚠️ <b>Format:</b> <code>/fcverify &lt;10-Digit-Mobile&gt; &lt;OTP&gt;</code>")
+            return
+        res = fc_verify_otp_request(parts[1], parts[2])
+        send_message(chat_id, res["message"], reply_markup=build_main_keyboard())
+
+    elif cmd in ("/users", "/customers"):
+        send_customers_summary(chat_id)
+
+    elif cmd == "/addbal":
+        # Usage: /addbal <TechID> <Rupees>
+        if len(parts) < 3 or not parts[2].lstrip("-").isdigit():
+            send_message(
+                chat_id,
+                "⚠️ <b>Format:</b> <code>/addbal &lt;TechnicianID&gt; &lt;Rupees&gt;</code>\n"
+                "Example: <code>/addbal 0691112222 20</code>",
+            )
+            return
+        tid = parts[1].strip()
+        amt = int(parts[2])
+        cust = next((c for c in STATE.get("customers", []) if str(c.get("techId")) == tid), None)
+        if not cust:
+            cust = {
+                "techId": tid,
+                "password": str(random.randint(100000, 999999)),
+                "name": f"Tech_{tid[-4:]}",
+                "balance": max(0, amt),
+                "totalOrders": 0,
+                "createdAt": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            }
+            STATE.setdefault("customers", []).insert(0, cust)
+        else:
+            cust["balance"] = max(0, int(cust.get("balance", 0)) + amt)
+        save_state(STATE)
+        send_message(
+            chat_id,
+            f"✅ <b>Customer Wallet Updated!</b>\n"
+            f"👤 <b>Technician ID:</b> <code>{cust['techId']}</code>\n"
+            f"🔑 <b>Password:</b> <code>{cust.get('password', '12345')}</code>\n"
+            f"💳 <b>New Balance:</b> ₹{cust['balance']}",
+            reply_markup=build_main_keyboard(),
+        )
+
     elif cmd == "/admin":
         send_admin_summary(chat_id)
 
@@ -876,6 +957,37 @@ def send_orders_summary(chat_id: int) -> None:
     send_message(chat_id, "\n".join(lines), reply_markup=build_main_keyboard())
 
 
+def send_customers_summary(chat_id: int) -> None:
+    """Displays all Customer APK Users with their Technician ID, Password, and Wallet Balance (₹)."""
+    customers = STATE.get("customers", [])
+    total_bal = sum(int(c.get("balance", 0)) for c in customers)
+    ready_nodes = sum(1 for p in STATE.get("profiles", []) if float(p.get("jpwCoins", 0.0)) >= 1.0)
+
+    lines = [
+        f"👥 <b>Customer APK Users ({len(customers)} Total)</b>",
+        f"💳 <b>Total User Wallet Balance:</b> ₹{total_bal}",
+        f"🎯 <b>Backend Auto-Order Nodes (≥1 Coin):</b> {ready_nodes} IDs\n",
+    ]
+    if not customers:
+        lines.append("<i>No customer APK users registered yet.</i>")
+    else:
+        for i, c in enumerate(customers[:30], 1):
+            tid = c.get("techId", "N/A")
+            pwd = c.get("password", "12345")
+            bal = int(c.get("balance", 0))
+            ords = int(c.get("totalOrders", 0))
+            reach_ready = "🟢 1+ Reach Ready" if bal >= 20 else "⚪ ₹0"
+            lines.append(
+                f"{i}. 👤 <b>ID:</b> <code>{tid}</code> | 🔑 <b>Pass:</b> <code>{pwd}</code>\n"
+                f"   └ 💰 <b>Balance: ₹{bal}</b> ({reach_ready}) | 📦 Orders: {ords}"
+            )
+    lines.append(
+        "\n💡 <b>Add/Edit Balance:</b> <code>/addbal &lt;TechID&gt; 20</code>\n"
+        f"📱 <b>Customer APK Link:</b> <code>{WEBAPP_URL.rstrip('/')}/?mode=customer</code>"
+    )
+    send_message(chat_id, "\n".join(lines), reply_markup=build_main_keyboard())
+
+
 def send_admin_summary(chat_id: int) -> None:
     st = STATE["stats"]
     pending = [o for o in STATE["orders"] if o["status"] != "COMPLETED"]
@@ -923,6 +1035,36 @@ def handle_callback(cb: dict) -> None:
         send_ready_coin_accounts(chat_id)
     elif data == "menu_backup":
         send_backup_document(chat_id, "1-Click Accounts & Coins Backup")
+    elif data == "menu_app_users":
+        send_customers_summary(chat_id)
+    elif data.startswith("utr_ok_"):
+        # Format: utr_ok_<utr>_<techId>_<amount>
+        parts = data.split("_")
+        if len(parts) >= 5:
+            utr_val = parts[2]
+            amt_val = int(parts[-1]) if parts[-1].isdigit() else 20
+            tid_val = "_".join(parts[3:-1])
+            used_utrs = STATE.setdefault("used_utrs", [])
+            if utr_val in used_utrs:
+                send_message(chat_id, f"ℹ️ UTR <code>{utr_val}</code> was already approved.")
+                return
+            cust = next((c for c in STATE.get("customers", []) if str(c.get("techId")) == tid_val), None)
+            if cust:
+                credit_customer_verified_utr(cust, utr_val, amt_val, "Admin 1-Tap")
+                send_message(
+                    chat_id,
+                    f"✅ <b>Approved ₹{amt_val} for {tid_val}!</b>\n"
+                    f"🧾 UTR: <code>{utr_val}</code>\n"
+                    f"💳 User's APK Wallet is now <b>₹{cust['balance']}</b> (Live updated on user screen!)",
+                )
+    elif data.startswith("utr_no_"):
+        parts = data.split("_")
+        if len(parts) >= 4:
+            utr_val = parts[2]
+            tid_val = "_".join(parts[3:])
+            STATE["pending_payments"] = [p for p in STATE.get("pending_payments", []) if p.get("utr") != utr_val]
+            save_state(STATE)
+            send_message(chat_id, f"❌ Rejected Fake UTR <code>{utr_val}</code> from <code>{tid_val}</code>.")
 
 
 # ================= AIOHTTP WEB SERVER (SERVES MINI APP + API SYNC) =================
@@ -1007,6 +1149,18 @@ async def api_state_post(request: web.Request) -> web.Response:
         if isinstance(incoming_settings, dict):
             STATE["settings"].update(incoming_settings)
 
+        incoming_customers = body.get("customers")
+        if isinstance(incoming_customers, list):
+            cmap = {str(c.get("techId")): c for c in STATE.get("customers", []) if c.get("techId")}
+            for ic in reversed(incoming_customers):
+                if isinstance(ic, dict) and ic.get("techId"):
+                    tid = str(ic["techId"])
+                    if tid in cmap:
+                        cmap[tid].update(ic)
+                    else:
+                        STATE.setdefault("customers", []).insert(0, ic)
+                        cmap[tid] = ic
+
         save_state(STATE)
         return web.json_response({"ok": True, "totalProfiles": len(STATE.get("profiles", []))})
     except Exception as exc:
@@ -1022,6 +1176,869 @@ async def api_register_proxy(request: web.Request) -> web.Response:
     name = body.get("name", "RRYSB")
     res = await asyncio.to_thread(register_on_cashtree, cid, pwd, name)
     return web.json_response(res["data"], status=res["status"] or 200)
+
+
+async def api_customer_auth(request: web.Request) -> web.Response:
+    """Customer APK Login / Auto-Registration by Technician ID & Password."""
+    try:
+        body = await request.json()
+        tech_id = str(body.get("techId") or "").strip()
+        password = str(body.get("password") or "").strip()
+        if not tech_id or not password:
+            return web.json_response({"ok": False, "message": "Enter Technician ID & Password"}, status=400)
+
+        customers = STATE.setdefault("customers", [])
+        cust = next((c for c in customers if str(c.get("techId")) == tech_id), None)
+        if cust:
+            if str(cust.get("password")) != password:
+                return web.json_response({"ok": False, "message": "❌ Wrong Password for this Technician ID!"}, status=401)
+        else:
+            cust = {
+                "techId": tech_id,
+                "password": password,
+                "name": str(body.get("name") or f"Tech_{tech_id[-4:]}"),
+                "balance": 0,
+                "totalOrders": 0,
+                "createdAt": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            }
+            customers.insert(0, cust)
+            save_state(STATE)
+            if ADMIN_CHAT_ID:
+                asyncio.create_task(
+                    asyncio.to_thread(
+                        send_message,
+                        ADMIN_CHAT_ID,
+                        f"🆕 <b>New APK User Registered!</b>\n👤 Tech ID: <code>{tech_id}</code>\n🔑 Pass: <code>{password}</code>",
+                    )
+                )
+
+        my_orders = [o for o in STATE.get("orders", []) if str(o.get("customerTechId")) == tech_id]
+        return web.json_response({
+            "ok": True,
+            "customer": cust,
+            "orders": my_orders[:20],
+            "upiId": STATE["settings"].get("upiId", "jpwportal@ybl"),
+            "appTitle": STATE["settings"].get("appTitle", "JPW Portal"),
+        })
+    except Exception as exc:
+        return web.json_response({"ok": False, "message": str(exc)}, status=400)
+
+
+FC_OTP_SESSIONS = {}  # { mobile: { "session": requests.Session, "otpId": str } }
+
+
+def fc_send_otp_request(mobile: str) -> dict:
+    """Sends Freecharge MSITE Login OTP to the given 10-digit mobile number."""
+    mob = "".join(ch for ch in str(mobile or "") if ch.isdigit())[-10:]
+    if len(mob) != 10:
+        return {"ok": False, "message": "⚠️ Enter a valid 10-digit mobile number"}
+
+    sess = requests.Session()
+    headers = {
+        "Accept": "application/json, text/plain, */*",
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36",
+        "Origin": "https://www.freecharge.in",
+        "Referer": "https://www.freecharge.in/",
+    }
+    # Warm up session cookies
+    try:
+        sess.get("https://www.freecharge.in/", headers=headers, timeout=8)
+    except Exception:
+        pass
+
+    endpoints = [
+        ("https://www.freecharge.in/fc/um/otp/send?fcAppType=MSITE", {"mobileNumber": mob}),
+        ("https://www.freecharge.in/rest/login/sendOtp?fcAppType=MSITE", {"mobile": mob, "mobileNumber": mob}),
+    ]
+    last_err = "Could not reach Freecharge OTP server"
+    for url, payload in endpoints:
+        try:
+            resp = sess.post(url, json=payload, headers=headers, timeout=12)
+            data = resp.json() if resp.content else {}
+            otp_id = (
+                data.get("otpId")
+                or (data.get("data") or {}).get("otpId")
+                or data.get("requestId")
+                or (data.get("data") or {}).get("requestId")
+                or ""
+            )
+            if resp.ok and (otp_id or data.get("status") in ("SUCCESS", 200, True) or "otp" in str(data).lower()):
+                FC_OTP_SESSIONS[mob] = {"session": sess, "otpId": str(otp_id)}
+                return {
+                    "ok": True,
+                    "mobile": mob,
+                    "otpId": str(otp_id),
+                    "message": f"📲 OTP sent to {mob}! Enter the OTP to auto-connect Freecharge.",
+                }
+            last_err = data.get("errorMessage") or data.get("message") or f"HTTP {resp.status_code}"
+        except Exception as exc:
+            last_err = str(exc)
+
+    return {"ok": False, "message": f"⚠️ Freecharge OTP Note: {last_err}"}
+
+
+def fc_verify_otp_request(mobile: str, otp_code: str, custom_upi_id: str = "") -> dict:
+    """Verifies Freecharge OTP, automatically extracts `app_fc` session cookie & sets `@freecharge` UPI ID!"""
+    mob = "".join(ch for ch in str(mobile or "") if ch.isdigit())[-10:]
+    otp = "".join(ch for ch in str(otp_code or "") if ch.isdigit())
+    if len(mob) != 10 or not otp:
+        return {"ok": False, "message": "⚠️ Enter valid 10-digit Mobile & OTP"}
+
+    saved_sess_info = FC_OTP_SESSIONS.get(mob) or {}
+    sess = saved_sess_info.get("session") or requests.Session()
+    otp_id = saved_sess_info.get("otpId") or ""
+
+    headers = {
+        "Accept": "application/json, text/plain, */*",
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36",
+        "Origin": "https://www.freecharge.in",
+        "Referer": "https://www.freecharge.in/",
+    }
+
+    endpoints = [
+        (
+            "https://www.freecharge.in/fc/um/otp/verify?fcAppType=MSITE",
+            {"mobileNumber": mob, "otp": otp, "otpId": otp_id},
+        ),
+        (
+            "https://www.freecharge.in/rest/login/verifyOtp?fcAppType=MSITE",
+            {"mobile": mob, "mobileNumber": mob, "otp": otp, "otpId": otp_id},
+        ),
+    ]
+
+    last_err = "OTP verification failed"
+    for url, payload in endpoints:
+        try:
+            resp = sess.post(url, json=payload, headers=headers, timeout=12)
+            data = resp.json() if resp.content else {}
+            cookies_dict = sess.cookies.get_dict()
+            resp_cookies = resp.cookies.get_dict()
+            all_cookies = {**cookies_dict, **resp_cookies}
+
+            app_fc_val = (
+                all_cookies.get("app_fc")
+                or data.get("app_fc")
+                or (data.get("data") or {}).get("app_fc")
+                or (data.get("data") or {}).get("token")
+                or data.get("token")
+                or ""
+            )
+            full_cookie_str = "; ".join(f"{k}={v}" for k, v in all_cookies.items()) if all_cookies else ""
+
+            if app_fc_val or ("app_fc" in full_cookie_str):
+                cookie_to_save = full_cookie_str if "app_fc=" in full_cookie_str else f"app_fc={app_fc_val}"
+                vpa = (
+                    custom_upi_id.strip()
+                    or (data.get("data") or {}).get("vpa")
+                    or f"{mob}@freecharge"
+                )
+                STATE["settings"]["freechargeCookie"] = cookie_to_save
+                STATE["settings"]["freechargeMobile"] = mob
+                STATE["settings"]["upiId"] = vpa
+                save_state(STATE)
+                return {
+                    "ok": True,
+                    "upiId": vpa,
+                    "freechargeCookie": cookie_to_save,
+                    "message": f"✅ Freecharge Connected! UPI ID set to {vpa} & 24×7 Auto-Verify Activated!",
+                }
+            last_err = data.get("errorMessage") or data.get("message") or f"HTTP {resp.status_code}"
+        except Exception as exc:
+            last_err = str(exc)
+
+    return {"ok": False, "message": f"⚠️ {last_err}"}
+
+
+def check_freecharge_transactions(
+    expected_utr: str | None = None,
+    expected_unique_amt: float | None = None,
+    session_id: str | None = None,
+    tech_id: str | None = None,
+) -> tuple[bool, int, str]:
+    """
+    Checks the Admin's own Freecharge account transaction history 24x7 using their `app_fc` session cookie.
+    Matches incoming UPI credit transactions by:
+    - Exact 12-digit UTR (`expected_utr`)
+    - OR Exact Unique Decimal Amount (`₹20.01`, `₹20.02`) / Order Session Note (`session_id` / `tech_id`)
+    Returns (matched_bool, credited_amount_int, matched_utr_str).
+    """
+    fc_cookie = (STATE["settings"].get("freechargeCookie") or os.environ.get("FREECHARGE_COOKIE") or "").strip()
+    if not fc_cookie:
+        return False, 0, ""
+
+    cookie_hdr = fc_cookie if ("=" in fc_cookie) else f"app_fc={fc_cookie}"
+    headers = {
+        "Cookie": cookie_hdr,
+        "Accept": "application/json, text/plain, */*",
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36",
+        "Origin": "https://www.freecharge.in",
+        "Referer": "https://www.freecharge.in/transactions",
+    }
+
+    endpoints = [
+        ("POST", "https://www.freecharge.in/thv/listv3?fcAppType=MSITE", {"isAndroid": False}),
+        ("GET", "https://www.freecharge.in/thv/listv3?fcAppType=MSITE", None),
+    ]
+    used_utrs = STATE.setdefault("used_utrs", [])
+
+    for method, url, payload in endpoints:
+        try:
+            if method == "POST":
+                resp = requests.post(url, json=payload, headers=headers, timeout=8)
+            else:
+                resp = requests.get(url, headers=headers, timeout=8)
+            if not resp.ok or not resp.content:
+                continue
+            raw_str = resp.text
+            data = resp.json() if resp.content else {}
+
+            # Parse transaction items list from Freecharge response
+            tx_list = (
+                data.get("data")
+                or data.get("transactions")
+                or (data.get("data") or {}).get("transactions")
+                if isinstance(data, dict)
+                else []
+            )
+            if isinstance(tx_list, list):
+                for tx in tx_list:
+                    if not isinstance(tx, dict):
+                        continue
+                    tx_json = json.dumps(tx)
+                    status = str(tx.get("status") or tx.get("txnStatus") or "SUCCESS").upper()
+                    if status not in ("SUCCESS", "COMPLETED", "CREDIT", "PAID"):
+                        continue
+                    amt_val = round(float(tx.get("amount") or tx.get("txnAmount") or 0), 2)
+                    # Find 12-digit UTR inside transaction metadata
+                    utr_candidates = re.findall(r"\b([1-9]\d{11})\b", tx_json)
+                    tx_utr = str(
+                        tx.get("upiTxnId")
+                        or tx.get("rrn")
+                        or tx.get("bankRefNo")
+                        or tx.get("utr")
+                        or (utr_candidates[0] if utr_candidates else "")
+                        or tx.get("txnId")
+                        or ""
+                    ).strip()
+
+                    if not tx_utr or tx_utr in used_utrs:
+                        continue
+
+                    # Match 1: By explicit UTR
+                    if expected_utr and expected_utr in tx_json and amt_val >= 1:
+                        return True, int(amt_val), expected_utr
+
+                    # Match 2: By Unique Decimal Amount (e.g. ₹20.01, ₹20.02) or Session ID / Tech ID
+                    if expected_unique_amt is not None and amt_val == round(float(expected_unique_amt), 2):
+                        return True, int(amt_val), tx_utr
+                    if session_id and session_id in tx_json and amt_val >= 1:
+                        return True, int(amt_val), tx_utr
+        except Exception as exc:
+            logger.warning("Freecharge check warning: %s", exc)
+
+    return False, 0, ""
+
+
+def check_real_bharatpe_api(utr: str, expected_amount: int) -> tuple[bool, int]:
+    """Checks live BharatPe Merchant API if bharatpeToken & bharatpeMid are configured."""
+    mid = (STATE["settings"].get("bharatpeMid") or os.environ.get("BHARATPE_MID") or "").strip()
+    token = (STATE["settings"].get("bharatpeToken") or os.environ.get("BHARATPE_TOKEN") or "").strip()
+    if not mid or not token:
+        return False, 0
+    try:
+        url = f"https://payments-tesseract.bharatpe.in/api/v1/merchant/transactions?module=PAYMENT_QR&merchantId={mid}"
+        headers = {"token": token, "user-agent": "Mozilla/5.0"}
+        resp = requests.get(url, headers=headers, timeout=10)
+        data = resp.json() if resp.content else {}
+        txns = (data.get("data") or {}).get("transactions") or []
+        for tx in txns:
+            bank_ref = str(tx.get("bankReferenceNo") or tx.get("utr") or "").strip()
+            status = str(tx.get("status") or "").upper()
+            amt = int(float(tx.get("amount") or 0))
+            if bank_ref == utr and status == "SUCCESS" and amt >= expected_amount:
+                return True, amt
+    except Exception as exc:
+        logger.warning("BharatPe API check error: %s", exc)
+    return False, 0
+
+
+def credit_customer_verified_utr(cust: dict, utr: str, amount: int, source_label: str) -> None:
+    """Credits customer wallet once a UTR is genuinely verified by Bank SMS Webhook, BharatPe API, or Admin 1-Tap."""
+    used_utrs = STATE.setdefault("used_utrs", [])
+    if utr not in used_utrs:
+        used_utrs.append(utr)
+    cust["balance"] = int(cust.get("balance", 0)) + amount
+    STATE["stats"]["collected"] = int(STATE["stats"].get("collected", 0)) + amount
+    STATE["stats"]["cost"] = int(STATE["stats"].get("cost", 0)) + (amount // 20) * 13
+    STATE["stats"]["profit"] = STATE["stats"]["collected"] - STATE["stats"]["cost"]
+    # Remove from pending_payments if present
+    STATE["pending_payments"] = [p for p in STATE.get("pending_payments", []) if p.get("utr") != utr]
+    save_state(STATE)
+
+
+def allocate_unique_amount(base_amount: int) -> float:
+    """
+    When 2, 3, or 20 users click 'Pay ₹20' at the exact same time, assigns each active session
+    a unique paise tag (e.g. ₹20.01, ₹20.02, ₹20.03) valid for 5 minutes.
+    When the payment hits BharatPe or Bank SMS, the exact paise or Order Ref matches the exact user
+    with ZERO collision and ZERO UTR typing!
+    """
+    now_ts = time.time()
+    sessions = STATE.setdefault("payment_sessions", {})
+    # Expire sessions older than 6 minutes
+    expired = [k for k, v in sessions.items() if now_ts - float(v.get("createdAt", 0)) > 360 and v.get("status") == "PENDING"]
+    for k in expired:
+        sessions.pop(k, None)
+
+    used_paise = {
+        round(float(v.get("uniqueAmount", 0)) - int(float(v.get("uniqueAmount", 0))), 2)
+        for v in sessions.values()
+        if v.get("status") == "PENDING" and int(float(v.get("baseAmount", 20))) == base_amount
+    }
+    for p in range(1, 99):
+        frac = round(p / 100.0, 2)
+        if frac not in used_paise:
+            return round(base_amount + frac, 2)
+    return float(base_amount)
+
+
+async def api_customer_create_payment(request: web.Request) -> web.Response:
+    """Creates a Flipkart/Amazon-style auto-tracked Payment Session (Razorpay Order + Dynamic Unique UPI Session)."""
+    try:
+        body = await request.json()
+        tech_id = str(body.get("techId") or "").strip()
+        base_amt = int(body.get("amount") or 20)
+        if not tech_id:
+            return web.json_response({"ok": False, "message": "Login required"}, status=400)
+
+        session_id = f"JPW{int(time.time())}{random.randint(100, 999)}"
+        unique_amt = allocate_unique_amount(base_amt)
+
+        rzp_key_id = (STATE["settings"].get("razorpayKeyId") or os.environ.get("RAZORPAY_KEY_ID") or "").strip()
+        rzp_secret = (STATE["settings"].get("razorpayKeySecret") or os.environ.get("RAZORPAY_KEY_SECRET") or "").strip()
+        rzp_order_id = None
+
+        # If Razorpay keys are configured, create an official Razorpay Order
+        if rzp_key_id and rzp_secret:
+            try:
+                resp = await asyncio.to_thread(
+                    requests.post,
+                    "https://api.razorpay.com/v1/orders",
+                    auth=(rzp_key_id, rzp_secret),
+                    json={
+                        "amount": base_amt * 100,  # in paise
+                        "currency": "INR",
+                        "receipt": session_id,
+                        "notes": {"techId": tech_id, "sessionId": session_id},
+                    },
+                    timeout=10,
+                )
+                if resp.ok:
+                    rzp_order_id = (resp.json() or {}).get("id")
+            except Exception as exc:
+                logger.warning("Razorpay order creation warning: %s", exc)
+
+        upi_id = STATE["settings"].get("upiId", "jpwportal@ybl")
+        app_title = STATE["settings"].get("appTitle", "JPW Portal")
+        # Embed session_id in `tr` (Transaction Reference) and `tn` (Transaction Note) + unique_amt
+        upi_uri = (
+            f"upi://pay?pa={quote(upi_id)}&pn={quote(app_title)}"
+            f"&am={unique_amt:.2f}&cu=INR&tr={quote(session_id)}&tn={quote('ID_' + tech_id + '_' + session_id)}"
+        )
+
+        sess_obj = {
+            "sessionId": session_id,
+            "techId": tech_id,
+            "baseAmount": base_amt,
+            "uniqueAmount": unique_amt,
+            "upiUri": upi_uri,
+            "rzpKeyId": rzp_key_id if rzp_order_id else None,
+            "rzpOrderId": rzp_order_id,
+            "status": "PENDING",
+            "createdAt": time.time(),
+        }
+        STATE.setdefault("payment_sessions", {})[session_id] = sess_obj
+        save_state(STATE)
+        return web.json_response({"ok": True, "session": sess_obj})
+    except Exception as exc:
+        return web.json_response({"ok": False, "message": str(exc)}, status=400)
+
+
+async def api_customer_verify_razorpay(request: web.Request) -> web.Response:
+    """Verifies Razorpay Checkout signature and immediately credits ₹20 to Customer Wallet."""
+    try:
+        body = await request.json()
+        session_id = str(body.get("sessionId") or "").strip()
+        rzp_order_id = str(body.get("razorpay_order_id") or "").strip()
+        rzp_payment_id = str(body.get("razorpay_payment_id") or "").strip()
+        rzp_signature = str(body.get("razorpay_signature") or "").strip()
+
+        sess = STATE.setdefault("payment_sessions", {}).get(session_id)
+        if not sess:
+            return web.json_response({"ok": False, "message": "Session not found"}, status=404)
+        if sess.get("status") == "COMPLETED":
+            cust = next((c for c in STATE.get("customers", []) if str(c.get("techId")) == str(sess["techId"])), None)
+            return web.json_response({"ok": True, "customer": cust, "message": "Already credited!"})
+
+        rzp_secret = (STATE["settings"].get("razorpayKeySecret") or os.environ.get("RAZORPAY_KEY_SECRET") or "").strip()
+        msg = f"{rzp_order_id}|{rzp_payment_id}".encode("utf-8")
+        expected_sig = hmac.new(rzp_secret.encode("utf-8"), msg, hashlib.sha256).hexdigest()
+
+        if not hmac.compare_digest(expected_sig, rzp_signature):
+            return web.json_response({"ok": False, "message": "❌ Invalid payment signature"}, status=400)
+
+        sess["status"] = "COMPLETED"
+        cust = next((c for c in STATE.get("customers", []) if str(c.get("techId")) == str(sess["techId"])), None)
+        if cust:
+            credit_customer_verified_utr(cust, rzp_payment_id, int(sess["baseAmount"]), "Razorpay Checkout")
+        return web.json_response({
+            "ok": True,
+            "status": "COMPLETED",
+            "message": f"🎉 ₹{sess['baseAmount']} Payment Successful!",
+            "customer": cust,
+        })
+    except Exception as exc:
+        return web.json_response({"ok": False, "message": str(exc)}, status=400)
+
+
+async def api_customer_check_payment(request: web.Request) -> web.Response:
+    """
+    Polled every 2 seconds by the Customer App while waiting on the payment screen.
+    Checks if the payment session was completed via:
+    1) Bank/UPI SMS Webhook (matching exact uniqueAmount like ₹20.01 or sessionId/techId)
+    2) Live BharatPe Merchant API (matching exact uniqueAmount or transaction note after session start time)
+    No UTR input needed from the customer!
+    """
+    try:
+        body = await request.json()
+        session_id = str(body.get("sessionId") or "").strip()
+        sess = STATE.setdefault("payment_sessions", {}).get(session_id)
+        if not sess:
+            return web.json_response({"ok": False, "status": "NOT_FOUND"}, status=404)
+
+        tech_id = str(sess.get("techId"))
+        cust = next((c for c in STATE.get("customers", []) if str(c.get("techId")) == tech_id), None)
+
+        if sess.get("status") == "COMPLETED":
+            return web.json_response({
+                "ok": True,
+                "status": "COMPLETED",
+                "message": f"🎉 ₹{sess['baseAmount']} Added to Wallet!",
+                "customer": cust,
+            })
+
+        # Check 1: Live Freecharge 24x7 Cloud Checker (using app_fc session cookie — No Phone Needed!)
+        if cust:
+            fc_ok, fc_amt, fc_utr = await asyncio.to_thread(
+                check_freecharge_transactions,
+                None,
+                float(sess["uniqueAmount"]),
+                session_id,
+                tech_id,
+            )
+            if fc_ok:
+                sess["status"] = "COMPLETED"
+                credit_customer_verified_utr(cust, fc_utr, int(sess["baseAmount"]), "Freecharge 24x7 Auto-Detect")
+                if ADMIN_CHAT_ID:
+                    asyncio.create_task(
+                        asyncio.to_thread(
+                            send_message,
+                            ADMIN_CHAT_ID,
+                            f"⚡ <b>Freecharge Auto-Detected Payment (₹{sess['uniqueAmount']:.2f})!</b>\n"
+                            f"👤 Tech ID: <code>{tech_id}</code> (+₹{sess['baseAmount']})\n"
+                            f"🧾 Ref/UTR: <code>{fc_utr}</code>",
+                        )
+                    )
+                return web.json_response({
+                    "ok": True,
+                    "status": "COMPLETED",
+                    "message": f"🎉 ₹{sess['baseAmount']} Freecharge Verified! Wallet Updated!",
+                    "customer": cust,
+                })
+
+        # Check 2: Live BharatPe API for a transaction matching uniqueAmount (e.g. 20.01) or note containing session_id/tech_id
+        mid = (STATE["settings"].get("bharatpeMid") or os.environ.get("BHARATPE_MID") or "").strip()
+        token = (STATE["settings"].get("bharatpeToken") or os.environ.get("BHARATPE_TOKEN") or "").strip()
+        if mid and token and cust:
+            try:
+                url = f"https://payments-tesseract.bharatpe.in/api/v1/merchant/transactions?module=PAYMENT_QR&merchantId={mid}"
+                resp = await asyncio.to_thread(requests.get, url, headers={"token": token, "user-agent": "Mozilla/5.0"}, timeout=8)
+                data = resp.json() if resp.content else {}
+                txns = (data.get("data") or {}).get("transactions") or []
+                used_utrs = STATE.setdefault("used_utrs", [])
+                for tx in txns:
+                    bank_ref = str(tx.get("bankReferenceNo") or tx.get("utr") or "").strip()
+                    status = str(tx.get("status") or "").upper()
+                    tx_amt = round(float(tx.get("amount") or 0), 2)
+                    tx_note = str(tx.get("payerHandle") or tx.get("remarks") or tx.get("note") or "")
+                    if status == "SUCCESS" and bank_ref and bank_ref not in used_utrs:
+                        if tx_amt == round(float(sess["uniqueAmount"]), 2) or session_id in tx_note or tech_id in tx_note:
+                            sess["status"] = "COMPLETED"
+                            credit_customer_verified_utr(cust, bank_ref, int(sess["baseAmount"]), "BharatPe Auto-Detect")
+                            return web.json_response({
+                                "ok": True,
+                                "status": "COMPLETED",
+                                "message": f"🎉 ₹{sess['baseAmount']} Auto-Detected! Wallet Updated!",
+                                "customer": cust,
+                            })
+            except Exception as exc:
+                logger.warning("BharatPe poll check error: %s", exc)
+
+        return web.json_response({"ok": True, "status": "PENDING", "customer": cust})
+    except Exception as exc:
+        return web.json_response({"ok": False, "message": str(exc)}, status=400)
+
+
+async def api_admin_fc_send_otp(request: web.Request) -> web.Response:
+    try:
+        body = await request.json()
+        mobile = str(body.get("mobile") or "").strip()
+        res = await asyncio.to_thread(fc_send_otp_request, mobile)
+        return web.json_response(res, status=200 if res.get("ok") else 400)
+    except Exception as exc:
+        return web.json_response({"ok": False, "message": str(exc)}, status=400)
+
+
+async def api_admin_fc_verify_otp(request: web.Request) -> web.Response:
+    try:
+        body = await request.json()
+        mobile = str(body.get("mobile") or "").strip()
+        otp = str(body.get("otp") or "").strip()
+        upi_id = str(body.get("upiId") or "").strip()
+        res = await asyncio.to_thread(fc_verify_otp_request, mobile, otp, upi_id)
+        return web.json_response(res, status=200 if res.get("ok") else 400)
+    except Exception as exc:
+        return web.json_response({"ok": False, "message": str(exc)}, status=400)
+
+
+async def api_payment_webhook(request: web.Request) -> web.Response:
+    """
+    Receives real-time Bank / UPI SMS or Notification from SMS Forwarder / MacroDroid app on Admin's phone!
+    Automatically extracts the 12-digit UTR & Rs amount (e.g. 'Received Rs.20.00 ... Ref 431298765432').
+    If a customer already submitted that UTR (or submits it later), it auto-credits ₹20 in 0 seconds!
+    """
+    try:
+        if request.content_type == "application/json":
+            body = await request.json()
+            raw_text = str(body.get("text") or body.get("message") or body.get("sms") or body.get("body") or json.dumps(body))
+        else:
+            raw_text = await request.text()
+
+        # Extract 12-digit UTR number from SMS/Notification text
+        utr_matches = re.findall(r"\b([1-9]\d{11})\b", raw_text)
+        # Extract exact decimal amount (e.g. Rs. 20.01, INR 20.02, ₹20.00)
+        amt_match = re.search(r"(?:rs\.?|inr|₹)\s*([0-9]+(?:\.[0-9]{1,2})?)", raw_text, re.IGNORECASE)
+        exact_float_amt = round(float(amt_match.group(1)), 2) if amt_match else 20.0
+        detected_amt = int(exact_float_amt)
+
+        # AUTO-MATCH ACTIVE PAYMENT SESSION BY UNIQUE DECIMAL AMOUNT (e.g. 20.01, 20.02) OR SESSION ID!
+        sessions = STATE.setdefault("payment_sessions", {})
+        for sid, sess in list(sessions.items()):
+            if sess.get("status") == "PENDING":
+                if round(float(sess.get("uniqueAmount", 0)), 2) == exact_float_amt or sid in raw_text or str(sess.get("techId")) in raw_text:
+                    tid = sess.get("techId")
+                    cust = next((c for c in STATE.get("customers", []) if str(c.get("techId")) == str(tid)), None)
+                    if cust:
+                        utr_tag = utr_matches[0] if utr_matches else f"SMS_{int(time.time())}"
+                        sess["status"] = "COMPLETED"
+                        credit_customer_verified_utr(cust, utr_tag, int(sess.get("baseAmount", 20)), "Zero-UTR Auto-Match")
+                        if ADMIN_CHAT_ID:
+                            asyncio.create_task(
+                                asyncio.to_thread(
+                                    send_message,
+                                    ADMIN_CHAT_ID,
+                                    f"⚡ <b>Zero-UTR Auto-Payment Matched (₹{exact_float_amt:.2f})!</b>\n"
+                                    f"👤 Tech ID: <code>{tid}</code> (+₹{sess.get('baseAmount', 20)})",
+                                )
+                            )
+                        break
+
+        if not utr_matches:
+            return web.json_response({"ok": False, "message": "No 12-digit UTR found in webhook text"}, status=400)
+
+        verified_bank = STATE.setdefault("verified_bank_utrs", {})
+        used_utrs = STATE.setdefault("used_utrs", [])
+        auto_credited_users = []
+
+        for utr in utr_matches:
+            if utr in used_utrs:
+                continue
+            verified_bank[utr] = detected_amt
+
+            # Check if any customer is already waiting for this exact UTR in pending_payments!
+            pending_list = STATE.get("pending_payments", [])
+            matching_pend = next((p for p in pending_list if p.get("utr") == utr), None)
+            if matching_pend:
+                tid = matching_pend.get("techId")
+                cust = next((c for c in STATE.get("customers", []) if str(c.get("techId")) == str(tid)), None)
+                if cust:
+                    credit_customer_verified_utr(cust, utr, detected_amt, "Bank SMS Webhook")
+                    auto_credited_users.append(f"{tid} (+₹{detected_amt})")
+                    if ADMIN_CHAT_ID:
+                        asyncio.create_task(
+                            asyncio.to_thread(
+                                send_message,
+                                ADMIN_CHAT_ID,
+                                f"✅ <b>Bank SMS Matched! Auto-Credited ₹{detected_amt}</b>\n"
+                                f"👤 Tech ID: <code>{tid}</code>\n🧾 UTR: <code>{utr}</code>",
+                            )
+                        )
+
+        save_state(STATE)
+        return web.json_response({
+            "ok": True,
+            "recordedUtrs": utr_matches,
+            "amount": detected_amt,
+            "autoCredited": auto_credited_users,
+        })
+    except Exception as exc:
+        logger.warning("api_payment_webhook error: %s", exc)
+        return web.json_response({"ok": False, "message": str(exc)}, status=400)
+
+
+async def api_customer_pay(request: web.Request) -> web.Response:
+    """
+    Scam-Proof ₹20 Payment Verification:
+    1. Rejects already-used UTRs immediately.
+    2. Checks `STATE['verified_bank_utrs']` (populated by Bank/UPI SMS Webhook).
+    3. Checks live BharatPe Merchant API if configured.
+    4. If neither matched yet, puts UTR in `pending_payments` (DOES NOT give free ₹20 to fake UTRs!)
+       and sends a 1-Tap [✅ Approve] / [❌ Reject Fake] button to Admin on Telegram, while auto-crediting
+       the instant the Bank SMS arrives!
+    """
+    try:
+        body = await request.json()
+        tech_id = str(body.get("techId") or "").strip()
+        raw_utr = "".join(ch for ch in str(body.get("utr") or "") if ch.isdigit())
+        amount = int(body.get("amount") or 20)
+
+        if len(raw_utr) != 12 or raw_utr[0] == "0" or len(set(raw_utr)) < 3:
+            return web.json_response(
+                {"ok": False, "message": "⚠️ Invalid UTR! Enter valid 12-digit UPI UTR number."},
+                status=400,
+            )
+
+        used_utrs = STATE.setdefault("used_utrs", [])
+        if raw_utr in used_utrs:
+            return web.json_response(
+                {"ok": False, "message": "❌ This UTR number has already been used!"},
+                status=400,
+            )
+
+        customers = STATE.setdefault("customers", [])
+        cust = next((c for c in customers if str(c.get("techId")) == tech_id), None)
+        if not cust:
+            return web.json_response({"ok": False, "message": "Technician ID not found"}, status=404)
+
+        # CHECK 1: Did the Bank/UPI SMS Webhook already record this exact UTR?
+        verified_bank = STATE.setdefault("verified_bank_utrs", {})
+        if raw_utr in verified_bank:
+            real_amt = int(verified_bank.pop(raw_utr) or amount)
+            credit_customer_verified_utr(cust, raw_utr, real_amt, "Bank SMS Webhook")
+            if ADMIN_CHAT_ID:
+                asyncio.create_task(
+                    asyncio.to_thread(
+                        send_message,
+                        ADMIN_CHAT_ID,
+                        f"⚡ <b>Instant Bank-Verified Payment (+₹{real_amt})!</b>\n"
+                        f"👤 Tech ID: <code>{tech_id}</code>\n🧾 UTR: <code>{raw_utr}</code>\n"
+                        f"💳 New Balance: ₹{cust['balance']}",
+                    )
+                )
+            return web.json_response({
+                "ok": True,
+                "status": "VERIFIED",
+                "message": f"✅ Bank Verified! ₹{real_amt} Added to Wallet!",
+                "customer": cust,
+            })
+
+        # CHECK 1B: Check Live Freecharge 24x7 Cloud Statement (using app_fc cookie)
+        fc_ok, fc_amt, fc_utr = await asyncio.to_thread(
+            check_freecharge_transactions,
+            raw_utr,
+            None,
+            None,
+            tech_id,
+        )
+        if fc_ok and fc_amt >= amount:
+            credit_customer_verified_utr(cust, raw_utr, fc_amt, "Freecharge Live API")
+            if ADMIN_CHAT_ID:
+                asyncio.create_task(
+                    asyncio.to_thread(
+                        send_message,
+                        ADMIN_CHAT_ID,
+                        f"⚡ <b>Freecharge UTR Verified (+₹{fc_amt})!</b>\n"
+                        f"👤 Tech ID: <code>{tech_id}</code>\n🧾 UTR: <code>{raw_utr}</code>\n"
+                        f"💳 New Balance: ₹{cust['balance']}",
+                    )
+                )
+            return web.json_response({
+                "ok": True,
+                "status": "VERIFIED",
+                "message": f"✅ Freecharge Verified! ₹{fc_amt} Added to Wallet!",
+                "customer": cust,
+            })
+
+        # CHECK 2: Check Live BharatPe Merchant API (if configured)
+        bp_ok, bp_amt = await asyncio.to_thread(check_real_bharatpe_api, raw_utr, amount)
+        if bp_ok:
+            credit_customer_verified_utr(cust, raw_utr, bp_amt, "BharatPe Live API")
+            if ADMIN_CHAT_ID:
+                asyncio.create_task(
+                    asyncio.to_thread(
+                        send_message,
+                        ADMIN_CHAT_ID,
+                        f"⚡ <b>BharatPe API Verified (+₹{bp_amt})!</b>\n"
+                        f"👤 Tech ID: <code>{tech_id}</code>\n🧾 UTR: <code>{raw_utr}</code>\n"
+                        f"💳 New Balance: ₹{cust['balance']}",
+                    )
+                )
+            return web.json_response({
+                "ok": True,
+                "status": "VERIFIED",
+                "message": f"✅ BharatPe Bank Verified! ₹{bp_amt} Added to Wallet!",
+                "customer": cust,
+            })
+
+        # CHECK 3: Not in Bank Webhook or BharatPe yet -> NEVER give free money to unverified UTR!
+        # Save in pending_payments (auto-credits as soon as SMS arrives, or Admin taps 1-click button in Telegram)
+        pending_list = STATE.setdefault("pending_payments", [])
+        if not any(p.get("utr") == raw_utr for p in pending_list):
+            pending_list.insert(0, {
+                "utr": raw_utr,
+                "techId": tech_id,
+                "amount": amount,
+                "time": datetime.now().strftime("%I:%M %p"),
+            })
+            save_state(STATE)
+
+            if ADMIN_CHAT_ID:
+                kb = {
+                    "inline_keyboard": [
+                        [
+                            {"text": f"✅ Approve ₹{amount} ({tech_id})", "callback_data": f"utr_ok_{raw_utr}_{tech_id}_{amount}"},
+                            {"text": "❌ Reject Fake UTR", "callback_data": f"utr_no_{raw_utr}_{tech_id}"},
+                        ]
+                    ]
+                }
+                asyncio.create_task(
+                    asyncio.to_thread(
+                        send_message,
+                        ADMIN_CHAT_ID,
+                        f"🔔 <b>New UPI Payment Submitted!</b>\n\n"
+                        f"👤 <b>Technician ID:</b> <code>{tech_id}</code>\n"
+                        f"💰 <b>Claimed Amount:</b> ₹{amount}\n"
+                        f"🧾 <b>UTR Number:</b> <code>{raw_utr}</code>\n\n"
+                        "<i>(Agar Bank SMS Webhook ya BharatPe chalu hai toh SMS aate hi apne-aap approve ho jayega, warna niche 1-tap karein):</i>",
+                        kb,
+                    )
+                )
+
+        return web.json_response({
+            "ok": False,
+            "status": "PENDING_BANK",
+            "message": "⏳ Checking UTR with Bank Server... (Jaise hi bank me ₹20 confirm hoga, upar wallet me apne-aap ₹20 aa jayega! Fake UTR मान्य नहीं है)",
+            "customer": cust,
+        })
+    except Exception as exc:
+        return web.json_response({"ok": False, "message": str(exc)}, status=400)
+
+
+async def api_customer_order(request: web.Request) -> web.Response:
+    """Customer submits 1 Reach Order (₹20) -> Bot automatically uses a backend account with >= 1.00 Coin to place order on Cashtree!"""
+    try:
+        body = await request.json()
+        tech_id = str(body.get("techId") or "").strip()
+        target_id = str(body.get("targetId") or "").strip()
+        target_pass = str(body.get("targetPass") or "").strip()
+
+        if not tech_id or not target_id or not target_pass:
+            return web.json_response(
+                {"ok": False, "message": "⚠️ Please enter Target ID and Target Password"},
+                status=400,
+            )
+
+        customers = STATE.setdefault("customers", [])
+        cust = next((c for c in customers if str(c.get("techId")) == tech_id), None)
+        if not cust:
+            return web.json_response({"ok": False, "message": "Technician account not found"}, status=404)
+
+        if int(cust.get("balance", 0)) < 20:
+            return web.json_response(
+                {"ok": False, "message": "⚠️ Insufficient Balance (₹0)! Please pay ₹20 first."},
+                status=400,
+            )
+
+        # Find a backend Cashtree node account that has >= 1.00 Coin (or fallback to highest coin / credit account)
+        profiles = STATE.get("profiles", [])
+        ready_nodes = [p for p in profiles if float(p.get("jpwCoins", 0.0)) >= 1.0]
+        ready_nodes.sort(key=lambda x: float(x.get("jpwCoins", 0.0)), reverse=True)
+        node_prof = ready_nodes[0] if ready_nodes else (profiles[0] if profiles else None)
+
+        if not node_prof:
+            return web.json_response(
+                {"ok": False, "message": "⚠️ No backend service node configured. Contact Admin."},
+                status=500,
+            )
+
+        # Place real order on Cashtree using the selected backend node account!
+        api_res = await asyncio.to_thread(place_reach_order_on_cashtree, node_prof, target_id, target_pass)
+        srv_data = api_res.get("data") or {}
+        srv_msg = srv_data.get("message") or srv_data.get("error") or ("Reach Order Successful!" if api_res["ok"] else "Server rejected order")
+
+        if not api_res["ok"]:
+            # Do NOT deduct customer's ₹20 if Cashtree server rejected the order (e.g., outside service hours 09:30 AM - 10:15 PM IST)
+            return web.json_response(
+                {"ok": False, "message": f"⚠️ {srv_msg} (Your ₹{cust['balance']} balance is safe!)"},
+                status=400,
+            )
+
+        # Order succeeded on Cashtree! Deduct ₹20 from Customer Wallet and 1 Coin from Backend Node
+        cust["balance"] = max(0, int(cust.get("balance", 0)) - 20)
+        cust["totalOrders"] = int(cust.get("totalOrders", 0)) + 1
+
+        u_obj = srv_data.get("user") or {}
+        node_prof["jpwCoins"] = float(u_obj.get("jpwCoins", max(0.0, float(node_prof.get("jpwCoins", 0.0)) - 1.0)))
+
+        wo_id = random.randint(7100000000, 7999999999)
+        now_str = datetime.now().strftime("%I:%M %p")
+        order_obj = {
+            "id": wo_id,
+            "profileId": node_prof["id"],
+            "customerTechId": tech_id,
+            "targetId": target_id,
+            "notes": f"APK User: {tech_id} | Pass: {target_pass}",
+            "status": "COMPLETED",
+            "time": now_str,
+        }
+        STATE["orders"].insert(0, order_obj)
+        save_state(STATE)
+
+        if ADMIN_CHAT_ID:
+            asyncio.create_task(
+                asyncio.to_thread(
+                    send_message,
+                    ADMIN_CHAT_ID,
+                    f"🚀 <b>Auto-Order Placed by APK User!</b>\n"
+                    f"👤 <b>Customer Tech ID:</b> <code>{tech_id}</code> (New Bal: ₹{cust['balance']})\n"
+                    f"🎯 <b>Target ID:</b> <code>{target_id}</code> | Pass: <code>{target_pass}</code>\n"
+                    f"⚡ <b>Used Backend Node:</b> <code>{node_prof['id']}</code> (Coins left: {node_prof['jpwCoins']:.2f})",
+                )
+            )
+
+        my_orders = [o for o in STATE.get("orders", []) if str(o.get("customerTechId")) == tech_id]
+        return web.json_response({
+            "ok": True,
+            "message": f"🚀 Order #{wo_id} Placed Successfully! ({srv_msg})",
+            "customer": cust,
+            "order": order_obj,
+            "orders": my_orders[:20],
+        })
+    except Exception as exc:
+        return web.json_response({"ok": False, "message": str(exc)}, status=400)
 
 
 async def poll_telegram_updates() -> None:
@@ -1118,6 +2135,15 @@ def create_app() -> web.Application:
     app.router.add_get("/api/state", api_state_get)
     app.router.add_post("/api/state", api_state_post)
     app.router.add_post("/api/register-proxy", api_register_proxy)
+    app.router.add_post("/api/customer/auth", api_customer_auth)
+    app.router.add_post("/api/customer/pay", api_customer_pay)
+    app.router.add_post("/api/customer/order", api_customer_order)
+    app.router.add_post("/api/payment-webhook", api_payment_webhook)
+    app.router.add_post("/api/customer/create-payment", api_customer_create_payment)
+    app.router.add_post("/api/customer/check-payment", api_customer_check_payment)
+    app.router.add_post("/api/customer/verify-razorpay", api_customer_verify_razorpay)
+    app.router.add_post("/api/admin/fc-send-otp", api_admin_fc_send_otp)
+    app.router.add_post("/api/admin/fc-verify-otp", api_admin_fc_verify_otp)
     app.on_startup.append(on_startup)
     app.on_cleanup.append(on_cleanup)
     return app
