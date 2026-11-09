@@ -94,7 +94,7 @@ DEFAULT_STATE = {
             "telegramChatId": "WEB_0690766275",
         },
         {
-            "id": "055555555",
+            "id": "0691113840",
             "name": "Main Node",
             "password": "12345",
             "credits": 3,
@@ -148,7 +148,8 @@ STATE["settings"].setdefault("bharatpeToken", os.environ.get("BHARATPE_TOKEN", "
 STATE["settings"].setdefault("razorpayKeyId", os.environ.get("RAZORPAY_KEY_ID", ""))
 STATE["settings"].setdefault("razorpayKeySecret", os.environ.get("RAZORPAY_KEY_SECRET", ""))
 STATE["settings"].setdefault("webhookSecret", os.environ.get("WEBHOOK_SECRET", "jpw123"))
-STATE.setdefault("payment_sessions", {})  # { session_id: { techId, baseAmount, uniqueAmount, status, createdAt, rzpOrderId } }
+STATE.setdefault("payment_sessions", {})
+STATE.setdefault("fc_logs", [])  # Live diagnostic logs for Freecharge app_fc Direct API  # { session_id: { techId, baseAmount, uniqueAmount, status, createdAt, rzpOrderId } }
 
 
 # ================= CASHTREE API HELPERS =================
@@ -1391,29 +1392,96 @@ def fc_verify_otp_request(mobile: str, otp_code: str, custom_upi_id: str = "") -
     return {"ok": False, "message": f"⚠️ {last_err}"}
 
 
+def append_fc_log(msg: str) -> None:
+    """Appends a timestamped entry to STATE['fc_logs'] (keeps latest 30 entries) for the Admin Page Live Logs viewer."""
+    ist_now = datetime.utcfromtimestamp(time.time() + 19800).strftime("%I:%M:%S %p")
+    entry = f"[{ist_now}] {msg}"
+    logger.info("FC_API: %s", msg)
+    logs = STATE.setdefault("fc_logs", [])
+    logs.insert(0, entry)
+    if len(logs) > 30:
+        del logs[30:]
+
+
+def _extract_all_fc_tx_dicts(obj) -> list[dict]:
+    """
+    Recursively extracts transaction dicts from Freecharge's JSON response
+    (handles data.globalTransactions, data.transactions, data.txnList, data.history, etc.).
+    """
+    found = []
+    if isinstance(obj, list):
+        for item in obj:
+            if isinstance(item, dict) and any(
+                k in item for k in ("amount", "txnAmount", "totalAmount", "txnId", "fcTxnId", "upiTxnId", "rrn", "title", "subtitle", "billerName")
+            ):
+                found.append(item)
+            else:
+                found.extend(_extract_all_fc_tx_dicts(item))
+    elif isinstance(obj, dict):
+        # Prioritize known transaction array keys
+        for key in ("globalTransactions", "transactions", "txnList", "history", "items", "results", "data"):
+            val = obj.get(key)
+            if isinstance(val, (list, dict)):
+                found.extend(_extract_all_fc_tx_dicts(val))
+        for k, val in obj.items():
+            if k not in ("globalTransactions", "transactions", "txnList", "history", "items", "results", "data") and isinstance(val, (list, dict)):
+                found.extend(_extract_all_fc_tx_dicts(val))
+    return found
+
+
+def _parse_fc_amount(tx: dict) -> float:
+    """Extracts float amount from any Freecharge transaction dict field."""
+    for k in ("amount", "txnAmount", "totalAmount", "netAmount", "paidAmount", "value"):
+        raw = tx.get(k)
+        if raw is not None:
+            cleaned = re.sub(r"[^0-9.]", "", str(raw))
+            if cleaned:
+                try:
+                    return round(float(cleaned), 2)
+                except Exception:
+                    pass
+    # Fallback: search inside title/subtitle/json for Rs./₹ amount
+    tx_str = json.dumps(tx)
+    m = re.search(r"(?:rs\.?|inr|₹)\s*([0-9]+(?:\.[0-9]{1,2})?)", tx_str, re.IGNORECASE)
+    if m:
+        try:
+            return round(float(m.group(1)), 2)
+        except Exception:
+            pass
+    return 0.0
+
+
 def check_freecharge_transactions(
     expected_utr: str | None = None,
     expected_unique_amt: float | None = None,
     session_id: str | None = None,
     tech_id: str | None = None,
+    is_manual_test: bool = False,
 ) -> tuple[bool, int, str]:
     """
-    Checks the Admin's own Freecharge account transaction history 24x7 using their `app_fc` session cookie.
-    Matches incoming UPI credit transactions by:
-    - Exact 12-digit UTR (`expected_utr`)
-    - OR Exact Unique Decimal Amount (`₹20.01`, `₹20.02`) / Order Session Note (`session_id` / `tech_id`)
-    Returns (matched_bool, credited_amount_int, matched_utr_str).
+    Checks the Admin's Freecharge account transaction history 24x7 using their `app_fc` session cookie.
+    Fixed bug where `data.get('data')` was a dict (`{'globalTransactions': [...]}`) and skipped list iteration!
+    Also logs every response status and transaction preview to `STATE['fc_logs']` for the Admin Dashboard.
     """
     fc_cookie = (STATE["settings"].get("freechargeCookie") or os.environ.get("FREECHARGE_COOKIE") or "").strip()
     if not fc_cookie:
+        append_fc_log("⚠️ app_fc cookie is empty! Paste app_fc in Admin tab & Save.")
         return False, 0, ""
 
-    cookie_hdr = fc_cookie if ("=" in fc_cookie) else f"app_fc={fc_cookie}"
+    # Clean cookie formatting: if user pasted just the raw value, wrap as app_fc=<val>
+    if "app_fc=" in fc_cookie:
+        cookie_hdr = fc_cookie
+    elif "=" in fc_cookie and ";" in fc_cookie:
+        cookie_hdr = fc_cookie
+    else:
+        cookie_hdr = f"app_fc={fc_cookie}"
+
     headers = {
         "Cookie": cookie_hdr,
         "Accept": "application/json, text/plain, */*",
         "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36",
+        "X-Requested-With": "XMLHttpRequest",
+        "User-Agent": "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36",
         "Origin": "https://www.freecharge.in",
         "Referer": "https://www.freecharge.in/transactions",
     }
@@ -1421,63 +1489,104 @@ def check_freecharge_transactions(
     endpoints = [
         ("POST", "https://www.freecharge.in/thv/listv3?fcAppType=MSITE", {"isAndroid": False}),
         ("GET", "https://www.freecharge.in/thv/listv3?fcAppType=MSITE", None),
+        ("POST", "https://www.freecharge.in/thv/listv3?fcAppType=ANDROID", {"isAndroid": True}),
     ]
     used_utrs = STATE.setdefault("used_utrs", [])
 
     for method, url, payload in endpoints:
         try:
             if method == "POST":
-                resp = requests.post(url, json=payload, headers=headers, timeout=8)
+                resp = requests.post(url, json=payload, headers=headers, timeout=10)
             else:
-                resp = requests.get(url, headers=headers, timeout=8)
-            if not resp.ok or not resp.content:
+                resp = requests.get(url, headers=headers, timeout=10)
+
+            status_code = resp.status_code
+            raw_text = (resp.text or "").strip()
+
+            if not resp.ok:
+                append_fc_log(f"❌ {method} {url.split('.in')[-1]} -> HTTP {status_code} | Resp: {raw_text[:120]}")
                 continue
-            raw_str = resp.text
-            data = resp.json() if resp.content else {}
 
-            # Parse transaction items list from Freecharge response
-            tx_list = (
-                data.get("data")
-                or data.get("transactions")
-                or (data.get("data") or {}).get("transactions")
-                if isinstance(data, dict)
-                else []
+            try:
+                data = resp.json() if resp.content else {}
+            except Exception:
+                append_fc_log(f"⚠️ Non-JSON from {url.split('.in')[-1]} (HTTP {status_code}): {raw_text[:120]}")
+                continue
+
+            tx_list = _extract_all_fc_tx_dicts(data)
+            if not tx_list:
+                append_fc_log(f"ℹ️ HTTP {status_code} OK but 0 txns extracted. Keys: {list(data.keys()) if isinstance(data, dict) else 'non-dict'} | Raw: {raw_text[:140]}")
+                # Raw text fallback: check if exact decimal amount (e.g. "20.01") is present inside raw JSON!
+                if expected_unique_amt is not None:
+                    target_str = f"{float(expected_unique_amt):.2f}"
+                    if f'"{target_str}"' in raw_text or f":{target_str}" in raw_text or f" {target_str}" in raw_text:
+                        utr_cands = re.findall(r"\b([1-9]\d{11})\b", raw_text)
+                        fallback_id = next((u for u in utr_cands if u not in used_utrs), f"FC_RAW_{target_str}_{int(time.time()//300)}")
+                        if fallback_id not in used_utrs:
+                            append_fc_log(f"✅ RAW JSON MATCH! Found ₹{target_str} in response (Ref: {fallback_id})")
+                            return True, int(float(expected_unique_amt)), fallback_id
+                continue
+
+            # Summarize top 5 recent transactions for Admin Logs
+            preview_items = []
+            for t in tx_list[:5]:
+                a = _parse_fc_amount(t)
+                st = str(t.get("status") or t.get("txnStatus") or "OK")
+                tid = str(t.get("txnId") or t.get("fcTxnId") or t.get("upiTxnId") or "")[-8:]
+                preview_items.append(f"₹{a:.2f}({st}:{tid})")
+            append_fc_log(
+                f"✅ HTTP {status_code} | {len(tx_list)} txns | Looking for: ₹{expected_unique_amt if expected_unique_amt else expected_utr} | Latest: {', '.join(preview_items)}"
             )
-            if isinstance(tx_list, list):
-                for tx in tx_list:
-                    if not isinstance(tx, dict):
-                        continue
-                    tx_json = json.dumps(tx)
-                    status = str(tx.get("status") or tx.get("txnStatus") or "SUCCESS").upper()
-                    if status not in ("SUCCESS", "COMPLETED", "CREDIT", "PAID"):
-                        continue
-                    amt_val = round(float(tx.get("amount") or tx.get("txnAmount") or 0), 2)
-                    # Find 12-digit UTR inside transaction metadata
-                    utr_candidates = re.findall(r"\b([1-9]\d{11})\b", tx_json)
-                    tx_utr = str(
-                        tx.get("upiTxnId")
-                        or tx.get("rrn")
-                        or tx.get("bankRefNo")
-                        or tx.get("utr")
-                        or (utr_candidates[0] if utr_candidates else "")
-                        or tx.get("txnId")
-                        or ""
-                    ).strip()
 
-                    if not tx_utr or tx_utr in used_utrs:
-                        continue
+            for tx in tx_list[:20]:
+                tx_json = json.dumps(tx)
+                status = str(tx.get("status") or tx.get("txnStatus") or tx.get("paymentStatus") or "SUCCESS").upper()
+                if any(bad in status for bad in ("FAIL", "DECLINE", "REJECT", "CANCEL", "PENDING")):
+                    continue
 
-                    # Match 1: By explicit UTR
-                    if expected_utr and expected_utr in tx_json and amt_val >= 1:
-                        return True, int(amt_val), expected_utr
+                amt_val = _parse_fc_amount(tx)
+                utr_candidates = re.findall(r"\b([1-9]\d{11})\b", tx_json)
+                tx_utr = str(
+                    tx.get("upiTxnId")
+                    or tx.get("rrn")
+                    or tx.get("bankRefNo")
+                    or tx.get("utr")
+                    or tx.get("txnId")
+                    or tx.get("fcTxnId")
+                    or tx.get("orderId")
+                    or (utr_candidates[0] if utr_candidates else "")
+                    or ""
+                ).strip()
 
-                    # Match 2: By Unique Decimal Amount (e.g. ₹20.01, ₹20.02) or Session ID / Tech ID
-                    if expected_unique_amt is not None and amt_val == round(float(expected_unique_amt), 2):
-                        return True, int(amt_val), tx_utr
-                    if session_id and session_id in tx_json and amt_val >= 1:
-                        return True, int(amt_val), tx_utr
+                if not tx_utr:
+                    tx_utr = f"FC_{amt_val:.2f}_{hashlib.md5(tx_json.encode()).hexdigest()[:8]}"
+
+                if tx_utr in used_utrs:
+                    continue
+
+                # Match 1: Explicit 12-digit UTR
+                if expected_utr and expected_utr in tx_json and amt_val >= 1:
+                    append_fc_log(f"🎉 MATCHED UTR {expected_utr} (₹{amt_val:.2f})!")
+                    return True, int(amt_val), expected_utr
+
+                # Match 2: Exact Unique Decimal Amount (e.g. ₹20.01, ₹60.01)
+                if expected_unique_amt is not None:
+                    target_amt = round(float(expected_unique_amt), 2)
+                    target_str = f"{target_amt:.2f}"
+                    if amt_val == target_amt or f'"{target_str}"' in tx_json or f":{target_str}" in tx_json:
+                        append_fc_log(f"🎉 MATCHED AMOUNT ₹{target_str} (Ref: {tx_utr}) for Tech {tech_id}!")
+                        return True, int(target_amt), tx_utr
+
+                # Match 3: Session ID or Tech ID in transaction note/remarks
+                if session_id and session_id in tx_json and amt_val >= 1:
+                    append_fc_log(f"🎉 MATCHED SESSION {session_id} (₹{amt_val:.2f})!")
+                    return True, int(amt_val), tx_utr
+
+            # If we got a valid transaction list from the first working endpoint, no need to hit fallback URLs unless manual test
+            if not is_manual_test:
+                break
         except Exception as exc:
-            logger.warning("Freecharge check warning: %s", exc)
+            append_fc_log(f"⚠️ Exception calling {url.split('.in')[-1]}: {exc}")
 
     return False, 0, ""
 
@@ -1729,6 +1838,20 @@ async def api_customer_check_payment(request: web.Request) -> web.Response:
             except Exception as exc:
                 logger.warning("BharatPe poll check error: %s", exc)
 
+        # Check if webhook already recorded this exact decimal amount (e.g. AMT_20.01)
+        amt_key = f"AMT_{float(sess['uniqueAmount']):.2f}"
+        v_bank = STATE.setdefault("verified_bank_utrs", {})
+        if amt_key in v_bank and cust:
+            v_bank.pop(amt_key, None)
+            sess["status"] = "COMPLETED"
+            credit_customer_verified_utr(cust, f"FC_{int(time.time())}", int(sess["baseAmount"]), "Freecharge BIZ Webhook")
+            return web.json_response({
+                "ok": True,
+                "status": "COMPLETED",
+                "message": f"🎉 ₹{sess['baseAmount']} Added to Wallet!",
+                "customer": cust,
+            })
+
         return web.json_response({"ok": True, "status": "PENDING", "customer": cust})
     except Exception as exc:
         return web.json_response({"ok": False, "message": str(exc)}, status=400)
@@ -1742,6 +1865,32 @@ async def api_admin_fc_send_otp(request: web.Request) -> web.Response:
         return web.json_response(res, status=200 if res.get("ok") else 400)
     except Exception as exc:
         return web.json_response({"ok": False, "message": str(exc)}, status=400)
+
+
+async def api_admin_fc_test(request: web.Request) -> web.Response:
+    """Tests the saved Freecharge `app_fc` cookie right now and returns live diagnostic logs & recent transactions."""
+    try:
+        body = await request.json()
+        if body.get("freechargeCookie"):
+            STATE["settings"]["freechargeCookie"] = str(body["freechargeCookie"]).strip()
+            STATE["settings"]["updatedAt"] = int(time.time() * 1000)
+            save_state(STATE)
+    except Exception:
+        pass
+
+    await asyncio.to_thread(check_freecharge_transactions, None, 20.01, None, "ADMIN_TEST", True)
+    return web.json_response({
+        "ok": True,
+        "logs": STATE.get("fc_logs", [])[:30],
+    })
+
+
+async def api_admin_fc_logs(request: web.Request) -> web.Response:
+    return web.json_response({
+        "ok": True,
+        "logs": STATE.get("fc_logs", [])[:30],
+        "pendingSessions": list(STATE.get("payment_sessions", {}).values())[-10:],
+    })
 
 
 async def api_admin_fc_verify_otp(request: web.Request) -> web.Response:
@@ -1758,48 +1907,97 @@ async def api_admin_fc_verify_otp(request: web.Request) -> web.Response:
 
 async def api_payment_webhook(request: web.Request) -> web.Response:
     """
-    Receives real-time Bank / UPI SMS or Notification from SMS Forwarder / MacroDroid app on Admin's phone!
-    Automatically extracts the 12-digit UTR & Rs amount (e.g. 'Received Rs.20.00 ... Ref 431298765432').
-    If a customer already submitted that UTR (or submits it later), it auto-credits ₹20 in 0 seconds!
+    Receives real-time Freecharge BIZ / Bank / UPI Notification or SMS (via GET or POST)!
+    Matches 'You have received Rs. 20.01 from ... via UPI' even when no 12-digit UTR is in the notification!
     """
     try:
-        if request.content_type == "application/json":
+        q_text = " ".join(f"{k}={v}" for k, v in request.query.items())
+        if request.method == "GET":
+            raw_text = q_text
+        elif request.content_type == "application/json":
             body = await request.json()
-            raw_text = str(body.get("text") or body.get("message") or body.get("sms") or body.get("body") or json.dumps(body))
+            raw_text = str(
+                body.get("text")
+                or body.get("notification")
+                or body.get("title")
+                or body.get("message")
+                or body.get("sms")
+                or body.get("body")
+                or json.dumps(body)
+            ) + " " + q_text
         else:
-            raw_text = await request.text()
+            raw_text = (await request.text()) + " " + q_text
 
-        # Extract 12-digit UTR number from SMS/Notification text
+        logger.info("Incoming Payment Webhook: %s", raw_text[:250])
+
+        # Extract 12-digit UTR number if present
         utr_matches = re.findall(r"\b([1-9]\d{11})\b", raw_text)
-        # Extract exact decimal amount (e.g. Rs. 20.01, INR 20.02, ₹20.00)
-        amt_match = re.search(r"(?:rs\.?|inr|₹)\s*([0-9]+(?:\.[0-9]{1,2})?)", raw_text, re.IGNORECASE)
-        exact_float_amt = round(float(amt_match.group(1)), 2) if amt_match else 20.0
-        detected_amt = int(exact_float_amt)
+        # Extract exact decimal amount (e.g. 'Rs. 20.01', 'INR 20.02', '₹20.01')
+        amt_match = re.search(r"(?:rs\.?|inr|₹|received)\s*([0-9]+(?:\.[0-9]{1,2})?)", raw_text, re.IGNORECASE)
+        if not amt_match:
+            amt_match = re.search(r"\b([0-9]+\.[0-9]{2})\b", raw_text)
+        exact_float_amt = round(float(amt_match.group(1)), 2) if amt_match else 0.0
+        detected_amt = int(exact_float_amt) if exact_float_amt >= 1 else 20
 
         # AUTO-MATCH ACTIVE PAYMENT SESSION BY UNIQUE DECIMAL AMOUNT (e.g. 20.01, 20.02) OR SESSION ID!
+        matched_session_user = None
         sessions = STATE.setdefault("payment_sessions", {})
+        # First try exact unique decimal match (e.g., 20.01 == 20.01)
         for sid, sess in list(sessions.items()):
             if sess.get("status") == "PENDING":
-                if round(float(sess.get("uniqueAmount", 0)), 2) == exact_float_amt or sid in raw_text or str(sess.get("techId")) in raw_text:
+                if (
+                    (exact_float_amt > 0 and round(float(sess.get("uniqueAmount", 0)), 2) == exact_float_amt)
+                    or sid in raw_text
+                    or str(sess.get("techId")) in raw_text
+                ):
                     tid = sess.get("techId")
                     cust = next((c for c in STATE.get("customers", []) if str(c.get("techId")) == str(tid)), None)
                     if cust:
-                        utr_tag = utr_matches[0] if utr_matches else f"SMS_{int(time.time())}"
+                        utr_tag = utr_matches[0] if utr_matches else f"FC_{int(time.time())}_{random.randint(10,99)}"
                         sess["status"] = "COMPLETED"
-                        credit_customer_verified_utr(cust, utr_tag, int(sess.get("baseAmount", 20)), "Zero-UTR Auto-Match")
+                        credit_customer_verified_utr(cust, utr_tag, int(sess.get("baseAmount", detected_amt)), "Freecharge BIZ Auto-Match")
+                        matched_session_user = f"{tid} (+₹{sess.get('baseAmount', detected_amt)})"
                         if ADMIN_CHAT_ID:
                             asyncio.create_task(
                                 asyncio.to_thread(
                                     send_message,
                                     ADMIN_CHAT_ID,
-                                    f"⚡ <b>Zero-UTR Auto-Payment Matched (₹{exact_float_amt:.2f})!</b>\n"
-                                    f"👤 Tech ID: <code>{tid}</code> (+₹{sess.get('baseAmount', 20)})",
+                                    f"⚡ <b>Freecharge BIZ Payment Auto-Verified (₹{exact_float_amt:.2f})!</b>\n"
+                                    f"👤 Tech ID: <code>{tid}</code> (+₹{sess.get('baseAmount', detected_amt)})\n"
+                                    f"💳 New Balance: ₹{cust['balance']}",
                                 )
                             )
                         break
 
+        # Fallback: if only 1 pending session exists for that base integer amount (e.g. ₹20) in the last 5 minutes, match it!
+        if not matched_session_user and exact_float_amt >= 1:
+            now_ts = time.time()
+            recent_pending = [
+                (sid, s) for sid, s in sessions.items()
+                if s.get("status") == "PENDING"
+                and int(s.get("baseAmount", 0)) == int(exact_float_amt)
+                and (now_ts - float(s.get("createdAt", 0))) < 300
+            ]
+            if len(recent_pending) == 1:
+                sid, sess = recent_pending[0]
+                tid = sess.get("techId")
+                cust = next((c for c in STATE.get("customers", []) if str(c.get("techId")) == str(tid)), None)
+                if cust:
+                    utr_tag = utr_matches[0] if utr_matches else f"FC_{int(time.time())}"
+                    sess["status"] = "COMPLETED"
+                    credit_customer_verified_utr(cust, utr_tag, int(sess.get("baseAmount", detected_amt)), "Freecharge BIZ Auto-Match")
+                    matched_session_user = f"{tid} (+₹{sess.get('baseAmount', detected_amt)})"
+
+        if matched_session_user:
+            return web.json_response({"ok": True, "matchedUser": matched_session_user, "amount": exact_float_amt})
+
         if not utr_matches:
-            return web.json_response({"ok": False, "message": "No 12-digit UTR found in webhook text"}, status=400)
+            # Record exact decimal amount in verified_bank_utrs under an amount key so if session starts 1s later it still matches!
+            if exact_float_amt > 0:
+                STATE.setdefault("verified_bank_utrs", {})[f"AMT_{exact_float_amt:.2f}"] = detected_amt
+                save_state(STATE)
+                return web.json_response({"ok": True, "recordedAmount": exact_float_amt})
+            return web.json_response({"ok": False, "message": "No amount or UTR found in webhook"}, status=400)
 
         verified_bank = STATE.setdefault("verified_bank_utrs", {})
         used_utrs = STATE.setdefault("used_utrs", [])
@@ -2182,11 +2380,14 @@ def create_app() -> web.Application:
     app.router.add_post("/api/customer/pay", api_customer_pay)
     app.router.add_post("/api/customer/order", api_customer_order)
     app.router.add_post("/api/payment-webhook", api_payment_webhook)
+    app.router.add_get("/api/payment-webhook", api_payment_webhook)
     app.router.add_post("/api/customer/create-payment", api_customer_create_payment)
     app.router.add_post("/api/customer/check-payment", api_customer_check_payment)
     app.router.add_post("/api/customer/verify-razorpay", api_customer_verify_razorpay)
     app.router.add_post("/api/admin/fc-send-otp", api_admin_fc_send_otp)
     app.router.add_post("/api/admin/fc-verify-otp", api_admin_fc_verify_otp)
+    app.router.add_post("/api/admin/fc-test", api_admin_fc_test)
+    app.router.add_get("/api/admin/fc-logs", api_admin_fc_logs)
     app.on_startup.append(on_startup)
     app.on_cleanup.append(on_cleanup)
     return app
