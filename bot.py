@@ -115,16 +115,7 @@ DEFAULT_STATE = {
             "time": "10:25 PM",
         }
     ],
-    "customers": [
-        {
-            "techId": "TECH101",
-            "password": "12345",
-            "name": "Demo Technician",
-            "balance": 20,
-            "totalOrders": 0,
-            "createdAt": "2026-11-08",
-        }
-    ],
+    "customers": [],
     "used_utrs": [],
 }
 
@@ -146,7 +137,8 @@ def save_state(state: dict) -> None:
 
 
 STATE = load_state()
-STATE.setdefault("customers", DEFAULT_STATE["customers"])
+STATE.setdefault("customers", [])
+STATE["customers"] = [c for c in STATE["customers"] if str(c.get("techId")) != "TECH101"]
 STATE.setdefault("used_utrs", [])
 STATE.setdefault("verified_bank_utrs", {})  # { "12_digit_utr": amount_float } received from Bank SMS Webhook or BharatPe API
 STATE.setdefault("pending_payments", [])
@@ -1147,7 +1139,18 @@ async def api_state_post(request: web.Request) -> web.Response:
 
         incoming_settings = body.get("settings")
         if isinstance(incoming_settings, dict):
-            STATE["settings"].update(incoming_settings)
+            # Only overwrite server settings if Admin explicitly clicked 'Save Settings' (saveSettings=True)
+            # or if incoming settings have a newer updatedAt timestamp than server settings!
+            inc_ts = int(incoming_settings.get("updatedAt") or 0)
+            srv_ts = int(STATE["settings"].get("updatedAt") or 0)
+            if body.get("saveSettings") is True or inc_ts > srv_ts:
+                for k, v in incoming_settings.items():
+                    # Never wipe a saved freechargeCookie with an empty string unless explicitly cleared
+                    if k == "freechargeCookie" and not v and STATE["settings"].get("freechargeCookie") and not body.get("saveSettings"):
+                        continue
+                    STATE["settings"][k] = v
+                if body.get("saveSettings") is True and inc_ts <= srv_ts:
+                    STATE["settings"]["updatedAt"] = int(time.time() * 1000)
 
         incoming_customers = body.get("customers")
         if isinstance(incoming_customers, list):
@@ -1237,13 +1240,17 @@ def fc_send_otp_request(mobile: str) -> dict:
     headers = {
         "Accept": "application/json, text/plain, */*",
         "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36",
+        "X-Requested-With": "XMLHttpRequest",
+        "User-Agent": "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36",
         "Origin": "https://www.freecharge.in",
         "Referer": "https://www.freecharge.in/",
     }
-    # Warm up session cookies
+    # Warm up session cookies & extract csrfRequestIdentifier if issued
     try:
-        sess.get("https://www.freecharge.in/", headers=headers, timeout=8)
+        r0 = sess.get("https://www.freecharge.in/", headers=headers, timeout=8)
+        csrf_tok = sess.cookies.get("csrfRequestIdentifier") or r0.cookies.get("csrfRequestIdentifier")
+        if csrf_tok:
+            headers["csrfRequestIdentifier"] = csrf_tok
     except Exception:
         pass
 
@@ -1255,7 +1262,13 @@ def fc_send_otp_request(mobile: str) -> dict:
     for url, payload in endpoints:
         try:
             resp = sess.post(url, json=payload, headers=headers, timeout=12)
-            data = resp.json() if resp.content else {}
+            try:
+                data = resp.json() if resp.content else {}
+            except Exception:
+                # Non-JSON response means Freecharge blocked Render's US (Oregon) datacenter IP
+                last_err = "Freecharge blocks US Server IP for OTP SMS. Please login on freecharge.in in your browser & paste app_fc cookie below!"
+                continue
+
             otp_id = (
                 data.get("otpId")
                 or (data.get("data") or {}).get("otpId")
@@ -1264,7 +1277,7 @@ def fc_send_otp_request(mobile: str) -> dict:
                 or ""
             )
             if resp.ok and (otp_id or data.get("status") in ("SUCCESS", 200, True) or "otp" in str(data).lower()):
-                FC_OTP_SESSIONS[mob] = {"session": sess, "otpId": str(otp_id)}
+                FC_OTP_SESSIONS[mob] = {"session": sess, "otpId": str(otp_id), "headers": headers}
                 return {
                     "ok": True,
                     "mobile": mob,
@@ -1275,7 +1288,7 @@ def fc_send_otp_request(mobile: str) -> dict:
         except Exception as exc:
             last_err = str(exc)
 
-    return {"ok": False, "message": f"⚠️ Freecharge OTP Note: {last_err}"}
+    return {"ok": False, "message": f"⚠️ {last_err}"}
 
 
 def fc_verify_otp_request(mobile: str, otp_code: str, custom_upi_id: str = "") -> dict:
@@ -1312,7 +1325,10 @@ def fc_verify_otp_request(mobile: str, otp_code: str, custom_upi_id: str = "") -
     for url, payload in endpoints:
         try:
             resp = sess.post(url, json=payload, headers=headers, timeout=12)
-            data = resp.json() if resp.content else {}
+            try:
+                data = resp.json() if resp.content else {}
+            except Exception:
+                data = {}
             cookies_dict = sess.cookies.get_dict()
             resp_cookies = resp.cookies.get_dict()
             all_cookies = {**cookies_dict, **resp_cookies}
@@ -1337,6 +1353,7 @@ def fc_verify_otp_request(mobile: str, otp_code: str, custom_upi_id: str = "") -
                 STATE["settings"]["freechargeCookie"] = cookie_to_save
                 STATE["settings"]["freechargeMobile"] = mob
                 STATE["settings"]["upiId"] = vpa
+                STATE["settings"]["updatedAt"] = int(time.time() * 1000)
                 save_state(STATE)
                 return {
                     "ok": True,
@@ -1554,6 +1571,8 @@ async def api_customer_create_payment(request: web.Request) -> web.Response:
             "techId": tech_id,
             "baseAmount": base_amt,
             "uniqueAmount": unique_amt,
+            "upiId": upi_id,
+            "appTitle": app_title,
             "upiUri": upi_uri,
             "rzpKeyId": rzp_key_id if rzp_order_id else None,
             "rzpOrderId": rzp_order_id,
