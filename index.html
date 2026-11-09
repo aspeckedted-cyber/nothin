@@ -718,181 +718,230 @@
         <button id="jpwGoToRechargeBtn" type="button"></button>
       </div>
     </section>
-      <!-- ================= CUSTOMER APK STANDALONE INTERFACE (₹20 = 1 REACH) ================= -->
-    <section id="tabSectionCustomerApk" class="space-y-4 hidden">
-      <!-- Top Customer Wallet Bar (Shows Technician ID & Live ₹20 Wallet Balance) -->
-      <div class="card-box p-4 bg-gradient-to-br from-slate-900 to-slate-800 text-white border-pink-500/40 shadow-xl space-y-3">
-        <div class="flex items-center justify-between">
-          <div>
-            <span class="px-2 py-0.5 rounded bg-pink-600 text-white text-[10px] font-extrabold uppercase tracking-wider">
-              TECHNICIAN PORTAL
-            </span>
-            <p class="text-sm font-extrabold mt-1 font-mono" id="custApkActiveTechIdDisplay">Not Logged In</p>
-          </div>
-          <div class="text-right">
-            <p class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">WALLET BALANCE</p>
-            <p class="text-2xl font-extrabold text-emerald-400">₹<span id="custApkWalletRupees">0</span></p>
-          </div>
-        </div>
-        <div class="flex items-center justify-between text-[11px] border-t border-slate-700/80 pt-2 text-slate-300">
-          <span>⚡ Rate: <strong class="text-white">₹20 = 1 Reach Order</strong></span>
-          <button id="custApkLogoutBtn" type="button" class="text-rose-400 hover:underline font-bold hidden">🚪 Logout ID</button>
-        </div>
-      </div>
+      <!-- ================= CUSTOMER APK STANDALONE INTERFACE (JPW ENGINEER PORTAL DARK UI) ================= -->
+    <section id="tabSectionCustomerApk" class="hidden -mx-4 -mt-4 min-h-screen bg-[#080d1a] text-white px-3.5 py-4 pb-16">
+      <div class="max-w-md mx-auto bg-[#0f172a] border border-[#1e293b] rounded-3xl p-4 shadow-2xl space-y-4">
 
-      <!-- STEP 1: TECHNICIAN LOGIN / SIGNUP CARD (Shown when customer is not logged in) -->
-      <div id="custApkLoginCard" class="card-box p-4 space-y-3.5 border-pink-200">
-        <div>
-          <h3 class="text-base font-extrabold text-slate-900">👷 Technician Login / Register</h3>
-          <p class="text-xs text-slate-500">Apना Technician ID aur Password daal kar login karein (Naya ID apne-aap ban jayega)</p>
-        </div>
-
-        <div class="space-y-2.5">
-          <div>
-            <label for="custApkLoginIdInput" class="block text-[11px] font-bold uppercase text-slate-500 mb-1">
-              TECHNICIAN ID / MOBILE NO. <span class="text-rose-500">*</span>
-            </label>
-            <input id="custApkLoginIdInput" type="text" placeholder="Enter your Technician ID / Mobile..." value=""
-              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-mono font-bold text-slate-900 focus:outline-none focus:border-pink-500" />
+        <!-- Top Portal Header: Avatar + "JPW Engineer Portal" -->
+        <div class="flex items-center gap-3 pt-1">
+          <div class="w-12 h-12 rounded-full bg-sky-200 border-2 border-sky-400/50 flex items-center justify-center text-2xl shadow-md shrink-0">
+            👨‍💼
           </div>
           <div>
-            <label for="custApkLoginPassInput" class="block text-[11px] font-bold uppercase text-slate-500 mb-1">
-              PASSWORD <span class="text-rose-500">*</span>
-            </label>
-            <input id="custApkLoginPassInput" type="password" placeholder="Enter your password..." value=""
-              class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-mono text-slate-900 focus:outline-none focus:border-pink-500" />
+            <h2 class="text-lg font-extrabold text-white tracking-tight">JPW Engineer Portal</h2>
+            <p class="text-[11px] text-slate-400 font-medium">Instant Reach & Wallet Portal</p>
           </div>
-          <button id="custApkLoginSubmitBtn" type="button" class="w-full py-3 rounded-xl brand-btn text-sm shadow-md">
-            🔐 Login / Create Technician ID
-          </button>
         </div>
-      </div>
 
-      <!-- STEP 2: LOGGED-IN CUSTOMER DASHBOARD (₹20 Auto-Verified Payment + 1 Reach Order Submission) -->
-      <div id="custApkDashboardWrap" class="space-y-4 hidden">
-
-        <!-- A. SUBMIT 1 REACH ORDER CARD (Unlocks when Wallet >= ₹20) -->
-        <div class="card-box p-4 space-y-3.5 border-2 border-emerald-500/80 shadow-md">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-extrabold text-emerald-800 flex items-center gap-1.5">
-              <span>🚀</span> Submit 1 Reach Order
-            </span>
-            <span id="custApkOrderReadyBadge" class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold">
-              Cost: ₹20 / Reach
-            </span>
+        <!-- ID & Rupees Balance Pill Bar -->
+        <div class="px-4 py-3 rounded-2xl bg-[#131d31] border border-[#1e293b] flex items-center justify-between">
+          <div class="text-xs font-bold text-slate-400">
+            ID: <span id="custApkActiveTechIdDisplay" class="text-[#2dd4bf] font-mono text-sm font-extrabold ml-1">Not Logged In</span>
           </div>
+          <div class="px-4 py-1 rounded-full bg-[#f59e0b] text-slate-950 font-extrabold text-xs tracking-wide shadow">
+            ₹<span id="custApkWalletRupees">0</span>
+          </div>
+          <!-- Hidden span for compatibility -->
+          <span id="custApkWalletCoinsText" class="hidden">0</span>
+        </div>
 
-          <div class="px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600 flex items-center justify-between">
-            <span>⏰ Service Time: <strong>09:30 AM – 10:15 PM</strong></span>
-            <span class="text-pink-600 font-bold">Auto-Instant Reach</span>
+        <!-- STEP 1: LOGIN / REGISTER CARD (Shown when Technician is not logged in) -->
+        <div id="custApkLoginCard" class="p-4 rounded-2xl bg-[#131d31] border border-[#1e293b] space-y-3.5">
+          <div>
+            <h3 class="text-sm font-extrabold text-white">👷 Engineer Login / Register</h3>
+            <p class="text-[11px] text-slate-400 mt-0.5">Apna 10-Digit Mobile / Engineer ID aur Password daalein</p>
           </div>
 
           <div class="space-y-2.5">
-            <div>
-              <label for="custApkTargetIdInput" class="block text-[11px] font-bold uppercase text-slate-500 mb-1">
-                TARGET ID / CUSTOMER NUMBER <span class="text-rose-500">*</span>
-              </label>
-              <input id="custApkTargetIdInput" type="text" placeholder="Enter Target ID (e.g. 0689728278)"
-                class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-mono font-bold text-slate-900 focus:outline-none focus:border-emerald-500" />
-            </div>
-            <div>
-              <label for="custApkTargetPassInput" class="block text-[11px] font-bold uppercase text-slate-500 mb-1">
-                TARGET PASSWORD <span class="text-rose-500">*</span>
-              </label>
-              <input id="custApkTargetPassInput" type="text" placeholder="Enter Target Password (e.g. 12345)"
-                class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-mono text-slate-900 focus:outline-none focus:border-emerald-500" />
-            </div>
-
-            <button id="custApkSubmitOrderBtn" type="button" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-sm shadow-lg transition">
-              🚀 Place 1 Reach Order Now (Deduct ₹20)
+            <input id="custApkLoginIdInput" type="text" placeholder="Engineer ID / Mobile No." value=""
+              class="w-full px-4 py-3 rounded-xl bg-[#0b111e] border border-[#1e293b] text-sm font-mono font-bold text-white placeholder-slate-500 focus:outline-none focus:border-[#10b981]" />
+            <input id="custApkLoginPassInput" type="password" placeholder="Password" value=""
+              class="w-full px-4 py-3 rounded-xl bg-[#0b111e] border border-[#1e293b] text-sm font-mono text-white placeholder-slate-500 focus:outline-none focus:border-[#10b981]" />
+            <button id="custApkLoginSubmitBtn" type="button" class="w-full py-3 rounded-xl bg-[#10b981] hover:bg-[#059669] text-white font-extrabold text-sm shadow-lg transition">
+              Login to Engineer Portal
             </button>
-
-            <div id="custApkOrderLiveResult" class="hidden p-3 rounded-xl bg-slate-900 text-white text-xs font-mono space-y-1"></div>
           </div>
         </div>
 
-        <!-- B. ₹20 AUTOMATIC UPI PAYMENT & INSTANT VERIFICATION CARD -->
-        <div class="card-box p-4 space-y-3.5 text-center">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-extrabold text-pink-700">💳 Add Money (₹20 = 1 Reach)</span>
-            <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-extrabold">⚡ Auto-Verify</span>
+        <!-- STEP 2: LOGGED-IN ENGINEER PORTAL DASHBOARD -->
+        <div id="custApkDashboardWrap" class="space-y-4 hidden">
+
+          <!-- Engineer Name + Log out Button (No Daily Bonus, No Share Coins) -->
+          <div class="px-4 py-3 rounded-2xl bg-[#131d31] border border-[#1e293b] flex items-center justify-between">
+            <p class="text-xs text-slate-400 font-medium">
+              Engineer: <strong id="custApkEngineerNameText" class="text-white font-extrabold">Engineer</strong>
+            </p>
+            <button id="custApkLogoutBtn" type="button" class="py-2 px-4 rounded-xl bg-[#2a1222] hover:bg-[#3b172f] border border-rose-500/50 text-rose-200 text-xs font-bold transition">
+              Log out
+            </button>
+            <button id="custApkDailyBonusBtn" type="button" class="hidden"></button>
           </div>
 
-          <!-- Amount Selector (₹20 / ₹40 / ₹60) -->
-          <div class="grid grid-cols-3 gap-2">
-            <button type="button" data-cust-amt="20" class="cust-amt-btn py-2 rounded-xl border-2 border-pink-500 bg-pink-50 text-pink-700 font-extrabold text-xs">
-              ₹20 (1 Reach)
-            </button>
-            <button type="button" data-cust-amt="40" class="cust-amt-btn py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-bold text-xs">
-              ₹40 (2 Reach)
-            </button>
-            <button type="button" data-cust-amt="60" class="cust-amt-btn py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-bold text-xs">
-              ₹60 (3 Reach)
-            </button>
+          <!-- Regular Reach Mode Pill (NO SR Service!) -->
+          <div>
+            <div class="w-full py-3 rounded-xl bg-[#10b981] text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-md">
+              <span>⚡</span> <span>Regular reach</span>
+            </div>
           </div>
 
-          <!-- Flipkart / Amazon Style Instant Auto-Pay Session Card (Zero UTR!) -->
-          <div class="p-3.5 rounded-2xl bg-slate-900 text-white border border-pink-500/40 flex flex-col items-center space-y-2.5">
-            <div class="flex items-center justify-between w-full text-[11px]">
-              <span class="text-teal-300 font-bold">⚡ Zero-UTR Instant UPI</span>
-              <span id="custApkUniqueSessionBadge" class="px-2 py-0.5 rounded bg-pink-600 text-white font-mono text-[10px] font-bold">Auto-Detect Active</span>
+          <!-- Place an order Section (Rupees System: ₹20 / Reach) -->
+          <div class="space-y-3 pt-1">
+            <div>
+              <h3 class="text-base font-extrabold text-white">Place an order</h3>
+              <p class="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1">
+                <span>🕒</span> <span>Hours: 09:30 AM - 10:15 PM (IST) | Cost: ₹20 / Reach</span>
+              </p>
             </div>
 
-            <div id="custApkQrBox" class="bg-white p-2 rounded-xl border border-slate-200 min-w-[140px] min-h-[140px] flex items-center justify-center"></div>
+            <div class="space-y-2.5">
+              <input id="custApkTargetIdInput" type="text" placeholder="Target ID"
+                class="w-full px-4 py-3.5 rounded-xl bg-[#0b111e] border border-[#1e293b] text-sm font-mono text-white placeholder-slate-500 focus:outline-none focus:border-[#10b981]" />
 
-            <p class="text-[11px] text-slate-300">
-              Pay Exact: <strong id="custApkExactUniqueAmt" class="text-amber-300 font-mono text-sm">₹20.01</strong>
-              <span class="text-slate-400">• UPI:</span> <strong id="custApkUpiIdText" class="font-mono text-white">jpwportal@freecharge</strong>
-            </p>
+              <input id="custApkTargetPassInput" type="text" placeholder="Target password"
+                class="w-full px-4 py-3.5 rounded-xl bg-[#0b111e] border border-[#1e293b] text-sm font-mono text-white placeholder-slate-500 focus:outline-none focus:border-[#10b981]" />
 
-            <!-- Primary Synchronous Native UPI Deep-Link Button -->
-            <a id="custApkUpiDeepLink" href="upi://pay?pa=jpwportal@freecharge&pn=JPW%20REACH&am=20.01&cu=INR"
-              class="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 text-xs font-extrabold shadow-lg transition block text-center">
-              ⚡ Pay ₹<span id="custApkPayBtnAmt">20</span> Now (Open UPI App)
-            </a>
+              <button id="custApkSubmitOrderBtn" type="button" class="w-full py-3.5 rounded-xl bg-[#10b981] hover:bg-[#059669] text-white font-extrabold text-sm shadow-lg transition">
+                Place order (₹20)
+              </button>
 
-            <!-- Direct App Buttons (PhonePe / GPay / Paytm / Copy UPI) for Android APK WebViews -->
-            <div class="grid grid-cols-3 gap-1.5 w-full pt-0.5">
-              <a id="custApkPhonePeLink" href="phonepe://pay?pa=jpwportal@freecharge&pn=JPW%20REACH&am=20.01&cu=INR"
-                class="py-2 px-2 rounded-lg bg-purple-700 hover:bg-purple-600 text-white text-[10px] font-extrabold text-center">
-                🟣 PhonePe
-              </a>
-              <a id="custApkGpayLink" href="tez://upi/pay?pa=jpwportal@freecharge&pn=JPW%20REACH&am=20.01&cu=INR"
-                class="py-2 px-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-extrabold text-center">
-                🔵 GPay
-              </a>
-              <a id="custApkPaytmLink" href="paytmmp://pay?pa=jpwportal@freecharge&pn=JPW%20REACH&am=20.01&cu=INR"
-                class="py-2 px-2 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 text-[10px] font-extrabold text-center">
-                🔷 Paytm
+              <button id="custApkScrollAddCoinsBtn" type="button" class="w-full py-3 rounded-xl bg-[#0f292e]/60 hover:bg-[#0f292e] border border-[#0d9488]/60 text-[#2dd4bf] font-extrabold text-xs transition">
+                + Add balance (₹)
+              </button>
+
+              <div id="custApkOrderLiveResult" class="hidden p-3 rounded-xl bg-[#131d31] border border-[#1e293b] text-xs font-mono space-y-1"></div>
+            </div>
+          </div>
+
+          <!-- 3 Action Buttons: 📁 Passbook | 📊 Order Status | 💬 Support -->
+          <div class="grid grid-cols-3 gap-2.5 pt-2 border-t border-[#1e293b]">
+            <button id="custApkTabPassbookBtn" type="button" class="py-3 px-2 rounded-xl bg-[#131d31] hover:bg-[#1c2841] border border-[#1e293b] text-white text-xs font-bold flex items-center justify-center gap-1.5 transition">
+              <span>📁</span> <span>Passbook</span>
+            </button>
+            <button id="custApkTabOrdersBtn" type="button" class="py-3 px-2 rounded-xl bg-[#131d31] hover:bg-[#1c2841] border border-[#1e293b] text-white text-xs font-bold flex items-center justify-center gap-1.5 transition">
+              <span>📊</span> <span class="leading-tight">Order<br/>Status</span>
+            </button>
+            <button id="custApkTabSupportBtn" type="button" class="py-3 px-2 rounded-xl bg-[#131d31] hover:bg-[#1c2841] border border-[#1e293b] text-white text-xs font-bold flex items-center justify-center gap-1.5 transition">
+              <span>💬</span> <span>Support</span>
+            </button>
+          </div>
+
+          <!-- Dynamic Expandable Drawer for Passbook / Order Status / Support -->
+          <div id="custApkInfoDrawer" class="hidden p-3.5 rounded-2xl bg-[#131d31] border border-[#1e293b] space-y-2 text-xs">
+            <div class="flex items-center justify-between border-b border-[#1e293b] pb-2">
+              <strong id="custApkDrawerTitle" class="text-[#2dd4bf] uppercase text-[11px]">📊 Order Status</strong>
+              <button id="custApkCloseDrawerBtn" type="button" class="text-slate-400 hover:text-white text-xs font-bold">✕</button>
+            </div>
+            <div id="custApkOrdersList" class="space-y-2 text-slate-300"></div>
+          </div>
+
+          <!-- PACKAGES SECTION (Direct PAY Links — Zero QR Clutter!) -->
+          <div id="custApkPackagesSection" class="space-y-3 pt-2">
+            <div class="flex items-center justify-between border-b border-[#1e293b] pb-2">
+              <h3 class="text-base font-extrabold text-white">Packages</h3>
+              <span id="custApkUniqueSessionBadge" class="text-[10px] font-mono text-[#2dd4bf] font-bold">⚡ Instant Direct UPI</span>
+            </div>
+
+            <!-- Live Payment Auto-Detection Status Banner (Appears when PAY is clicked) -->
+            <div id="custApkAutoListenStatus" class="hidden p-3 rounded-xl bg-[#0f292e] border border-[#10b981]/50 text-[11px] text-emerald-300 font-semibold text-center">
+              🔄 Waiting for UPI Payment... (Coins auto-add to wallet on payment!)
+            </div>
+
+            <!-- Package 1: ₹20 -> 1 Reach -->
+            <div class="p-3.5 rounded-2xl bg-[#131d31] border border-[#1e293b] flex items-center justify-between">
+              <div>
+                <p class="text-sm font-extrabold text-white flex items-center gap-1.5">
+                  <span>₹20</span> <span class="text-sky-400 text-xs">➡️</span> <span>₹20 Wallet (1 Reach)</span>
+                </p>
+                <p class="text-[11px] text-slate-400 mt-0.5">(₹20.00 per reach order)</p>
+              </div>
+              <a data-direct-pay-amt="20" href="upi://pay?pa=jpwportal@freecharge&pn=JPW%20REACH&am=20.01&cu=INR"
+                class="cust-direct-pay-link px-5 py-2 rounded-full bg-[#10b981] hover:bg-[#059669] text-white font-extrabold text-xs shadow-md transition">
+                PAY
               </a>
             </div>
 
-            <button id="custApkStartAutoPayBtn" type="button" class="w-full py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-teal-300 text-[10px] font-bold">
-              🔄 Refresh QR / Copy UPI ID & Auto-Check Status
-            </button>
+            <!-- Package 2: ₹60 -> 3 Reach -->
+            <div class="p-3.5 rounded-2xl bg-[#131d31] border border-[#1e293b] flex items-center justify-between">
+              <div>
+                <p class="text-sm font-extrabold text-white flex items-center gap-1.5">
+                  <span>₹60</span> <span class="text-sky-400 text-xs">➡️</span> <span>₹60 Wallet (3 Reach)</span>
+                </p>
+                <p class="text-[11px] text-slate-400 mt-0.5">(₹20.00 per reach order)</p>
+              </div>
+              <a data-direct-pay-amt="60" href="upi://pay?pa=jpwportal@freecharge&pn=JPW%20REACH&am=60.01&cu=INR"
+                class="cust-direct-pay-link px-5 py-2 rounded-full bg-[#10b981] hover:bg-[#059669] text-white font-extrabold text-xs shadow-md transition">
+                PAY
+              </a>
+            </div>
 
-            <p id="custApkAutoListenStatus" class="text-[11px] text-amber-300 font-medium">
-              🔄 Auto-Checking Bank Payment... (Jaise hi pay karenge, upar wallet me ₹20 apne-aap jud jayega!)
-            </p>
+            <!-- Package 3: ₹100 -> 5 Reach -->
+            <div class="p-3.5 rounded-2xl bg-[#131d31] border border-[#1e293b] flex items-center justify-between">
+              <div>
+                <p class="text-sm font-extrabold text-white flex items-center gap-1.5">
+                  <span>₹100</span> <span class="text-sky-400 text-xs">➡️</span> <span>₹100 Wallet (5 Reach)</span>
+                </p>
+                <p class="text-[11px] text-slate-400 mt-0.5">(₹20.00 per reach order)</p>
+              </div>
+              <a data-direct-pay-amt="100" href="upi://pay?pa=jpwportal@freecharge&pn=JPW%20REACH&am=100.01&cu=INR"
+                class="cust-direct-pay-link px-5 py-2 rounded-full bg-[#10b981] hover:bg-[#059669] text-white font-extrabold text-xs shadow-md transition">
+                PAY
+              </a>
+            </div>
+
+            <!-- Package 4: ₹200 -> 10 Reach -->
+            <div class="p-3.5 rounded-2xl bg-[#131d31] border border-[#1e293b] flex items-center justify-between">
+              <div>
+                <p class="text-sm font-extrabold text-white flex items-center gap-1.5">
+                  <span>₹200</span> <span class="text-sky-400 text-xs">➡️</span> <span>₹200 Wallet (10 Reach)</span>
+                </p>
+                <p class="text-[11px] text-slate-400 mt-0.5">(₹20.00 per reach order)</p>
+              </div>
+              <a data-direct-pay-amt="200" href="upi://pay?pa=jpwportal@freecharge&pn=JPW%20REACH&am=200.01&cu=INR"
+                class="cust-direct-pay-link px-5 py-2 rounded-full bg-[#10b981] hover:bg-[#059669] text-white font-extrabold text-xs shadow-md transition">
+                PAY
+              </a>
+            </div>
+
+            <!-- Package 5: ₹400 -> 20 Reach -->
+            <div class="p-3.5 rounded-2xl bg-[#131d31] border border-[#1e293b] flex items-center justify-between">
+              <div>
+                <p class="text-sm font-extrabold text-white flex items-center gap-1.5">
+                  <span>₹400</span> <span class="text-sky-400 text-xs">➡️</span> <span>₹400 Wallet (20 Reach)</span>
+                </p>
+                <p class="text-[11px] text-slate-400 mt-0.5">(₹20.00 per reach order)</p>
+              </div>
+              <a data-direct-pay-amt="400" href="upi://pay?pa=jpwportal@freecharge&pn=JPW%20REACH&am=400.01&cu=INR"
+                class="cust-direct-pay-link px-5 py-2 rounded-full bg-[#10b981] hover:bg-[#059669] text-white font-extrabold text-xs shadow-md transition">
+                PAY
+              </a>
+            </div>
           </div>
 
-          <!-- Hidden legacy UTR nodes for compatibility -->
+          <!-- Footer -->
+          <div class="pt-4 border-t border-[#1e293b] text-center">
+            <p class="text-[11px] text-slate-500">© 2026 JPW Reached Services. All rights reserved.</p>
+          </div>
+
+          <!-- Hidden compatibility nodes -->
           <div class="hidden">
-            <span id="custApkUtrLabelAmt">20</span>
+            <span id="custApkOrderReadyBadge"></span>
+            <div id="custApkQrBox"></div>
+            <span id="custApkExactUniqueAmt"></span>
+            <span id="custApkUpiIdText"></span>
+            <a id="custApkUpiDeepLink" href="upi://pay"></a>
+            <span id="custApkPayBtnAmt"></span>
+            <a id="custApkPhonePeLink" href="phonepe://pay"></a>
+            <a id="custApkGpayLink" href="tez://upi/pay"></a>
+            <a id="custApkPaytmLink" href="paytmmp://pay"></a>
+            <button id="custApkStartAutoPayBtn" type="button"></button>
+            <span id="custApkUtrLabelAmt"></span>
             <input id="custApkUtrInput" type="text" />
-            <button id="custApkVerifyUtrBtn" type="button"><span id="custApkVerifyBtnAmt">20</span></button>
+            <button id="custApkVerifyUtrBtn" type="button"><span id="custApkVerifyBtnAmt"></span></button>
           </div>
-        </div>
-
-        <!-- C. CUSTOMER'S RECENT ORDERS -->
-        <div class="card-box p-4 space-y-2.5">
-          <h4 class="text-xs font-extrabold text-slate-800 uppercase">📦 My Recent Reach Orders</h4>
-          <div id="custApkOrdersList" class="space-y-2 text-xs text-slate-500"></div>
         </div>
       </div>
     </section>
-
-  </main>
+    </main>
 
   <!-- Bottom Navigation Bar -->
   <nav id="adminBottomNavBar" class="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 shadow-lg">
@@ -1038,15 +1087,23 @@
       return orig.startsWith('http') ? (orig + '/api/state') : '';
     }
 
-    function saveState(explicitAdminSettingsSave) {
+    function isStandaloneCustomerApk() {
+      return Boolean(window.location && window.location.search && window.location.search.indexOf('mode=customer') !== -1);
+    }
+
+    function saveState(explicitAdminSettingsSave, explicitAdminCustUpdate) {
       if (explicitAdminSettingsSave) {
         window._pendingSettingsSave = true;
         state.settings.updatedAt = Date.now();
       }
+      if (explicitAdminCustUpdate) {
+        window._pendingAdminCustUpdate = true;
+      }
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       } catch (e) {}
-      // Only push to server after initial server pull has finished (prevents stale browser cache from overwriting fresh Bot updates)
+      // SECURITY: Standalone Customer APK (?mode=customer) NEVER pushes state to /api/state!
+      if (isStandaloneCustomerApk()) return;
       if (!window._initialServerPullDone) return;
       if (window._pushStateTimer) clearTimeout(window._pushStateTimer);
       window._pushStateTimer = setTimeout(() => {
@@ -1054,16 +1111,20 @@
           const ep = getBotServerStateUrl();
           if (ep) {
             const isExplicitSettings = Boolean(window._pendingSettingsSave);
+            const isExplicitCust = Boolean(window._pendingAdminCustUpdate);
             const payload = {
               profiles: state.profiles,
               orders: state.orders,
               stats: state.stats,
-              customers: state.customers || [],
               deletedProfileIds: window._deletedProfileIds || [],
-              saveSettings: isExplicitSettings
+              saveSettings: isExplicitSettings,
+              adminCustomerUpdate: isExplicitCust
             };
             if (isExplicitSettings) {
               payload.settings = state.settings;
+            }
+            if (isExplicitCust) {
+              payload.customers = state.customers || [];
             }
             fetch(ep, {
               method: 'POST',
@@ -1072,10 +1133,49 @@
             }).then(() => {
               window._deletedProfileIds = [];
               window._pendingSettingsSave = false;
+              window._pendingAdminCustUpdate = false;
             }).catch(() => {});
           }
         } catch (e) {}
       }, 200);
+    }
+
+    // Safe Customer-Only Sync (`GET /api/customer/me`) for Customer APK Mode
+    async function syncCustomerMeWithServer() {
+      try {
+        const orig = window.location && window.location.origin ? window.location.origin : '';
+        if (!orig.startsWith('http')) return false;
+        const tid = state.loggedInCustomer ? encodeURIComponent(state.loggedInCustomer.techId) : '';
+        const meUrl = orig + '/api/customer/me?techId=' + tid; const res = await fetch(meUrl, { method: 'GET', cache: 'no-store' });
+        if (!res.ok) return false;
+        const data = await res.json().catch(() => null);
+        if (!data || !data.ok) return false;
+
+        let changed = false;
+        if (data.upiId && data.upiId !== state.settings.upiId) {
+          state.settings.upiId = data.upiId;
+          changed = true;
+        }
+        if (data.appTitle && data.appTitle !== state.settings.appTitle) {
+          state.settings.appTitle = data.appTitle;
+          changed = true;
+        }
+        if (data.customer && state.loggedInCustomer) {
+          if (Number(data.customer.balance) !== Number(state.loggedInCustomer.balance) ||
+              Number(data.customer.totalOrders) !== Number(state.loggedInCustomer.totalOrders)) {
+            changed = true;
+          }
+          state.loggedInCustomer.balance = Number(data.customer.balance || 0);
+          state.loggedInCustomer.totalOrders = Number(data.customer.totalOrders || 0);
+        }
+        if (Array.isArray(data.orders)) {
+          state.orders = data.orders;
+        }
+        if (changed) renderAll();
+        return changed;
+      } catch (e) {
+        return false;
+      }
     }
 
     // Pull & Merge ALL activity (Profiles, Coins, Orders, Admin Stats, Settings) from bot.py's `/api/state`
@@ -2955,99 +3055,76 @@
     function renderCustomerApkView() {
       const loginCard = document.getElementById('custApkLoginCard');
       const dashWrap = document.getElementById('custApkDashboardWrap');
-      const logoutBtn = document.getElementById('custApkLogoutBtn');
       const idDisp = document.getElementById('custApkActiveTechIdDisplay');
       const balDisp = document.getElementById('custApkWalletRupees');
+      const coinsDisp = document.getElementById('custApkWalletCoinsText');
+      const engNameEl = document.getElementById('custApkEngineerNameText');
       if (!loginCard || !dashWrap) return;
 
       const cust = state.loggedInCustomer;
       if (!cust) {
         loginCard.classList.remove('hidden');
         dashWrap.classList.add('hidden');
-        logoutBtn.classList.add('hidden');
-        idDisp.textContent = 'Please Login Below';
-        balDisp.textContent = '0';
+        idDisp.textContent = 'Not Logged In';
+        if (coinsDisp) coinsDisp.textContent = '0.00';
+        if (balDisp) balDisp.textContent = '0';
         return;
       }
 
       loginCard.classList.add('hidden');
       dashWrap.classList.remove('hidden');
-      logoutBtn.classList.remove('hidden');
-      idDisp.textContent = `Tech ID: ${cust.techId}`;
-      balDisp.textContent = String(Number(cust.balance || 0));
+      idDisp.textContent = String(cust.techId);
+      if (engNameEl) engNameEl.textContent = cust.name || ('Tech_' + String(cust.techId).slice(-4));
 
-      const submitBtn = document.getElementById('custApkSubmitOrderBtn');
-      if (Number(cust.balance || 0) >= 20) {
-        submitBtn.textContent = `🚀 Place 1 Reach Order Now (Deduct ₹20)`;
-        submitBtn.className = 'w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-sm shadow-lg transition';
-      } else {
-        submitBtn.textContent = `🔒 Pay ₹20 Below to Unlock Reach Order`;
-        submitBtn.className = 'w-full py-3.5 rounded-xl bg-slate-300 text-slate-600 font-extrabold text-sm transition';
-      }
+      // 1 Coin = ₹20 (plus any fractional bonusCoins if claimed)
+      const rupeeBal = Number(cust.balance || 0);
+      const bonusC = Number(cust.bonusCoins || 0);
+      const totalCoins = (rupeeBal / 20.0) + bonusC;
+      if (coinsDisp) coinsDisp.textContent = totalCoins.toFixed(2);
+      if (balDisp) balDisp.textContent = String(rupeeBal);
 
-      // Render UPI QR inside Customer APK (Preserves active unique session like ₹20.04 if one is active!)
-      const amt = Number(state.customerPayAmt || 20);
-      const activeSess = (window._currentPaySession && Number(window._currentPaySession.baseAmount) === amt) ? window._currentPaySession : null;
-      const upi = (activeSess && activeSess.upiId) ? activeSess.upiId : (state.settings.upiId || 'jpwportal@ybl');
-      const displayExactAmt = activeSess ? Number(activeSess.uniqueAmount).toFixed(2) : amt.toFixed(2);
-      const uri = activeSess
-        ? activeSess.upiUri
-        : `upi://pay?pa=${encodeURIComponent(upi)}&pn=${encodeURIComponent(state.settings.appTitle || 'JPW Portal')}&am=${amt}.00&cu=INR`;
+      // Update all 5 Direct Package PAY links with the live server UPI ID (`jpwportal@freecharge`)!
+      const upi = state.settings.upiId || 'jpwportal@freecharge';
+      const title = state.settings.appTitle || 'JPW REACH';
+      const sessionMap = window._pkgSessions || {};
 
-      document.getElementById('custApkUpiIdText').textContent = upi;
-      const exactAmtEl = document.getElementById('custApkExactUniqueAmt');
-      if (exactAmtEl) exactAmtEl.textContent = '₹' + displayExactAmt;
-      document.getElementById('custApkPayBtnAmt').textContent = displayExactAmt;
-      document.getElementById('custApkUtrLabelAmt').textContent = String(amt);
-      document.getElementById('custApkVerifyBtnAmt').textContent = String(amt);
-
-      // Update synchronous hrefs on all 4 UPI links so tapping them opens the UPI app immediately without async delay!
-      const queryPart = uri.includes('?') ? uri.split('?')[1] : `pa=${encodeURIComponent(upi)}&pn=${encodeURIComponent(state.settings.appTitle || 'JPW REACH')}&am=${displayExactAmt}&cu=INR`;
-      document.getElementById('custApkUpiDeepLink').setAttribute('href', 'upi://pay?' + queryPart);
-      const ppLink = document.getElementById('custApkPhonePeLink');
-      const gpLink = document.getElementById('custApkGpayLink');
-      const ptLink = document.getElementById('custApkPaytmLink');
-      if (ppLink) ppLink.setAttribute('href', 'phonepe://pay?' + queryPart);
-      if (gpLink) gpLink.setAttribute('href', 'tez://upi/pay?' + queryPart);
-      if (ptLink) ptLink.setAttribute('href', 'paytmmp://pay?' + queryPart);
-
-      document.querySelectorAll('.cust-amt-btn').forEach(b => {
-        if (Number(b.getAttribute('data-cust-amt')) === amt) {
-          b.className = 'cust-amt-btn py-2 rounded-xl border-2 border-pink-500 bg-pink-50 text-pink-700 font-extrabold text-xs';
+      document.querySelectorAll('.cust-direct-pay-link').forEach(link => {
+        const pkgAmt = Number(link.getAttribute('data-direct-pay-amt') || 20);
+        const sess = sessionMap[pkgAmt];
+        if (sess && sess.upiUri) {
+          link.setAttribute('href', sess.upiUri);
         } else {
-          b.className = 'cust-amt-btn py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-bold text-xs';
+          const fallbackUri = `upi://pay?pa=${encodeURIComponent(upi)}&pn=${encodeURIComponent(title)}&am=${pkgAmt}.01&cu=INR&tn=${encodeURIComponent('ID_' + cust.techId)}`;
+          link.setAttribute('href', fallbackUri);
         }
       });
-
-      const qrBox = document.getElementById('custApkQrBox');
-      if (qrBox && typeof qrcode === 'function') {
-        try {
-          const qr = qrcode(0, 'M');
-          qr.addData(uri);
-          qr.make();
-          qrBox.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2 });
-        } catch (e) {}
-      }
-
-      // Render Customer's Recent Orders
-      const myOrders = state.orders.filter(o => String(o.customerTechId || '') === String(cust.techId));
-      const ordListEl = document.getElementById('custApkOrdersList');
-      if (ordListEl) {
-        ordListEl.innerHTML = myOrders.length === 0
-          ? `<p class="text-center text-slate-400 py-2">No orders placed yet from ${cust.techId}.</p>`
-          : myOrders.map(o => `
-            <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-              <div>
-                <p class="font-bold text-slate-900">Target: <span class="font-mono text-pink-700">${o.targetId}</span></p>
-                <p class="text-[10px] text-slate-400">WO #${o.id} • ${o.time}</p>
-              </div>
-              <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-extrabold">${o.status}</span>
-            </div>
-          `).join('');
-      }
     }
 
-    // Toggle Customer APK Mode
+    // Pre-allocate unique decimal sessions for all 5 packages (20, 60, 100, 200, 400) so clicking any PAY button opens UPI app in 0ms AND starts auto-detect polling!
+    window._pkgSessions = {};
+    async function preflightAllPackageSessions() {
+      const cust = state.loggedInCustomer;
+      if (!cust) return;
+      const orig = window.location && window.location.origin ? window.location.origin : '';
+      if (!orig.startsWith('http')) return;
+      try {
+        const res = await fetch(orig + '/api/customer/create-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ techId: cust.techId, amount: Number(state.customerPayAmt || 20) })
+        });
+        const data = await res.json().catch(() => null);
+        if (data && data.ok && data.session) {
+          const s = data.session;
+          window._pkgSessions[s.baseAmount] = s;
+          window._currentPaySession = s;
+          if (s.upiId) state.settings.upiId = s.upiId;
+          renderCustomerApkView();
+        }
+      } catch (e) {}
+    }
+
+        // Toggle Customer APK Mode
     document.getElementById('toggleApkCustomerModeBtn').addEventListener('click', () => {
       state.customerApkMode = !state.customerApkMode;
       renderAll();
@@ -3073,7 +3150,7 @@
       document.getElementById('admNewCustIdInput').value = '';
       document.getElementById('admNewCustPassInput').value = '';
       window._initialServerPullDone = true;
-      saveState();
+      saveState(false, true);
       renderAll();
       showToast(`✅ Saved APK User ${tid} (Balance: ₹${bal})`);
     });
@@ -3090,7 +3167,7 @@
             state.loggedInCustomer.balance = cust.balance;
           }
           window._initialServerPullDone = true;
-          saveState();
+          saveState(false, true);
           renderAll();
           showToast(`➕ Added ₹20 to ${tid} (New Bal: ₹${cust.balance})`);
         }
@@ -3101,7 +3178,7 @@
         const tid = delBtn.getAttribute('data-del-cust');
         state.customers = (state.customers || []).filter(c => String(c.techId) !== String(tid));
         window._initialServerPullDone = true;
-        saveState();
+        saveState(false, true);
         renderAll();
         showToast(`🗑️ Deleted user ${tid}`);
       }
@@ -3224,13 +3301,13 @@
     window._customerWalletPoller = setInterval(async () => {
       if (!state.customerApkMode || !state.loggedInCustomer) return;
       const prevBal = Number(state.loggedInCustomer.balance || 0);
-      await syncProfilesWithBotServer();
+      await syncCustomerMeWithServer();
       const newBal = Number(state.loggedInCustomer.balance || 0);
       if (newBal > prevBal) {
         renderAll();
         showToast(`🎉 Payment Confirmed by Bank! Wallet Balance: ₹${newBal}`);
       }
-    }, 4000);
+    }, 3500);
 
     // Customer APK: Submit 1 Reach Order (Deducts ₹20 & Automatically uses Backend Node with >= 1.00 Coin!)
     document.getElementById('custApkSubmitOrderBtn').addEventListener('click', async () => {
@@ -3496,11 +3573,129 @@
       fb.textContent = 'ℹ️ Run on live Render link or use /fcverify ' + mob + ' ' + otp + ' in Telegram Bot';
     });
 
+    // Scroll smoothly to Packages when user taps "+ Add coins"
+    const scrollCoinsBtn = document.getElementById('custApkScrollAddCoinsBtn');
+    if (scrollCoinsBtn) {
+      scrollCoinsBtn.addEventListener('click', () => {
+        const pkgSec = document.getElementById('custApkPackagesSection');
+        if (pkgSec) pkgSec.scrollIntoView({ behavior: 'smooth' });
+      });
+    }
+
+    // Close Drawer Button
+    const closeDrwBtn = document.getElementById('custApkCloseDrawerBtn');
+    if (closeDrwBtn) {
+      closeDrwBtn.addEventListener('click', () => {
+        document.getElementById('custApkInfoDrawer').classList.add('hidden');
+      });
+    }
+
+    // 📁 Passbook Button
+    const tabPassbookBtn = document.getElementById('custApkTabPassbookBtn');
+    if (tabPassbookBtn) {
+      tabPassbookBtn.addEventListener('click', () => {
+        const cust = state.loggedInCustomer;
+        if (!cust) return;
+        const drw = document.getElementById('custApkInfoDrawer');
+        const title = document.getElementById('custApkDrawerTitle');
+        const list = document.getElementById('custApkOrdersList');
+        drw.classList.remove('hidden');
+        title.textContent = '📁 Wallet Passbook (₹ Balance)';
+        const reaches = Math.floor(Number(cust.balance || 0) / 20);
+        list.innerHTML = `
+          <div class="p-2.5 rounded-xl bg-[#0b111e] border border-[#1e293b] flex justify-between">
+            <span>Available Wallet Balance:</span>
+            <strong class="text-amber-400">₹${Number(cust.balance || 0)} (${reaches} Reach)</strong>
+          </div>
+          <div class="p-2.5 rounded-xl bg-[#0b111e] border border-[#1e293b] flex justify-between">
+            <span>Total Reach Orders Completed:</span>
+            <strong class="text-emerald-400">${cust.totalOrders || 0} Orders</strong>
+          </div>
+        `;
+      });
+    }
+
+    // 📊 Order Status Button
+    const tabOrdersBtn = document.getElementById('custApkTabOrdersBtn');
+    if (tabOrdersBtn) {
+      tabOrdersBtn.addEventListener('click', () => {
+        const cust = state.loggedInCustomer;
+        if (!cust) return;
+        const drw = document.getElementById('custApkInfoDrawer');
+        const title = document.getElementById('custApkDrawerTitle');
+        const list = document.getElementById('custApkOrdersList');
+        drw.classList.remove('hidden');
+        title.textContent = '📊 My Reach Order Status';
+        const myOrders = state.orders.filter(o => String(o.customerTechId || '') === String(cust.techId));
+        list.innerHTML = myOrders.length === 0
+          ? `<p class="text-center text-slate-400 py-2">No orders placed yet from ${cust.techId}.</p>`
+          : myOrders.map(o => `
+            <div class="p-2.5 rounded-xl bg-[#0b111e] border border-[#1e293b] flex items-center justify-between">
+              <div>
+                <p class="font-bold text-white">Target: <span class="font-mono text-[#2dd4bf]">${o.targetId}</span></p>
+                <p class="text-[10px] text-slate-400">WO #${o.id} • ${o.time}</p>
+              </div>
+              <span class="px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-700 text-[10px] font-extrabold">${o.status}</span>
+            </div>
+          `).join('');
+      });
+    }
+
+    // 💬 Support Button
+    const tabSupportBtn = document.getElementById('custApkTabSupportBtn');
+    if (tabSupportBtn) {
+      tabSupportBtn.addEventListener('click', () => {
+        const drw = document.getElementById('custApkInfoDrawer');
+        const title = document.getElementById('custApkDrawerTitle');
+        const list = document.getElementById('custApkOrdersList');
+        drw.classList.remove('hidden');
+        title.textContent = '💬 Engineer Support';
+        list.innerHTML = `
+          <div class="p-3 rounded-xl bg-[#0b111e] border border-[#1e293b] space-y-1.5">
+            <p class="text-white font-bold">24×7 Instant Support Portal</p>
+            <p class="text-[11px] text-slate-400">Service Hours: 09:30 AM – 10:15 PM (IST)</p>
+            <p class="text-[11px] text-[#2dd4bf]">Coins are auto-credited immediately after UPI payment.</p>
+          </div>
+        `;
+      });
+    }
+
+    // 🎁 Customer Daily Bonus Button
+    const custDailyBtn = document.getElementById('custApkDailyBonusBtn');
+    if (custDailyBtn) {
+      custDailyBtn.addEventListener('click', () => {
+        const cust = state.loggedInCustomer;
+        if (!cust) return;
+        showToast('🎁 Daily Bonus is active on backend nodes! Add coins below for instant Reach.');
+      });
+    }
+
+    // Direct Package PAY Link Click -> Starts background 2.5s auto-detection while native UPI app opens synchronously!
+    document.querySelectorAll('.cust-direct-pay-link').forEach(link => {
+      link.addEventListener('click', async () => {
+        const cust = state.loggedInCustomer;
+        if (!cust) return;
+        const pkgAmt = Number(link.getAttribute('data-direct-pay-amt') || 20);
+        state.customerPayAmt = pkgAmt;
+        const statusEl = document.getElementById('custApkAutoListenStatus');
+        if (statusEl) {
+          statusEl.classList.remove('hidden');
+          statusEl.textContent = `🔄 Waiting for ₹${pkgAmt} UPI Payment... (Coins will auto-add to your wallet!)`;
+        }
+        // Start background session & polling on server
+        await initCustomerAutoPaySession(true);
+      });
+    });
+
     // Initial Render
     renderAll();
 
-    // Background Auto-Sync on Startup: First pull any accounts created in Telegram Bot, then sync live coins!
+    // Background Auto-Sync on Startup:
     (async function autoSyncStartup() {
+      if (isStandaloneCustomerApk()) {
+        await syncCustomerMeWithServer();
+        return;
+      }
       await syncProfilesWithBotServer();
       let changed = false;
       for (const prof of state.profiles) {
