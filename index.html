@@ -545,13 +545,29 @@
 
           <p id="admFcOtpFeedbackText" class="text-[10px] text-emerald-700 font-semibold hidden"></p>
 
-          <!-- Auto-Filled Session Cookie Box -->
-          <div class="pt-1 border-t border-slate-100">
-            <label for="admFreechargeCookieInput" class="block text-[9px] font-bold uppercase text-slate-400 mb-0.5">
-              Auto-Saved Freecharge Session Token (app_fc)
-            </label>
-            <input id="admFreechargeCookieInput" type="password" placeholder="Auto-filled on OTP verify (or paste manually)..."
+          <!-- Auto-Filled Session Cookie Box + 1-Click Test API Button -->
+          <div class="pt-1 border-t border-slate-100 space-y-2">
+            <div class="flex items-center justify-between">
+              <label for="admFreechargeCookieInput" class="block text-[9px] font-bold uppercase text-slate-400">
+                Freecharge Session Token (app_fc)
+              </label>
+              <button id="admTestFcApiBtn" type="button" class="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-amber-300 text-[10px] font-extrabold shadow-sm">
+                🔍 Test app_fc API & Fetch Logs
+              </button>
+            </div>
+            <input id="admFreechargeCookieInput" type="password" placeholder="Paste app_fc cookie token here..."
               class="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200 font-mono text-[10px] text-slate-800" />
+
+            <!-- Live Freecharge API Diagnostic Logs Console -->
+            <div class="p-2.5 rounded-xl bg-slate-950 text-emerald-400 font-mono text-[10px] space-y-1.5 border border-slate-800">
+              <div class="flex items-center justify-between border-b border-slate-800 pb-1">
+                <span class="text-white font-bold">📡 Freecharge Direct API Live Logs</span>
+                <button id="admRefreshFcLogsBtn" type="button" class="text-teal-300 hover:underline text-[9px] font-bold">🔄 Refresh Logs</button>
+              </div>
+              <div id="admFcLiveLogsContainer" class="max-h-44 overflow-y-auto space-y-1 text-[10px] leading-relaxed text-slate-300">
+                <p class="text-slate-500">Tap "🔍 Test app_fc API & Fetch Logs" to see live Freecharge API responses...</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1286,6 +1302,12 @@
             const updatedSelf = state.customers.find(c => String(c.techId) === String(state.loggedInCustomer.techId));
             if (updatedSelf) state.loggedInCustomer = updatedSelf;
           }
+        }
+
+        // 2c. Merge Live Freecharge API Diagnostic Logs for Admin Page
+        if (Array.isArray(serverState.fc_logs)) {
+          state.fcLogs = serverState.fc_logs;
+          renderFcLogsBox();
         }
 
         // 3. Merge Server Settings (upiId, appTitle, freechargeCookie, BharatPe, Razorpay) across Laptop, Mobile & Customer APK!
@@ -3100,28 +3122,69 @@
       });
     }
 
-    // Pre-allocate unique decimal sessions for all 5 packages (20, 60, 100, 200, 400) so clicking any PAY button opens UPI app in 0ms AND starts auto-detect polling!
+    // Pre-allocate unique decimal sessions for packages so the PAY button's href (`am=20.01`) matches the EXACT server session!
     window._pkgSessions = {};
-    async function preflightAllPackageSessions() {
+    async function preflightPackageSessionForAmt(pkgAmt) {
       const cust = state.loggedInCustomer;
-      if (!cust) return;
+      if (!cust) return null;
       const orig = window.location && window.location.origin ? window.location.origin : '';
-      if (!orig.startsWith('http')) return;
+      if (!orig.startsWith('http')) return null;
       try {
         const res = await fetch(orig + '/api/customer/create-payment', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ techId: cust.techId, amount: Number(state.customerPayAmt || 20) })
+          body: JSON.stringify({ techId: cust.techId, amount: Number(pkgAmt || 20) })
         });
         const data = await res.json().catch(() => null);
         if (data && data.ok && data.session) {
           const s = data.session;
-          window._pkgSessions[s.baseAmount] = s;
-          window._currentPaySession = s;
+          window._pkgSessions[pkgAmt] = s;
           if (s.upiId) state.settings.upiId = s.upiId;
           renderCustomerApkView();
+          return s;
         }
       } catch (e) {}
+      return null;
+    }
+
+    function startPollingForSession(sess) {
+      if (!sess || !sess.sessionId) return;
+      const cust = state.loggedInCustomer;
+      if (!cust) return;
+      const orig = window.location && window.location.origin ? window.location.origin : '';
+      if (!orig.startsWith('http')) return;
+
+      window._currentPaySession = sess;
+      const badgeEl = document.getElementById('custApkUniqueSessionBadge');
+      const statusEl = document.getElementById('custApkAutoListenStatus');
+      if (badgeEl) badgeEl.textContent = 'Order #' + sess.sessionId.slice(-6);
+      if (statusEl) {
+        statusEl.classList.remove('hidden');
+        statusEl.textContent = `🔄 Waiting for ₹${Number(sess.uniqueAmount).toFixed(2)} UPI payment... (Wallet auto-updates on payment!)`;
+      }
+
+      if (window._activePaySessionPoller) clearInterval(window._activePaySessionPoller);
+      window._activePaySessionPoller = setInterval(async () => {
+        try {
+          const chk = await fetch(orig + '/api/customer/check-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: sess.sessionId })
+          });
+          const chkData = await chk.json().catch(() => null);
+          if (chkData && chkData.ok && chkData.status === 'COMPLETED' && chkData.customer) {
+            clearInterval(window._activePaySessionPoller);
+            window._currentPaySession = null;
+            delete window._pkgSessions[sess.baseAmount];
+            state.loggedInCustomer = chkData.customer;
+            const existing = (state.customers || []).find(c => String(c.techId) === String(cust.techId));
+            if (existing) Object.assign(existing, chkData.customer);
+            if (statusEl) statusEl.textContent = `✅ Payment Verified! ₹${sess.baseAmount} Added to Wallet!`;
+            renderAll();
+            showToast(`🎉 ₹${sess.baseAmount} Automatically Added to Wallet!`);
+          }
+        } catch (e) {}
+      }, 2000);
     }
 
         // Toggle Customer APK Mode
@@ -3211,7 +3274,7 @@
             if (existing) Object.assign(existing, data.customer);
             else state.customers.unshift(data.customer);
             renderAll();
-            initCustomerAutoPaySession(true);
+            [20, 60, 100, 200, 400].forEach(a => preflightPackageSessionForAmt(a));
             showToast(`✅ Welcome Technician ${tid}!`);
             return;
           } else if (data && !data.ok) {
@@ -3236,7 +3299,7 @@
       state.loggedInCustomer = cust;
       saveState();
       renderAll();
-      initCustomerAutoPaySession(true);
+      [20, 60, 100, 200, 400].forEach(a => preflightPackageSessionForAmt(a));
       showToast(`✅ Logged in as ${tid}`);
     });
 
@@ -3252,7 +3315,7 @@
         window._currentPaySession = null;
         state.customerPayAmt = Number(btn.getAttribute('data-cust-amt') || 20);
         renderCustomerApkView();
-        initCustomerAutoPaySession(true);
+        [20, 60, 100, 200, 400].forEach(a => preflightPackageSessionForAmt(a));
       });
     });
 
@@ -3467,7 +3530,7 @@
     document.getElementById('custApkStartAutoPayBtn').addEventListener('click', async () => {
       const upi = state.settings.upiId || 'jpwportal@freecharge';
       copySafe(upi, 'UPI ID');
-      await initCustomerAutoPaySession(true);
+      await [20, 60, 100, 200, 400].forEach(a => preflightPackageSessionForAmt(a));
     });
 
     // Freecharge Step 1: Send OTP to Mobile Number via Server
@@ -3670,25 +3733,93 @@
       });
     }
 
-    // Direct Package PAY Link Click -> Starts background 2.5s auto-detection while native UPI app opens synchronously!
+    // Direct Package PAY Link Click -> Uses the pre-allocated session so the exact amount opened in UPI App (₹20.01) matches the polled session!
     document.querySelectorAll('.cust-direct-pay-link').forEach(link => {
       link.addEventListener('click', async () => {
         const cust = state.loggedInCustomer;
         if (!cust) return;
         const pkgAmt = Number(link.getAttribute('data-direct-pay-amt') || 20);
         state.customerPayAmt = pkgAmt;
-        const statusEl = document.getElementById('custApkAutoListenStatus');
-        if (statusEl) {
-          statusEl.classList.remove('hidden');
-          statusEl.textContent = `🔄 Waiting for ₹${pkgAmt} UPI Payment... (Coins will auto-add to your wallet!)`;
+
+        let sess = window._pkgSessions && window._pkgSessions[pkgAmt];
+        if (!sess) {
+          sess = await preflightPackageSessionForAmt(pkgAmt);
         }
-        // Start background session & polling on server
-        await initCustomerAutoPaySession(true);
+        if (sess) {
+          startPollingForSession(sess);
+        }
       });
+    });
+
+    function renderFcLogsBox() {
+      const box = document.getElementById('admFcLiveLogsContainer');
+      if (!box) return;
+      const logs = state.fcLogs || [];
+      if (logs.length === 0) {
+        box.innerHTML = `<p class="text-slate-500">No Freecharge API logs yet. Tap "🔍 Test app_fc API & Fetch Logs" above!</p>`;
+        return;
+      }
+      box.innerHTML = logs.map(line => {
+        let colorClass = 'text-slate-300';
+        if (line.indexOf('🎉') !== -1 || line.indexOf('✅') !== -1) colorClass = 'text-emerald-400 font-bold';
+        else if (line.indexOf('❌') !== -1 || line.indexOf('⚠️') !== -1) colorClass = 'text-amber-300';
+        return `<div class="${colorClass} border-b border-slate-900 pb-0.5 break-all">${line}</div>`;
+      }).join('');
+    }
+
+    // Test Freecharge app_fc Cookie API & Fetch Live Logs Button
+    document.getElementById('admTestFcApiBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('admTestFcApiBtn');
+      const cookieVal = document.getElementById('admFreechargeCookieInput').value.trim();
+      if (cookieVal) {
+        state.settings.freechargeCookie = cookieVal;
+      }
+      const orig = window.location && window.location.origin ? window.location.origin : '';
+      if (!orig.startsWith('http')) {
+        showToast('ℹ️ Run on your live Render link to test Freecharge API');
+        return;
+      }
+
+      btn.classList.add('api-busy');
+      btn.textContent = '⏳ Testing app_fc...';
+      try {
+        const res = await fetch(orig + '/api/admin/fc-test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ freechargeCookie: cookieVal })
+        });
+        const data = await res.json().catch(() => null);
+        if (data && Array.isArray(data.logs)) {
+          state.fcLogs = data.logs;
+          renderFcLogsBox();
+          showToast('✅ Freecharge API Tested! Check Live Logs below.');
+        }
+      } catch (e) {
+        showToast('⚠️ Error calling /api/admin/fc-test');
+      } finally {
+        btn.classList.remove('api-busy');
+        btn.textContent = '🔍 Test app_fc API & Fetch Logs';
+      }
+    });
+
+    // Refresh Freecharge Logs Button
+    document.getElementById('admRefreshFcLogsBtn').addEventListener('click', async () => {
+      const orig = window.location && window.location.origin ? window.location.origin : '';
+      if (!orig.startsWith('http')) return;
+      try {
+        const res = await fetch(orig + '/api/admin/fc-logs', { method: 'GET', cache: 'no-store' });
+        const data = await res.json().catch(() => null);
+        if (data && Array.isArray(data.logs)) {
+          state.fcLogs = data.logs;
+          renderFcLogsBox();
+          showToast('🔄 Logs Refreshed');
+        }
+      } catch (e) {}
     });
 
     // Initial Render
     renderAll();
+    renderFcLogsBox();
 
     // Background Auto-Sync on Startup:
     (async function autoSyncStartup() {
