@@ -94,7 +94,7 @@ DEFAULT_STATE = {
             "telegramChatId": "WEB_0690766275",
         },
         {
-            "id": "0691113840",
+            "id": "055555555",
             "name": "Main Node",
             "password": "12345",
             "credits": 3,
@@ -1152,17 +1152,13 @@ async def api_state_post(request: web.Request) -> web.Response:
                 if body.get("saveSettings") is True and inc_ts <= srv_ts:
                     STATE["settings"]["updatedAt"] = int(time.time() * 1000)
 
-        incoming_customers = body.get("customers")
-        if isinstance(incoming_customers, list):
-            cmap = {str(c.get("techId")): c for c in STATE.get("customers", []) if c.get("techId")}
-            for ic in reversed(incoming_customers):
-                if isinstance(ic, dict) and ic.get("techId"):
-                    tid = str(ic["techId"])
-                    if tid in cmap:
-                        cmap[tid].update(ic)
-                    else:
-                        STATE.setdefault("customers", []).insert(0, ic)
-                        cmap[tid] = ic
+        if body.get("adminCustomerUpdate") is True:
+            incoming_customers = body.get("customers")
+            if isinstance(incoming_customers, list):
+                STATE["customers"] = [
+                    c for c in incoming_customers
+                    if isinstance(c, dict) and c.get("techId") and str(c.get("techId")) != "TECH101"
+                ]
 
         save_state(STATE)
         return web.json_response({"ok": True, "totalProfiles": len(STATE.get("profiles", []))})
@@ -1179,6 +1175,33 @@ async def api_register_proxy(request: web.Request) -> web.Response:
     name = body.get("name", "RRYSB")
     res = await asyncio.to_thread(register_on_cashtree, cid, pwd, name)
     return web.json_response(res["data"], status=res["status"] or 200)
+
+
+async def api_customer_me(request: web.Request) -> web.Response:
+    """Safe read-only sync endpoint for Customer APK: returns only this customer's live balance, orders, and UPI settings."""
+    tech_id = str(request.query.get("techId") or "").strip()
+    upi_id = STATE["settings"].get("upiId", "jpwportal@freecharge")
+    app_title = STATE["settings"].get("appTitle", "JPW REACH")
+    if not tech_id:
+        return web.json_response({"ok": True, "upiId": upi_id, "appTitle": app_title})
+
+    cust = next((c for c in STATE.get("customers", []) if str(c.get("techId")) == tech_id), None)
+    if not cust:
+        return web.json_response({"ok": False, "message": "User not found", "upiId": upi_id, "appTitle": app_title}, status=404)
+
+    my_orders = [o for o in STATE.get("orders", []) if str(o.get("customerTechId")) == tech_id]
+    return web.json_response({
+        "ok": True,
+        "customer": {
+            "techId": cust.get("techId"),
+            "name": cust.get("name"),
+            "balance": int(cust.get("balance", 0)),
+            "totalOrders": int(cust.get("totalOrders", 0)),
+        },
+        "orders": my_orders[:20],
+        "upiId": upi_id,
+        "appTitle": app_title,
+    })
 
 
 async def api_customer_auth(request: web.Request) -> web.Response:
@@ -2154,6 +2177,7 @@ def create_app() -> web.Application:
     app.router.add_get("/api/state", api_state_get)
     app.router.add_post("/api/state", api_state_post)
     app.router.add_post("/api/register-proxy", api_register_proxy)
+    app.router.add_get("/api/customer/me", api_customer_me)
     app.router.add_post("/api/customer/auth", api_customer_auth)
     app.router.add_post("/api/customer/pay", api_customer_pay)
     app.router.add_post("/api/customer/order", api_customer_order)
