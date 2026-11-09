@@ -752,14 +752,14 @@
             <label for="custApkLoginIdInput" class="block text-[11px] font-bold uppercase text-slate-500 mb-1">
               TECHNICIAN ID / MOBILE NO. <span class="text-rose-500">*</span>
             </label>
-            <input id="custApkLoginIdInput" type="text" placeholder="e.g. 0691112222 or TECH101" value="TECH101"
+            <input id="custApkLoginIdInput" type="text" placeholder="Enter your Technician ID / Mobile..." value=""
               class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-mono font-bold text-slate-900 focus:outline-none focus:border-pink-500" />
           </div>
           <div>
             <label for="custApkLoginPassInput" class="block text-[11px] font-bold uppercase text-slate-500 mb-1">
               PASSWORD <span class="text-rose-500">*</span>
             </label>
-            <input id="custApkLoginPassInput" type="password" placeholder="Enter your password" value="12345"
+            <input id="custApkLoginPassInput" type="password" placeholder="Enter your password..." value=""
               class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-sm font-mono text-slate-900 focus:outline-none focus:border-pink-500" />
           </div>
           <button id="custApkLoginSubmitBtn" type="button" class="w-full py-3 rounded-xl brand-btn text-sm shadow-md">
@@ -986,9 +986,7 @@
           note: 'No active pack'
         }
       ],
-      customers: [
-        { techId: 'TECH101', password: '12345', name: 'Demo Technician', balance: 20, totalOrders: 0 }
-      ],
+      customers: [],
       usedUtrs: [],
       customerApkMode: false,
       customerPayAmt: 20,
@@ -1025,7 +1023,11 @@
       return orig.startsWith('http') ? (orig + '/api/state') : '';
     }
 
-    function saveState() {
+    function saveState(explicitAdminSettingsSave) {
+      if (explicitAdminSettingsSave) {
+        window._pendingSettingsSave = true;
+        state.settings.updatedAt = Date.now();
+      }
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
       } catch (e) {}
@@ -1036,19 +1038,25 @@
         try {
           const ep = getBotServerStateUrl();
           if (ep) {
+            const isExplicitSettings = Boolean(window._pendingSettingsSave);
+            const payload = {
+              profiles: state.profiles,
+              orders: state.orders,
+              stats: state.stats,
+              customers: state.customers || [],
+              deletedProfileIds: window._deletedProfileIds || [],
+              saveSettings: isExplicitSettings
+            };
+            if (isExplicitSettings) {
+              payload.settings = state.settings;
+            }
             fetch(ep, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                profiles: state.profiles,
-                orders: state.orders,
-                stats: state.stats,
-                settings: state.settings,
-                customers: state.customers || [],
-                deletedProfileIds: window._deletedProfileIds || []
-              })
+              body: JSON.stringify(payload)
             }).then(() => {
               window._deletedProfileIds = [];
+              window._pendingSettingsSave = false;
             }).catch(() => {});
           }
         } catch (e) {}
@@ -1165,7 +1173,44 @@
           }
         }
 
-        // 3. Merge Admin Stats if server has higher collected total
+        // 3. Merge Server Settings (upiId, appTitle, freechargeCookie, BharatPe, Razorpay) across Laptop, Mobile & Customer APK!
+        if (serverState.settings && typeof serverState.settings === 'object' && !window._pendingSettingsSave) {
+          const srvSet = serverState.settings;
+          if (srvSet.upiId && srvSet.upiId !== state.settings.upiId) {
+            state.settings.upiId = srvSet.upiId;
+            mergedAny = true;
+          }
+          if (srvSet.appTitle && srvSet.appTitle !== state.settings.appTitle) {
+            state.settings.appTitle = srvSet.appTitle;
+            mergedAny = true;
+          }
+          if (srvSet.freechargeCookie && srvSet.freechargeCookie !== state.settings.freechargeCookie) {
+            state.settings.freechargeCookie = srvSet.freechargeCookie;
+            mergedAny = true;
+          }
+          if (srvSet.freechargeMobile && srvSet.freechargeMobile !== state.settings.freechargeMobile) {
+            state.settings.freechargeMobile = srvSet.freechargeMobile;
+            mergedAny = true;
+          }
+          if (srvSet.bharatpeMid && srvSet.bharatpeMid !== state.settings.bharatpeMid) {
+            state.settings.bharatpeMid = srvSet.bharatpeMid;
+            mergedAny = true;
+          }
+          if (srvSet.bharatpeToken && srvSet.bharatpeToken !== state.settings.bharatpeToken) {
+            state.settings.bharatpeToken = srvSet.bharatpeToken;
+            mergedAny = true;
+          }
+          if (srvSet.razorpayKeyId && srvSet.razorpayKeyId !== state.settings.razorpayKeyId) {
+            state.settings.razorpayKeyId = srvSet.razorpayKeyId;
+            mergedAny = true;
+          }
+          if (srvSet.razorpayKeySecret && srvSet.razorpayKeySecret !== state.settings.razorpayKeySecret) {
+            state.settings.razorpayKeySecret = srvSet.razorpayKeySecret;
+            mergedAny = true;
+          }
+        }
+
+        // 4. Merge Admin Stats if server has higher collected total
         if (serverState.stats && Number(serverState.stats.collected || 0) > Number(state.stats.collected || 0)) {
           state.stats = Object.assign({}, state.stats, serverState.stats);
           mergedAny = true;
@@ -1974,8 +2019,9 @@
 
       // Render Admin Customer APK Users List (Technician ID, Password, ₹ Balance)
       if (!Array.isArray(state.customers)) {
-        state.customers = [{ techId: 'TECH101', password: '12345', name: 'Demo Technician', balance: 20, totalOrders: 0 }];
+        state.customers = [];
       }
+      state.customers = state.customers.filter(c => String(c.techId) !== 'TECH101');
       const admUsersBadge = document.getElementById('admTotalUsersBadge');
       if (admUsersBadge) admUsersBadge.textContent = state.customers.length + ' Users';
       const admCustListEl = document.getElementById('admCustomerUsersList');
@@ -2485,9 +2531,9 @@
       if (bpMidEl) state.settings.bharatpeMid = bpMidEl.value.trim();
       if (bpTokEl) state.settings.bharatpeToken = bpTokEl.value.trim();
       window._initialServerPullDone = true;
-      saveState();
+      saveState(true);
       renderAll();
-      showToast('✅ Admin, UPI & Bank Verifier Settings Saved');
+      showToast('✅ Admin, UPI & Bank Verifier Settings Saved to Server!');
     });
 
     document.getElementById('resetMiniAppDataBtn').addEventListener('click', () => {
@@ -2924,11 +2970,18 @@
         submitBtn.className = 'w-full py-3.5 rounded-xl bg-slate-300 text-slate-600 font-extrabold text-sm transition';
       }
 
-      // Render ₹20 UPI QR inside Customer APK
+      // Render UPI QR inside Customer APK (Preserves active unique session like ₹20.04 if one is active!)
       const amt = Number(state.customerPayAmt || 20);
-      const upi = state.settings.upiId || 'jpwportal@ybl';
-      const uri = `upi://pay?pa=${encodeURIComponent(upi)}&pn=${encodeURIComponent(state.settings.appTitle || 'JPW Portal')}&am=${amt}.00&cu=INR`;
+      const activeSess = (window._currentPaySession && Number(window._currentPaySession.baseAmount) === amt) ? window._currentPaySession : null;
+      const upi = (activeSess && activeSess.upiId) ? activeSess.upiId : (state.settings.upiId || 'jpwportal@ybl');
+      const displayExactAmt = activeSess ? Number(activeSess.uniqueAmount).toFixed(2) : amt.toFixed(2);
+      const uri = activeSess
+        ? activeSess.upiUri
+        : `upi://pay?pa=${encodeURIComponent(upi)}&pn=${encodeURIComponent(state.settings.appTitle || 'JPW Portal')}&am=${amt}.00&cu=INR`;
+
       document.getElementById('custApkUpiIdText').textContent = upi;
+      const exactAmtEl = document.getElementById('custApkExactUniqueAmt');
+      if (exactAmtEl) exactAmtEl.textContent = '₹' + displayExactAmt;
       document.getElementById('custApkPayBtnAmt').textContent = String(amt);
       document.getElementById('custApkUtrLabelAmt').textContent = String(amt);
       document.getElementById('custApkVerifyBtnAmt').textContent = String(amt);
@@ -3051,6 +3104,8 @@
           const data = await res.json().catch(() => null);
           if (data && data.ok && data.customer) {
             state.loggedInCustomer = data.customer;
+            if (data.upiId) state.settings.upiId = data.upiId;
+            if (data.appTitle) state.settings.appTitle = data.appTitle;
             const existing = (state.customers || []).find(c => String(c.techId) === tid);
             if (existing) Object.assign(existing, data.customer);
             else state.customers.unshift(data.customer);
@@ -3091,6 +3146,7 @@
     // Customer APK: Select Recharge Pack (₹20 / ₹40 / ₹60)
     document.querySelectorAll('.cust-amt-btn').forEach(btn => {
       btn.addEventListener('click', () => {
+        window._currentPaySession = null;
         state.customerPayAmt = Number(btn.getAttribute('data-cust-amt') || 20);
         renderCustomerApkView();
       });
@@ -3268,8 +3324,12 @@
           const data = await res.json().catch(() => null);
           if (data && data.ok && data.session) {
             const sess = data.session;
+            window._currentPaySession = sess;
+            if (sess.upiId) state.settings.upiId = sess.upiId;
+            if (sess.appTitle) state.settings.appTitle = sess.appTitle;
             badgeEl.textContent = 'Order #' + sess.sessionId.slice(-6);
             exactAmtEl.textContent = '₹' + Number(sess.uniqueAmount).toFixed(2);
+            document.getElementById('custApkUpiIdText').textContent = sess.upiId || state.settings.upiId;
 
             // Update QR to the unique collision-free UPI URI (e.g. ₹20.01 + Order Ref)
             const qrBox = document.getElementById('custApkQrBox');
@@ -3296,6 +3356,7 @@
                 const chkData = await chk.json().catch(() => null);
                 if (chkData && chkData.ok && chkData.status === 'COMPLETED' && chkData.customer) {
                   clearInterval(window._activePaySessionPoller);
+                  window._currentPaySession = null;
                   state.loggedInCustomer = chkData.customer;
                   const existing = (state.customers || []).find(c => String(c.techId) === String(cust.techId));
                   if (existing) Object.assign(existing, chkData.customer);
@@ -3405,7 +3466,7 @@
             fb.className = 'text-[10px] text-emerald-700 font-bold';
             fb.textContent = data.message || '✅ Freecharge Connected 24×7!';
             window._initialServerPullDone = true;
-            saveState();
+            saveState(true);
             renderAll();
             showToast('🎉 Freecharge Connected & UPI ID Auto-Set!');
             return;
