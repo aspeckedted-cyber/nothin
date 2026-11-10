@@ -53,7 +53,7 @@
 <body class="min-h-screen pb-24">
 
   <!-- Top Mini App Header -->
-  <header class="brand-header text-white sticky top-0 z-30 px-4 py-3.5 shadow-md">
+  <header id="adminTopStickyHeader" class="brand-header text-white sticky top-0 z-30 px-4 py-3.5 shadow-md">
     <div class="max-w-md mx-auto flex items-center justify-between">
       <div class="flex items-center gap-3">
         <div class="w-9 h-9 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center font-extrabold text-base">
@@ -450,9 +450,14 @@
           <h2 class="text-xl font-extrabold text-slate-900">Orders</h2>
           <p class="text-xs text-slate-500">Live status of submitted requests</p>
         </div>
-        <button id="exportOrdersCsvBtn" type="button" class="px-3 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-bold">
-          📥 Export CSV
-        </button>
+        <div class="flex items-center gap-1.5">
+          <button id="syncLiveOrdersStatusBtn" type="button" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold shadow-sm">
+            🔄 Live Check
+          </button>
+          <button id="exportOrdersCsvBtn" type="button" class="px-3 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-bold">
+            📥 Export CSV
+          </button>
+        </div>
       </div>
 
       <div id="ordersListContainer" class="space-y-2.5"></div>
@@ -598,7 +603,7 @@
       <div class="card-box p-4 space-y-3 text-xs">
         <h3 class="font-extrabold text-slate-800 text-sm">⚙️ UPI & App Configuration</h3>
         <div>
-          <label for="admUpiInput" class="block font-semibold text-slate-600 mb-1">Your UPI ID (For ₹60 QR)</label>
+          <label for="admUpiInput" class="block font-semibold text-slate-600 mb-1">Merchant Business UPI ID or Scanned QR Link (Do NOT use Personal @ybl ID)</label>
           <input id="admUpiInput" type="text" placeholder="yourname@ybl"
             class="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 font-mono" />
         </div>
@@ -1959,7 +1964,7 @@
         if (admNav) admNav.classList.add('hidden');
         if (admBadge) admBadge.classList.add('hidden');
         if (apkToggleBtn) {
-          if (isStandaloneCustomerUrl) apkToggleBtn.classList.add('hidden');
+          if (isStandaloneCustomerUrl) { apkToggleBtn.classList.add('hidden'); const topHdr = document.getElementById('adminTopStickyHeader'); if (topHdr) topHdr.classList.add('hidden'); }
           else apkToggleBtn.textContent = '🛡️ Back to Admin';
         }
       } else {
@@ -2153,8 +2158,8 @@
             <div class="space-y-0.5">
               <div class="flex items-center gap-2">
                 <span class="text-xs font-extrabold text-slate-900">WO #${o.id}</span>
-                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${o.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}">
-                  ${o.status}
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${o.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : (o.status === 'FAILED' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-800')}">
+                  ${o.status === 'COMPLETED' ? '✅ COMPLETED' : (o.status === 'FAILED' ? '❌ FAILED' : '⏳ ' + o.status)}
                 </span>
               </div>
               <p class="text-xs text-slate-600 font-semibold">Target ID: <span class="font-mono text-pink-700">${o.targetId}</span></p>
@@ -2672,13 +2677,16 @@
             prof.rupees = Math.max(0, prof.rupees - 20);
           }
 
-          const woId = (apiRes.data && apiRes.data.order && apiRes.data.order.id) || Math.floor(7100000000 + Math.random() * 899999999);
+          const ctOrd = (apiRes.data && (apiRes.data.order || apiRes.data.data)) || {};
+          const ctId = String(ctOrd._id || ctOrd.id || '');
+          const woId = Number(ctOrd.id) || Math.floor(7100000000 + Math.random() * 899999999);
           state.orders.unshift({
             id: woId,
+            cashtreeOrderId: ctId,
             profileId: prof.id,
             targetId: targetVal,
             notes: `Pass: ${targetPassVal} | ${srvMsg}`,
-            status: 'COMPLETED',
+            status: 'PROCESSING',
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           });
 
@@ -3182,7 +3190,15 @@
         if (sess && sess.upiUri) {
           link.setAttribute('href', sess.upiUri);
         } else {
-          const fallbackUri = `upi://pay?pa=${encodeURIComponent(upi)}&pn=${encodeURIComponent(title)}&am=${pkgAmt}.01&cu=INR&tn=${encodeURIComponent('ID_' + cust.techId)}`;
+          let cleanPa = upi;
+          let mcPart = '';
+          if (upi.toLowerCase().indexOf('upi://') === 0) {
+            const paM = upi.match(/[?&]pa=([^&]+)/i);
+            const mcM = upi.match(/[?&]mc=([^&]+)/i);
+            if (paM) cleanPa = decodeURIComponent(paM[1]);
+            if (mcM) mcPart = '&mc=' + encodeURIComponent(mcM[1]);
+          }
+          const fallbackUri = `upi://pay?pa=${encodeURIComponent(cleanPa)}&pn=${encodeURIComponent(title)}${mcPart}&am=${pkgAmt}.01&cu=INR`;
           link.setAttribute('href', fallbackUri);
         }
       });
@@ -3539,7 +3555,7 @@
             customerTechId: cust.techId,
             targetId,
             notes: `APK User: ${cust.techId} | ${srvMsg}`,
-            status: 'COMPLETED',
+            status: 'PROCESSING',
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           });
           resBox.innerHTML = `<p class="text-emerald-400 font-bold">✅ Order #${woId} Placed! (${srvMsg})</p>`;
@@ -3791,7 +3807,7 @@
                 <p class="font-bold text-white">Target: <span class="font-mono text-[#2dd4bf]">${o.targetId}</span></p>
                 <p class="text-[10px] text-slate-400">WO #${o.id} • ${o.time}</p>
               </div>
-              <span class="px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-700 text-[10px] font-extrabold">${o.status}</span>
+              <span class="px-2 py-0.5 rounded-full ${o.status === 'COMPLETED' ? 'bg-emerald-950 text-emerald-400 border border-emerald-700' : (o.status === 'FAILED' ? 'bg-rose-950 text-rose-400 border border-rose-700' : 'bg-amber-950 text-amber-300 border border-amber-700')} text-[10px] font-extrabold">${o.status === 'COMPLETED' ? '✅ COMPLETED' : (o.status === 'FAILED' ? '❌ FAILED' : '⏳ ' + o.status)}</span>
             </div>
           `).join('');
       });
@@ -4015,6 +4031,119 @@
       }
       showToast('🗑️ Logs Cleared');
     });
+
+    function mapCashtreeOrderStatusJs(ctOrd) {
+      if (!ctOrd || typeof ctOrd !== 'object') return 'PROCESSING';
+      if (ctOrd.isCompleted === true || ctOrd.completed === true) return 'COMPLETED';
+      const rawSt = String(ctOrd.status || ctOrd.orderStatus || ctOrd.state || '').trim().toLowerCase();
+      if (rawSt.indexOf('complet') !== -1 || rawSt.indexOf('success') !== -1 || rawSt.indexOf('done') !== -1 || rawSt.indexOf('finish') !== -1) {
+        return 'COMPLETED';
+      }
+      if (rawSt.indexOf('fail') !== -1 || rawSt.indexOf('reject') !== -1 || rawSt.indexOf('error') !== -1 || rawSt.indexOf('cancel') !== -1) {
+        return 'FAILED';
+      }
+      return 'PROCESSING';
+    }
+
+    async function pollLiveCashtreeOrderStatus(showFeedbackToast) {
+      const pendingOrders = (state.orders || []).filter(o => o && o.status !== 'COMPLETED' && o.status !== 'FAILED');
+      if (pendingOrders.length === 0) {
+        if (showFeedbackToast) showToast('✅ All orders are already finalized!');
+        return false;
+      }
+
+      let changedAny = false;
+      const orig = window.location && window.location.origin ? window.location.origin : '';
+
+      // 1. Trigger backend sync via /api/sync-orders if running on Render server
+      if (orig.startsWith('http')) {
+        try {
+          const sRes = await fetch(orig + '/api/sync-orders', { method: 'POST' });
+          const sData = await sRes.json().catch(() => null);
+          if (sData && sData.ok && Array.isArray(sData.orders)) {
+            const srvMap = new Map(sData.orders.map(so => [Number(so.id), so]));
+            state.orders.forEach(lo => {
+              const so = srvMap.get(Number(lo.id));
+              if (so && so.status && so.status !== lo.status) {
+                lo.status = so.status;
+                if (so.notes) lo.notes = so.notes;
+                changedAny = true;
+              }
+            });
+          }
+        } catch (e) {}
+      }
+
+      // 2. Also check directly against https://cashtree.space/api/app/check-status (unless in standalone Customer APK without profiles)
+      if (!isStandaloneCustomerApk()) {
+        const pids = Array.from(new Set(pendingOrders.map(o => String(o.profileId || '').trim()).filter(Boolean)));
+        for (const pid of pids) {
+          try {
+            const prof = state.profiles.find(p => String(p.id) === pid) || { id: pid };
+            const chatId = prof.telegramChatId || ('WEB_' + pid);
+            const token = prof.authToken || buildWebBearerToken(chatId);
+            const res = await fetch('https://cashtree.space/api/app/check-status', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': '*/*',
+                'Authorization': token.startsWith('Bearer ') ? token : ('Bearer ' + token)
+              },
+              body: JSON.stringify({ telegramChatId: chatId })
+            });
+            const data = await res.json().catch(() => ({}));
+            const regOrders = (data && (data.regularOrders || data.orders)) || [];
+            if (Array.isArray(regOrders)) {
+              pendingOrders.forEach(ord => {
+                if (String(ord.profileId) !== pid) return;
+                const matched = regOrders.find(co => {
+                  if (!co) return false;
+                  const coId = String(co._id || co.id || co.orderId || '');
+                  const coTarget = String(co.targetId || co.target_id || co.target || co.mobile || '');
+                  return (ord.cashtreeOrderId && coId === String(ord.cashtreeOrderId)) || (ord.targetId && coTarget === String(ord.targetId));
+                });
+                if (matched) {
+                  const newSt = mapCashtreeOrderStatusJs(matched);
+                  if (newSt !== ord.status) {
+                    ord.status = newSt;
+                    changedAny = true;
+                  }
+                }
+              });
+            }
+          } catch (e) {}
+        }
+      }
+
+      if (changedAny) {
+        window._initialServerPullDone = true;
+        saveState();
+        renderAll();
+        if (showFeedbackToast) showToast('🎉 Order Status Updated from Cashtree Server!');
+      } else if (showFeedbackToast) {
+        showToast('⏳ Order is still PROCESSING on Cashtree server...');
+      }
+      return changedAny;
+    }
+
+    // Manual Live Check Button on Orders Tab
+    const syncLiveOrdBtn = document.getElementById('syncLiveOrdersStatusBtn');
+    if (syncLiveOrdBtn) {
+      syncLiveOrdBtn.addEventListener('click', async () => {
+        syncLiveOrdBtn.classList.add('api-busy');
+        await pollLiveCashtreeOrderStatus(true);
+        syncLiveOrdBtn.classList.remove('api-busy');
+      });
+    }
+
+    // Background 7-second Live Order Status Poller (Runs automatically whenever any order is in PROCESSING state!)
+    if (window._liveOrderStatusInterval) clearInterval(window._liveOrderStatusInterval);
+    window._liveOrderStatusInterval = setInterval(() => {
+      const hasPending = (state.orders || []).some(o => o && o.status !== 'COMPLETED' && o.status !== 'FAILED');
+      if (hasPending) {
+        pollLiveCashtreeOrderStatus(false);
+      }
+    }, 7000);
 
     // Initial Render
     renderAll();
