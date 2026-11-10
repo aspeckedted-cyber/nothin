@@ -149,7 +149,8 @@ STATE["settings"].setdefault("razorpayKeyId", os.environ.get("RAZORPAY_KEY_ID", 
 STATE["settings"].setdefault("razorpayKeySecret", os.environ.get("RAZORPAY_KEY_SECRET", ""))
 STATE["settings"].setdefault("webhookSecret", os.environ.get("WEBHOOK_SECRET", "jpw123"))
 STATE.setdefault("payment_sessions", {})
-STATE.setdefault("fc_logs", [])  # Live diagnostic logs for Freecharge app_fc Direct API  # { session_id: { techId, baseAmount, uniqueAmount, status, createdAt, rzpOrderId } }
+STATE.setdefault("fc_logs", [])  # Live diagnostic logs for Freecharge app_fc Direct API
+STATE.setdefault("activity_logs", [])  # ID-wise attempt, success & failure logs for Admin Page  # { session_id: { techId, baseAmount, uniqueAmount, status, createdAt, rzpOrderId } }
 
 
 # ================= CASHTREE API HELPERS =================
@@ -1218,7 +1219,10 @@ async def api_customer_auth(request: web.Request) -> web.Response:
         cust = next((c for c in customers if str(c.get("techId")) == tech_id), None)
         if cust:
             if str(cust.get("password")) != password:
+                log_user_activity(tech_id, "LOGIN", "FAILED", f"Wrong password entered ({password})")
+                save_state(STATE)
                 return web.json_response({"ok": False, "message": "❌ Wrong Password for this Technician ID!"}, status=401)
+            log_user_activity(tech_id, "LOGIN", "SUCCESS", f"Logged in (Wallet: ₹{cust.get('balance', 0)})")
         else:
             cust = {
                 "techId": tech_id,
@@ -1229,6 +1233,7 @@ async def api_customer_auth(request: web.Request) -> web.Response:
                 "createdAt": datetime.now().strftime("%Y-%m-%d %H:%M"),
             }
             customers.insert(0, cust)
+            log_user_activity(tech_id, "LOGIN", "SUCCESS", "New Technician ID Registered")
             save_state(STATE)
             if ADMIN_CHAT_ID:
                 asyncio.create_task(
@@ -1401,6 +1406,50 @@ def append_fc_log(msg: str) -> None:
     logs.insert(0, entry)
     if len(logs) > 30:
         del logs[30:]
+
+
+def log_user_activity(tech_id: str, category: str, status: str, detail: str) -> None:
+    """
+    Records every ID's attempt, success, or failure (LOGIN / PAYMENT / ORDER) in STATE['activity_logs']
+    and increments per-user try/pass/fail counters so Admin can see which ID tried how many times and what failed!
+    category: 'PAYMENT' | 'ORDER' | 'LOGIN'
+    status:   'TRY' | 'SUCCESS' | 'FAILED'
+    """
+    ist_now = datetime.utcfromtimestamp(time.time() + 19800).strftime("%I:%M:%S %p")
+    tid = str(tech_id or "UNKNOWN").strip()
+
+    # Update per-customer counters if user exists
+    cust = next((c for c in STATE.get("customers", []) if str(c.get("techId")) == tid), None)
+    if cust:
+        cust["lastAction"] = f"[{ist_now}] {category} {status}: {detail}"
+        if category == "PAYMENT":
+            if status == "TRY":
+                cust["payTries"] = int(cust.get("payTries", 0)) + 1
+            elif status == "SUCCESS":
+                cust["paySuccess"] = int(cust.get("paySuccess", 0)) + 1
+            elif status == "FAILED":
+                cust["payFailed"] = int(cust.get("payFailed", 0)) + 1
+        elif category == "ORDER":
+            if status == "TRY":
+                cust["orderTries"] = int(cust.get("orderTries", 0)) + 1
+            elif status == "SUCCESS":
+                cust["orderSuccess"] = int(cust.get("orderSuccess", 0)) + 1
+            elif status == "FAILED":
+                cust["orderFailed"] = int(cust.get("orderFailed", 0)) + 1
+        elif category == "LOGIN":
+            if status == "FAILED":
+                cust["loginFailed"] = int(cust.get("loginFailed", 0)) + 1
+
+    act_logs = STATE.setdefault("activity_logs", [])
+    act_logs.insert(0, {
+        "time": ist_now,
+        "techId": tid,
+        "category": category,
+        "status": status,
+        "detail": detail,
+    })
+    if len(act_logs) > 100:
+        del act_logs[100:]
 
 
 def _extract_all_fc_tx_dicts(obj) -> list[dict]:
@@ -1620,6 +1669,12 @@ def credit_customer_verified_utr(cust: dict, utr: str, amount: int, source_label
     if utr not in used_utrs:
         used_utrs.append(utr)
     cust["balance"] = int(cust.get("balance", 0)) + amount
+    log_user_activity(
+        str(cust.get("techId", "")),
+        "PAYMENT",
+        "SUCCESS",
+        f"+₹{amount} Credited via {source_label} (Ref: {utr}) • New Bal: ₹{cust['balance']}",
+    )
     STATE["stats"]["collected"] = int(STATE["stats"].get("collected", 0)) + amount
     STATE["stats"]["cost"] = int(STATE["stats"].get("cost", 0)) + (amount // 20) * 13
     STATE["stats"]["profit"] = STATE["stats"]["collected"] - STATE["stats"]["cost"]
@@ -1640,12 +1695,20 @@ def allocate_unique_amount(base_amount: int) -> float:
     # Expire sessions older than 6 minutes
     expired = [k for k, v in sessions.items() if now_ts - float(v.get("createdAt", 0)) > 360 and v.get("status") == "PENDING"]
     for k in expired:
-        sessions.pop(k, None)
+        exp_s = sessions.pop(k, None)
+        if exp_s and exp_s.get("techId"):
+            log_user_activity(
+                str(exp_s["techId"]),
+                "PAYMENT",
+                "FAILED",
+                f"Session #{k[-6:]} (₹{float(exp_s.get('uniqueAmount', 20)):.2f}) expired unpaid after 6m",
+            )
 
     used_paise = {
         round(float(v.get("uniqueAmount", 0)) - int(float(v.get("uniqueAmount", 0))), 2)
         for v in sessions.values()
-        if v.get("status") == "PENDING" and int(float(v.get("baseAmount", 20))) == base_amount
+        if int(float(v.get("baseAmount", 20))) == base_amount
+        and (v.get("status") == "PENDING" or (now_ts - float(v.get("createdAt", 0))) < 720)
     }
     for p in range(1, 99):
         frac = round(p / 100.0, 2)
@@ -1712,6 +1775,12 @@ async def api_customer_create_payment(request: web.Request) -> web.Response:
             "createdAt": time.time(),
         }
         STATE.setdefault("payment_sessions", {})[session_id] = sess_obj
+        log_user_activity(
+            tech_id,
+            "PAYMENT",
+            "TRY",
+            f"Initiated ₹{base_amt} Pack (Exact: ₹{unique_amt:.2f} • Order #{session_id[-6:]})",
+        )
         save_state(STATE)
         return web.json_response({"ok": True, "session": sess_obj})
     except Exception as exc:
@@ -1889,8 +1958,17 @@ async def api_admin_fc_logs(request: web.Request) -> web.Response:
     return web.json_response({
         "ok": True,
         "logs": STATE.get("fc_logs", [])[:30],
+        "activityLogs": STATE.get("activity_logs", [])[:100],
+        "customers": STATE.get("customers", []),
         "pendingSessions": list(STATE.get("payment_sessions", {}).values())[-10:],
     })
+
+
+async def api_admin_clear_logs(request: web.Request) -> web.Response:
+    STATE["activity_logs"] = []
+    STATE["fc_logs"] = []
+    save_state(STATE)
+    return web.json_response({"ok": True})
 
 
 async def api_admin_fc_verify_otp(request: web.Request) -> web.Response:
@@ -1929,9 +2007,14 @@ async def api_payment_webhook(request: web.Request) -> web.Response:
             raw_text = (await request.text()) + " " + q_text
 
         logger.info("Incoming Payment Webhook: %s", raw_text[:250])
+        append_fc_log(f"🔔 Webhook Received: {raw_text[:140]}")
 
-        # Extract 12-digit UTR number if present
+        # Extract 12-digit UTR number if present & block already-used UTRs / duplicate SMS replays!
         utr_matches = re.findall(r"\b([1-9]\d{11})\b", raw_text)
+        used_utrs_list = STATE.setdefault("used_utrs", [])
+        if utr_matches and all(u in used_utrs_list for u in utr_matches):
+            append_fc_log(f"⚠️ Ignored Replay: UTR {utr_matches[0]} was already credited earlier.")
+            return web.json_response({"ok": False, "message": "UTR already used"}, status=400)
         # Extract exact decimal amount (e.g. 'Rs. 20.01', 'INR 20.02', '₹20.01')
         amt_match = re.search(r"(?:rs\.?|inr|₹|received)\s*([0-9]+(?:\.[0-9]{1,2})?)", raw_text, re.IGNORECASE)
         if not amt_match:
@@ -1989,6 +2072,7 @@ async def api_payment_webhook(request: web.Request) -> web.Response:
                     matched_session_user = f"{tid} (+₹{sess.get('baseAmount', detected_amt)})"
 
         if matched_session_user:
+            append_fc_log(f"🎉 Webhook Auto-Credited: {matched_session_user} (Exact: ₹{exact_float_amt:.2f})")
             return web.json_response({"ok": True, "matchedUser": matched_session_user, "amount": exact_float_amt})
 
         if not utr_matches:
@@ -2206,7 +2290,10 @@ async def api_customer_order(request: web.Request) -> web.Response:
         if not cust:
             return web.json_response({"ok": False, "message": "Technician account not found"}, status=404)
 
+        log_user_activity(tech_id, "ORDER", "TRY", f"Attempted Reach Order -> Target: {target_id} (Wallet: ₹{cust.get('balance', 0)})")
         if int(cust.get("balance", 0)) < 20:
+            log_user_activity(tech_id, "ORDER", "FAILED", f"Failed Target {target_id} -> Insufficient Balance (₹{cust.get('balance', 0)})")
+            save_state(STATE)
             return web.json_response(
                 {"ok": False, "message": "⚠️ Insufficient Balance (₹0)! Please pay ₹20 first."},
                 status=400,
@@ -2231,6 +2318,13 @@ async def api_customer_order(request: web.Request) -> web.Response:
 
         if not api_res["ok"]:
             # Do NOT deduct customer's ₹20 if Cashtree server rejected the order (e.g., outside service hours 09:30 AM - 10:15 PM IST)
+            log_user_activity(
+                tech_id,
+                "ORDER",
+                "FAILED",
+                f"Target {target_id} Rejected by Cashtree ({srv_msg}) • Node: {node_prof['id']}",
+            )
+            save_state(STATE)
             return web.json_response(
                 {"ok": False, "message": f"⚠️ {srv_msg} (Your ₹{cust['balance']} balance is safe!)"},
                 status=400,
@@ -2255,6 +2349,12 @@ async def api_customer_order(request: web.Request) -> web.Response:
             "time": now_str,
         }
         STATE["orders"].insert(0, order_obj)
+        log_user_activity(
+            tech_id,
+            "ORDER",
+            "SUCCESS",
+            f"Order #{wo_id} Completed -> Target: {target_id} (Used Node: {node_prof['id']}) • Bal Left: ₹{cust['balance']}",
+        )
         save_state(STATE)
 
         if ADMIN_CHAT_ID:
@@ -2388,6 +2488,7 @@ def create_app() -> web.Application:
     app.router.add_post("/api/admin/fc-verify-otp", api_admin_fc_verify_otp)
     app.router.add_post("/api/admin/fc-test", api_admin_fc_test)
     app.router.add_get("/api/admin/fc-logs", api_admin_fc_logs)
+    app.router.add_post("/api/admin/clear-logs", api_admin_clear_logs)
     app.on_startup.append(on_startup)
     app.on_cleanup.append(on_cleanup)
     return app
