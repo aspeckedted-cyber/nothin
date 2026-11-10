@@ -646,6 +646,51 @@
         <div id="admCustomerUsersList" class="space-y-2"></div>
       </div>
 
+      <!-- ID-Wise Try, Success & Failure Activity Tracker Card -->
+      <div class="card-box p-4 space-y-3 border-amber-300 bg-slate-950 text-white">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 class="font-extrabold text-white text-sm flex items-center gap-1.5">
+              <span>📊</span> <span>ID-Wise Try & Fail Logs</span>
+            </h3>
+            <p class="text-[11px] text-slate-400">Kis ID ne kitni baar Payment / Order / Login try kiya aur kya fail hua</p>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button id="admRefreshActivityLogsBtn" type="button" class="px-2.5 py-1 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-[10px] font-extrabold">
+              🔄 Refresh
+            </button>
+            <button id="admClearActivityLogsBtn" type="button" class="px-2.5 py-1 rounded-lg bg-rose-900/80 hover:bg-rose-800 text-rose-200 text-[10px] font-bold">
+              🗑️ Clear
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter & Search Bar for ID Logs -->
+        <div class="space-y-2">
+          <div class="flex flex-wrap items-center gap-1.5">
+            <button type="button" data-act-filter="ALL" class="act-log-filter-btn px-2.5 py-1 rounded-lg bg-pink-600 text-white text-[10px] font-extrabold">
+              All Activity
+            </button>
+            <button type="button" data-act-filter="FAILED" class="act-log-filter-btn px-2.5 py-1 rounded-lg bg-slate-800 text-rose-300 text-[10px] font-bold hover:bg-slate-700">
+              ❌ Failed Only
+            </button>
+            <button type="button" data-act-filter="PAYMENT" class="act-log-filter-btn px-2.5 py-1 rounded-lg bg-slate-800 text-amber-300 text-[10px] font-bold hover:bg-slate-700">
+              💳 Payment Tries
+            </button>
+            <button type="button" data-act-filter="ORDER" class="act-log-filter-btn px-2.5 py-1 rounded-lg bg-slate-800 text-emerald-300 text-[10px] font-bold hover:bg-slate-700">
+              🚀 Orders
+            </button>
+          </div>
+          <input id="admSearchIdLogInput" type="text" placeholder="🔍 Filter by Engineer ID (e.g. 8609829354)..."
+            class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-mono text-white placeholder-slate-500 focus:outline-none focus:border-pink-500" />
+        </div>
+
+        <!-- Scrollable Live Activity Logs Feed -->
+        <div id="admActivityLogsContainer" class="max-h-64 overflow-y-auto space-y-1.5 font-mono text-[11px] pr-1">
+          <p class="text-slate-500 text-center py-3">No user attempts logged yet.</p>
+        </div>
+      </div>
+
       <!-- Admin Order Fulfillment Queue -->
       <div class="card-box p-4 space-y-2.5">
         <h3 class="font-extrabold text-slate-800 text-sm">📥 Pending Customer Orders</h3>
@@ -1304,10 +1349,14 @@
           }
         }
 
-        // 2c. Merge Live Freecharge API Diagnostic Logs for Admin Page
+        // 2c. Merge Live Freecharge API & User Activity Attempt Logs for Admin Page
         if (Array.isArray(serverState.fc_logs)) {
           state.fcLogs = serverState.fc_logs;
           renderFcLogsBox();
+        }
+        if (Array.isArray(serverState.activity_logs)) {
+          state.activityLogs = serverState.activity_logs;
+          renderActivityLogsBox();
         }
 
         // 3. Merge Server Settings (upiId, appTitle, freechargeCookie, BharatPe, Razorpay) across Laptop, Mobile & Customer APK!
@@ -2163,18 +2212,35 @@
       if (admUsersBadge) admUsersBadge.textContent = state.customers.length + ' Users';
       const admCustListEl = document.getElementById('admCustomerUsersList');
       if (admCustListEl) {
-        admCustListEl.innerHTML = state.customers.map(c => `
-          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-2 text-xs">
-            <div>
-              <p class="font-extrabold text-slate-900 font-mono">👷 ${c.techId} <span class="text-slate-500 font-sans font-normal">• Pass:</span> <span class="text-pink-700 font-mono">${c.password}</span></p>
-              <p class="text-[11px] text-slate-500 mt-0.5">Wallet: <strong class="text-emerald-700">₹${Number(c.balance || 0)}</strong> (${Math.floor(Number(c.balance || 0) / 20)} Reach) • Orders: ${c.totalOrders || 0}</p>
+        admCustListEl.innerHTML = state.customers.map(c => {
+          const pTry = Number(c.payTries || 0);
+          const pOk = Number(c.paySuccess || 0);
+          const pFail = Number(c.payFailed || 0);
+          const oTry = Number(c.orderTries || 0);
+          const oOk = Number(c.orderSuccess || c.totalOrders || 0);
+          const oFail = Number(c.orderFailed || 0);
+          const lFail = Number(c.loginFailed || 0);
+          return `
+          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5 text-xs">
+            <div class="flex items-center justify-between gap-2">
+              <div>
+                <p class="font-extrabold text-slate-900 font-mono">👷 ${c.techId} <span class="text-slate-500 font-sans font-normal">• Pass:</span> <span class="text-pink-700 font-mono">${c.password}</span></p>
+                <p class="text-[11px] text-slate-600 mt-0.5">Wallet: <strong class="text-emerald-700">₹${Number(c.balance || 0)}</strong> (${Math.floor(Number(c.balance || 0) / 20)} Reach)</p>
+              </div>
+              <div class="flex items-center gap-1 shrink-0">
+                <button type="button" data-add-cust-bal="${c.techId}" class="px-2 py-1 rounded-lg bg-emerald-600 text-white text-[10px] font-extrabold">+₹20</button>
+                <button type="button" data-del-cust="${c.techId}" class="px-2 py-1 rounded-lg bg-rose-100 text-rose-700 text-[10px] font-bold">🗑️</button>
+              </div>
             </div>
-            <div class="flex items-center gap-1">
-              <button type="button" data-add-cust-bal="${c.techId}" class="px-2 py-1 rounded-lg bg-emerald-600 text-white text-[10px] font-extrabold">+₹20</button>
-              <button type="button" data-del-cust="${c.techId}" class="px-2 py-1 rounded-lg bg-rose-100 text-rose-700 text-[10px] font-bold">🗑️</button>
+            <div class="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-200/70 text-[10px] font-bold">
+              <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-900">💳 Pay: ${pTry} Try | ${pOk} Pass | ${pFail} Fail</span>
+              <span class="px-2 py-0.5 rounded bg-teal-100 text-teal-900">🚀 Order: ${oTry} Try | ${oOk} Pass | <strong class="${oFail > 0 ? 'text-rose-600' : ''}">${oFail} Fail</strong></span>
+              ${lFail > 0 ? `<span class="px-2 py-0.5 rounded bg-rose-100 text-rose-700">🔐 Wrong Pass: ${lFail}x</span>` : ''}
             </div>
+            ${c.lastAction ? `<p class="text-[10px] font-mono text-slate-500 truncate">${c.lastAction}</p>` : ''}
           </div>
-        `).join('');
+          `;
+        }).join('');
       }
 
       // Render Customer APK Interface
@@ -3155,17 +3221,21 @@
       if (!orig.startsWith('http')) return;
 
       window._currentPaySession = sess;
+      const startMs = Date.now();
+      let smsFallbackSent = false;
+      const exactAmtStr = Number(sess.uniqueAmount).toFixed(2);
       const badgeEl = document.getElementById('custApkUniqueSessionBadge');
       const statusEl = document.getElementById('custApkAutoListenStatus');
       if (badgeEl) badgeEl.textContent = 'Order #' + sess.sessionId.slice(-6);
       if (statusEl) {
         statusEl.classList.remove('hidden');
-        statusEl.textContent = `🔄 Waiting for ₹${Number(sess.uniqueAmount).toFixed(2)} UPI payment... (Wallet auto-updates on payment!)`;
+        statusEl.textContent = `🔄 Waiting for ₹${exactAmtStr} UPI payment... (Server + 5s SMS Auto-Check Active!)`;
       }
 
       if (window._activePaySessionPoller) clearInterval(window._activePaySessionPoller);
       window._activePaySessionPoller = setInterval(async () => {
         try {
+          // 1. Check Server Status
           const chk = await fetch(orig + '/api/customer/check-payment', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -3182,6 +3252,29 @@
             if (statusEl) statusEl.textContent = `✅ Payment Verified! ₹${sess.baseAmount} Added to Wallet!`;
             renderAll();
             showToast(`🎉 ₹${sess.baseAmount} Automatically Added to Wallet!`);
+            return;
+          }
+
+          // 2. 5-Second APK Bank Debit SMS Auto-Fallback ("INR 20.01 debited A/c no. XX3148 ...")
+          // If server hasn't confirmed within 5 seconds, check the phone's incoming Bank Debit SMS via AndroidSmsBridge!
+          if (!smsFallbackSent && (Date.now() - startMs) >= 5000) {
+            if (window.AndroidSmsBridge && typeof window.AndroidSmsBridge.checkRecentDebitSms === 'function') {
+              const matchedSms = String(window.AndroidSmsBridge.checkRecentDebitSms(exactAmtStr, startMs) || '').trim();
+              if (matchedSms) {
+                smsFallbackSent = true;
+                if (statusEl) statusEl.textContent = `📲 Bank Debit SMS Found (₹${exactAmtStr})! Crediting Wallet...`;
+                await fetch(orig + '/api/payment-webhook', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    text: matchedSms,
+                    sessionId: sess.sessionId,
+                    techId: cust.techId,
+                    source: 'APK_5SEC_DEBIT_SMS'
+                  })
+                });
+              }
+            }
           }
         } catch (e) {}
       }, 2000);
@@ -3817,8 +3910,115 @@
       } catch (e) {}
     });
 
+    state.activityLogFilter = 'ALL';
+
+    function renderActivityLogsBox() {
+      const box = document.getElementById('admActivityLogsContainer');
+      if (!box) return;
+      const allLogs = state.activityLogs || [];
+      const curFilter = state.activityLogFilter || 'ALL';
+      const searchEl = document.getElementById('admSearchIdLogInput');
+      const query = searchEl ? searchEl.value.trim().toLowerCase() : '';
+
+      const filtered = allLogs.filter(item => {
+        if (!item) return false;
+        if (curFilter === 'FAILED' && item.status !== 'FAILED') return false;
+        if (curFilter === 'PAYMENT' && item.category !== 'PAYMENT') return false;
+        if (curFilter === 'ORDER' && item.category !== 'ORDER') return false;
+        if (query && String(item.techId || '').toLowerCase().indexOf(query) === -1 && String(item.detail || '').toLowerCase().indexOf(query) === -1) {
+          return false;
+        }
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        box.innerHTML = `<p class="text-slate-500 text-center py-3">No matching activity logs found.</p>`;
+        return;
+      }
+
+      box.innerHTML = filtered.map(item => {
+        let badgeClass = 'bg-slate-800 text-slate-300';
+        let icon = 'ℹ️';
+        if (item.status === 'FAILED') {
+          badgeClass = 'bg-rose-950 text-rose-300 border border-rose-700/60';
+          icon = '❌';
+        } else if (item.status === 'SUCCESS') {
+          badgeClass = 'bg-emerald-950 text-emerald-300 border border-emerald-700/60';
+          icon = '✅';
+        } else if (item.status === 'TRY') {
+          badgeClass = 'bg-amber-950 text-amber-300 border border-amber-700/60';
+          icon = '⏳';
+        }
+        return `
+          <div class="p-2 rounded-xl ${badgeClass} space-y-0.5">
+            <div class="flex items-center justify-between text-[10px]">
+              <span class="font-extrabold text-white">${icon} ID: <span class="text-teal-300">${item.techId}</span> • ${item.category} (${item.status})</span>
+              <span class="text-slate-400">${item.time || ''}</span>
+            </div>
+            <p class="text-[10px] leading-snug break-all">${item.detail || ''}</p>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Filter Buttons for ID Activity Logs
+    document.querySelectorAll('.act-log-filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.activityLogFilter = btn.getAttribute('data-act-filter') || 'ALL';
+        document.querySelectorAll('.act-log-filter-btn').forEach(b => {
+          if (b.getAttribute('data-act-filter') === state.activityLogFilter) {
+            b.className = 'act-log-filter-btn px-2.5 py-1 rounded-lg bg-pink-600 text-white text-[10px] font-extrabold';
+          } else {
+            b.className = 'act-log-filter-btn px-2.5 py-1 rounded-lg bg-slate-800 text-slate-300 text-[10px] font-bold hover:bg-slate-700';
+          }
+        });
+        renderActivityLogsBox();
+      });
+    });
+
+    // Search Input for ID Activity Logs
+    const searchIdLogEl = document.getElementById('admSearchIdLogInput');
+    if (searchIdLogEl) {
+      searchIdLogEl.addEventListener('input', () => {
+        renderActivityLogsBox();
+      });
+    }
+
+    // Refresh Activity Logs Button
+    document.getElementById('admRefreshActivityLogsBtn').addEventListener('click', async () => {
+      const orig = window.location && window.location.origin ? window.location.origin : '';
+      if (!orig.startsWith('http')) return;
+      try {
+        const res = await fetch(orig + '/api/admin/fc-logs', { method: 'GET', cache: 'no-store' });
+        const data = await res.json().catch(() => null);
+        if (data) {
+          if (Array.isArray(data.logs)) state.fcLogs = data.logs;
+          if (Array.isArray(data.activityLogs)) state.activityLogs = data.activityLogs;
+          if (Array.isArray(data.customers)) state.customers = data.customers;
+          renderAll();
+          renderFcLogsBox();
+          renderActivityLogsBox();
+          showToast('🔄 ID Try & Fail Logs Refreshed!');
+        }
+      } catch (e) {}
+    });
+
+    // Clear Activity Logs Button
+    document.getElementById('admClearActivityLogsBtn').addEventListener('click', async () => {
+      state.activityLogs = [];
+      renderActivityLogsBox();
+      const orig = window.location && window.location.origin ? window.location.origin : '';
+      if (orig.startsWith('http')) {
+        try {
+          await fetch(orig + '/api/admin/clear-logs', { method: 'POST' });
+        } catch (e) {}
+      }
+      showToast('🗑️ Logs Cleared');
+    });
+
     // Initial Render
     renderAll();
+    renderActivityLogsBox();
     renderFcLogsBox();
 
     // Background Auto-Sync on Startup:
