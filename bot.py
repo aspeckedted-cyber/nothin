@@ -59,6 +59,7 @@ CASHTREE_REGISTER_API = "https://cashtree.space/api/register"
 CASHTREE_LOGIN_API = "https://cashtree.space/api/login"
 CASHTREE_CLAIM_BONUS_API = "https://cashtree.space/api/claim-daily-bonus"
 CASHTREE_ORDER_API = "https://cashtree.space/api/order"
+CASHTREE_CHECK_STATUS_API = "https://cashtree.space/api/app/check-status"
 
 DATA_FILE = Path("bot_state.json")
 HTML_FILE = Path("index.html")
@@ -296,6 +297,128 @@ def place_reach_order_on_cashtree(prof: dict, target_id: str, target_pass: str) 
     except Exception as exc:
         logger.warning("Cashtree order API error (%s): %s", cid, exc)
         return {"ok": False, "status": 0, "data": {"message": str(exc)}}
+
+
+def fetch_cashtree_live_orders(prof: dict) -> dict:
+    """
+    Calls POST https://cashtree.space/api/app/check-status with {"telegramChatId": "WEB_<id>"}
+    and returns {"ok": True, "regularOrders": [...], "srOrders": [...], "raw": data}.
+    """
+    cid = str(prof.get("id", "")).strip()
+    chat_id = prof.get("telegramChatId") or f"WEB_{cid}"
+    token = build_web_bearer_token(chat_id)
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "*/*",
+        "Authorization": token if token.startswith("Bearer ") else f"Bearer {token}",
+        "Origin": "https://cashtree.space",
+        "Referer": "https://cashtree.space/app/",
+    }
+    payload = {"telegramChatId": chat_id}
+    try:
+        resp = requests.post(CASHTREE_CHECK_STATUS_API, json=payload, headers=headers, timeout=12)
+        data = resp.json() if resp.content else {}
+        return {
+            "ok": resp.ok and bool(data.get("success", True)),
+            "regularOrders": data.get("regularOrders") or data.get("orders") or [],
+            "srOrders": data.get("srOrders") or [],
+            "data": data,
+        }
+    except Exception as exc:
+        logger.warning("Cashtree check-status API error (%s): %s", cid, exc)
+        return {"ok": False, "regularOrders": [], "srOrders": [], "data": {}}
+
+
+def map_cashtree_order_status(ct_order: dict) -> str:
+    """Maps a Cashtree regularOrders item to 'PROCESSING', 'COMPLETED', or 'FAILED'."""
+    raw_st = str(
+        ct_order.get("status")
+        or ct_order.get("orderStatus")
+        or ct_order.get("state")
+        or ""
+    ).strip().lower()
+
+    if ct_order.get("isCompleted") is True or ct_order.get("completed") is True:
+        return "COMPLETED"
+    if any(w in raw_st for w in ("complet", "success", "done", "finish", "deliver", "approved")):
+        return "COMPLETED"
+    if any(w in raw_st for w in ("fail", "reject", "error", "cancel", "invalid", "wrong")):
+        return "FAILED"
+    if raw_st:
+        return "PROCESSING"
+    return "PROCESSING"
+
+
+def sync_all_pending_orders_from_cashtree() -> bool:
+    """
+    Checks all orders in STATE['orders'] that are currently in PROCESSING / IN PROGRESS / PENDING,
+    queries POST https://cashtree.space/api/app/check-status for each profileId used,
+    and updates the order status to COMPLETED (or FAILED) only when Cashtree finishes processing!
+    """
+    orders = STATE.get("orders", [])
+    active_orders = [
+        o for o in orders
+        if str(o.get("status", "")).upper() not in ("COMPLETED", "FAILED", "REJECTED", "CANCELLED")
+    ]
+    if not active_orders:
+        return False
+
+    # Group active orders by the backend profileId that placed them
+    prof_map = {str(p.get("id")): p for p in STATE.get("profiles", []) if p.get("id")}
+    pids_to_check = {str(o.get("profileId", "")).strip() for o in active_orders if o.get("profileId")}
+
+    changed_any = False
+    for pid in pids_to_check:
+        prof = prof_map.get(pid) or {"id": pid, "telegramChatId": f"WEB_{pid}"}
+        res = fetch_cashtree_live_orders(prof)
+        if not res.get("ok"):
+            continue
+
+        reg_orders = res.get("regularOrders") or []
+        if not isinstance(reg_orders, list):
+            continue
+
+        for ord_obj in active_orders:
+            if str(ord_obj.get("profileId", "")).strip() != pid:
+                continue
+            target_id = str(ord_obj.get("targetId", "")).strip()
+            ct_id = str(ord_obj.get("cashtreeOrderId", "")).strip()
+
+            # Find matching order in regularOrders by cashtreeOrderId or targetId
+            matched_ct = None
+            for co in reg_orders:
+                if not isinstance(co, dict):
+                    continue
+                co_id = str(co.get("_id") or co.get("id") or co.get("orderId") or "").strip()
+                co_target = str(co.get("targetId") or co.get("target_id") or co.get("target") or co.get("mobile") or "").strip()
+                if (ct_id and co_id == ct_id) or (target_id and co_target == target_id):
+                    matched_ct = co
+                    break
+
+            if matched_ct:
+                new_status = map_cashtree_order_status(matched_ct)
+                ct_msg = str(matched_ct.get("message") or matched_ct.get("remarks") or matched_ct.get("status") or "").strip()
+                if new_status != ord_obj.get("status"):
+                    ord_obj["status"] = new_status
+                    if ct_msg and ct_msg not in str(ord_obj.get("notes", "")):
+                        ord_obj["notes"] = f"{ord_obj.get('notes', '')} • Server: {ct_msg}".strip(" •")
+                    changed_any = True
+
+                    # If order failed on Cashtree and was placed by a Customer APK user, refund their ₹20 once!
+                    if new_status == "FAILED" and ord_obj.get("customerTechId") and not ord_obj.get("refunded"):
+                        ord_obj["refunded"] = True
+                        tid = str(ord_obj["customerTechId"])
+                        cust = next((c for c in STATE.get("customers", []) if str(c.get("techId")) == tid), None)
+                        if cust:
+                            cust["balance"] = int(cust.get("balance", 0)) + 20
+                            log_user_activity(tid, "ORDER", "FAILED", f"Order #{ord_obj.get('id')} Failed on Cashtree ({ct_msg}) -> ₹20 Refunded to Wallet")
+                    elif new_status == "COMPLETED" and ord_obj.get("customerTechId"):
+                        tid = str(ord_obj["customerTechId"])
+                        log_user_activity(tid, "ORDER", "SUCCESS", f"Order #{ord_obj.get('id')} (Target: {target_id}) Marked COMPLETED by Cashtree Server!")
+
+    if changed_any:
+        save_state(STATE)
+    return changed_any
 
 
 # ================= TELEGRAM BOT API HELPERS =================
@@ -683,12 +806,16 @@ def handle_message(msg: dict) -> None:
 
             wo_id = random.randint(7100000000, 7999999999)
             now_str = datetime.now().strftime("%I:%M %p")
+            ct_ord = srv_data.get("order") or srv_data.get("data") or {}
+            ct_oid = str(ct_ord.get("_id") or ct_ord.get("id") or "") if isinstance(ct_ord, dict) else ""
+            init_status = map_cashtree_order_status(ct_ord) if isinstance(ct_ord, dict) and ct_ord else "PROCESSING"
             order_obj = {
                 "id": wo_id,
+                "cashtreeOrderId": ct_oid,
                 "profileId": pid,
                 "targetId": target_id,
                 "notes": f"Pass: {target_pass} | {srv_msg}",
-                "status": "COMPLETED",
+                "status": init_status,
                 "time": now_str,
             }
             STATE["orders"].insert(0, order_obj)
@@ -1128,7 +1255,13 @@ async def api_state_post(request: web.Request) -> web.Response:
                     continue
                 oid = int(io["id"])
                 if oid in existing_omap:
-                    existing_omap[oid].update(io)
+                    eo = existing_omap[oid]
+                    eo_st = str(eo.get("status", "")).upper()
+                    io_st = str(io.get("status", "")).upper()
+                    eo.update(io)
+                    # Preserve terminal COMPLETED / FAILED status over PROCESSING
+                    if eo_st in ("COMPLETED", "FAILED") and io_st in ("PROCESSING", "IN PROGRESS", "PENDING"):
+                        eo["status"] = eo_st
                 else:
                     STATE["orders"].insert(0, io)
                     existing_omap[oid] = io
@@ -1753,12 +1886,25 @@ async def api_customer_create_payment(request: web.Request) -> web.Response:
             except Exception as exc:
                 logger.warning("Razorpay order creation warning: %s", exc)
 
-        upi_id = STATE["settings"].get("upiId", "jpwportal@ybl")
-        app_title = STATE["settings"].get("appTitle", "JPW Portal")
-        # Embed session_id in `tr` (Transaction Reference) and `tn` (Transaction Note) + unique_amt
+        raw_upi_setting = (STATE["settings"].get("upiId") or "jpwportal@freecharge").strip()
+        app_title = (STATE["settings"].get("appTitle") or "JPW REACH").strip()
+
+        # Check if Admin pasted a full Merchant QR string (e.g. upi://pay?pa=Q...@ybl&pn=...&mc=5411...)
+        mc_code = ""
+        if raw_upi_setting.lower().startswith("upi://"):
+            pa_m = re.search(r"[?&]pa=([^&]+)", raw_upi_setting, re.IGNORECASE)
+            mc_m = re.search(r"[?&]mc=([^&]+)", raw_upi_setting, re.IGNORECASE)
+            upi_id = pa_m.group(1) if pa_m else raw_upi_setting
+            if mc_m:
+                mc_code = mc_m.group(1)
+        else:
+            upi_id = raw_upi_setting
+
+        # Build clean NPCI-compliant URI (NO `&tr=` without signature and NO underscores `_` in `tn`, which PhonePe/Paytm block!)
+        mc_part = f"&mc={quote(mc_code)}" if mc_code else ""
         upi_uri = (
             f"upi://pay?pa={quote(upi_id)}&pn={quote(app_title)}"
-            f"&am={unique_amt:.2f}&cu=INR&tr={quote(session_id)}&tn={quote('ID_' + tech_id + '_' + session_id)}"
+            f"{mc_part}&am={unique_amt:.2f}&cu=INR"
         )
 
         sess_obj = {
@@ -2339,13 +2485,17 @@ async def api_customer_order(request: web.Request) -> web.Response:
 
         wo_id = random.randint(7100000000, 7999999999)
         now_str = datetime.now().strftime("%I:%M %p")
+        ct_ord = srv_data.get("order") or srv_data.get("data") or {}
+        ct_oid = str(ct_ord.get("_id") or ct_ord.get("id") or "") if isinstance(ct_ord, dict) else ""
+        init_status = map_cashtree_order_status(ct_ord) if isinstance(ct_ord, dict) and ct_ord else "PROCESSING"
         order_obj = {
             "id": wo_id,
+            "cashtreeOrderId": ct_oid,
             "profileId": node_prof["id"],
             "customerTechId": tech_id,
             "targetId": target_id,
             "notes": f"APK User: {tech_id} | Pass: {target_pass}",
-            "status": "COMPLETED",
+            "status": init_status,
             "time": now_str,
         }
         STATE["orders"].insert(0, order_obj)
@@ -2409,37 +2559,126 @@ async def poll_telegram_updates() -> None:
 
 
 async def auto_daily_bonus_scheduler() -> None:
-    """Feature 4: Background task that checks saved accounts and auto-claims daily bonus when 24h cooldown is ready."""
-    await asyncio.sleep(10)
+    """
+    Human-Like Staggered Daily Bonus Scheduler (07:00 AM – 05:00 PM IST):
+    1. Does NOT claim at 12:01 AM night. Waits until 07:00 AM IST.
+    2. Between 07:00 AM and 04:59 PM IST:
+       - Spreads claims out naturally across the day (claims only 1 account per cycle with random
+         human-like intervals so accounts are NEVER claimed all at once!).
+    3. At 05:00 PM IST (17:00 - 17:45 IST Final Sweep):
+       - Automatically checks ALL saved accounts to verify every single account has claimed today's bonus,
+         and claims any remaining/missed account so 0 accounts are left behind.
+    4. Runs 100% silently in the background (does not spam ADMIN_CHAT_ID).
+    """
+    await asyncio.sleep(15)
     while True:
         try:
-            claimed_any = 0
-            earned_sum = 0.0
-            for p in STATE.get("profiles", []):
-                is_ready, _ = get_bonus_cooldown_str(p)
-                if is_ready and p.get("registered"):
-                    res = await asyncio.to_thread(claim_daily_bonus_on_cashtree, p)
+            ist_dt = datetime.utcfromtimestamp(time.time() + 19800)  # Current IST time
+            ist_hour = ist_dt.hour
+            ist_min = ist_dt.minute
+
+            # Window 1: Between 07:00 AM and 04:59 PM IST -> Staggered mode (1 account at a time, spaced out!)
+            if 7 <= ist_hour < 17:
+                profiles = STATE.get("profiles", [])
+                ready_profiles = [p for p in profiles if get_bonus_cooldown_str(p)[0]]
+
+                if ready_profiles:
+                    # Pick 1 ready account randomly so order isn't identical every day
+                    target_prof = random.choice(ready_profiles)
+                    if not target_prof.get("registered"):
+                        await asyncio.to_thread(
+                            register_on_cashtree,
+                            target_prof["id"],
+                            target_prof.get("password", "12345"),
+                            target_prof.get("name", "RRYSB"),
+                        )
+                        target_prof["registered"] = True
+
+                    res = await asyncio.to_thread(claim_daily_bonus_on_cashtree, target_prof)
+                    data = res.get("data") or {}
+                    msg_str = str(data.get("message") or data.get("error") or "")
+
                     if res["ok"]:
-                        data = res.get("data") or {}
                         bonus = float(data.get("randomBonus") or 0.0)
                         u_obj = data.get("user") or {}
-                        p["jpwCoins"] = float(u_obj.get("jpwCoins", float(p.get("jpwCoins", 0.0)) + bonus))
-                        p["bonusCoins"] = float(u_obj.get("bonusCoins", float(p.get("bonusCoins", 0.0)) + bonus))
-                        p["lastBonusTime"] = u_obj.get("lastBonusTime") or datetime.utcnow().isoformat() + "Z"
-                        claimed_any += 1
-                        earned_sum += bonus
-            if claimed_any > 0:
-                save_state(STATE)
-                logger.info("Auto-claimed daily bonus for %d accounts (+%.2f Coins)", claimed_any, earned_sum)
-                if ADMIN_CHAT_ID:
-                    await asyncio.to_thread(
-                        send_message,
-                        ADMIN_CHAT_ID,
-                        f"⏰ <b>Auto-Bonus Scheduler:</b> Claimed <b>+{earned_sum:.2f} Coins</b> across <b>{claimed_any} accounts</b>!",
-                    )
+                        target_prof["jpwCoins"] = float(u_obj.get("jpwCoins", float(target_prof.get("jpwCoins", 0.0)) + bonus))
+                        target_prof["bonusCoins"] = float(u_obj.get("bonusCoins", float(target_prof.get("bonusCoins", 0.0)) + bonus))
+                        target_prof["lastBonusTime"] = u_obj.get("lastBonusTime") or (datetime.utcnow().isoformat() + "Z")
+                        save_state(STATE)
+                        logger.info("Staggered Auto-Bonus (7AM-5PM): Claimed +%.2f Coins for %s (%d remaining today)", bonus, target_prof["id"], len(ready_profiles) - 1)
+                    elif "already claimed" in msg_str.lower():
+                        target_prof["lastBonusTime"] = datetime.utcnow().isoformat() + "Z"
+                        save_state(STATE)
+
+                    # Calculate dynamic spacing so all remaining ready accounts finish naturally before 5:00 PM IST
+                    mins_left_until_5pm = max(10, ((16 - ist_hour) * 60) + (60 - ist_min))
+                    rem_count = max(1, len(ready_profiles))
+                    ideal_gap_sec = int((mins_left_until_5pm * 60) / (rem_count + 1))
+                    # Clamp sleep between 90 seconds and 15 minutes with random jitter
+                    sleep_sec = max(90, min(900, ideal_gap_sec + random.randint(-30, 45)))
+                    await asyncio.sleep(sleep_sec)
+                    continue
+
+            # Window 2: 05:00 PM IST (17:00 - 17:59 IST) -> Final Verification Sweep for any missed accounts!
+            elif ist_hour == 17:
+                profiles = STATE.get("profiles", [])
+                missed_profiles = [p for p in profiles if get_bonus_cooldown_str(p)[0]]
+                if missed_profiles:
+                    logger.info("5:00 PM IST Final Sweep: Checking %d remaining un-claimed accounts...", len(missed_profiles))
+                    updated_any = False
+                    for p in missed_profiles:
+                        if not p.get("registered"):
+                            await asyncio.to_thread(
+                                register_on_cashtree,
+                                p["id"],
+                                p.get("password", "12345"),
+                                p.get("name", "RRYSB"),
+                            )
+                            p["registered"] = True
+
+                        res = await asyncio.to_thread(claim_daily_bonus_on_cashtree, p)
+                        data = res.get("data") or {}
+                        msg_str = str(data.get("message") or data.get("error") or "")
+                        if res["ok"]:
+                            bonus = float(data.get("randomBonus") or 0.0)
+                            u_obj = data.get("user") or {}
+                            p["jpwCoins"] = float(u_obj.get("jpwCoins", float(p.get("jpwCoins", 0.0)) + bonus))
+                            p["bonusCoins"] = float(u_obj.get("bonusCoins", float(p.get("bonusCoins", 0.0)) + bonus))
+                            p["lastBonusTime"] = u_obj.get("lastBonusTime") or (datetime.utcnow().isoformat() + "Z")
+                            updated_any = True
+                        elif "already claimed" in msg_str.lower():
+                            p["lastBonusTime"] = datetime.utcnow().isoformat() + "Z"
+                            updated_any = True
+                        # Wait 8 to 15 seconds between each missed account during the 5 PM sweep
+                        await asyncio.sleep(random.randint(8, 15))
+
+                    if updated_any:
+                        save_state(STATE)
         except Exception as exc:
             logger.warning("Auto-bonus scheduler warning: %s", exc)
-        await asyncio.sleep(600)  # Check every 10 minutes (auto-claims right after 12:00 AM IST)
+
+        await asyncio.sleep(180)  # Check clock every 3 minutes
+
+
+async def api_sync_orders_status(request: web.Request) -> web.Response:
+    """Triggers an immediate live check against Cashtree /api/app/check-status for all PROCESSING orders."""
+    changed = await asyncio.to_thread(sync_all_pending_orders_from_cashtree)
+    return web.json_response({
+        "ok": True,
+        "changed": changed,
+        "orders": STATE.get("orders", [])[:50],
+    })
+
+
+async def live_order_status_poller() -> None:
+    """Background task: Polls Cashtree /api/app/check-status every 8 seconds whenever any order is PROCESSING."""
+    await asyncio.sleep(8)
+    while True:
+        try:
+            await asyncio.to_thread(sync_all_pending_orders_from_cashtree)
+        except Exception as exc:
+            logger.warning("live_order_status_poller warning: %s", exc)
+        await asyncio.sleep(8)
 
 
 async def keep_alive_self_pinger() -> None:
@@ -2458,11 +2697,12 @@ async def keep_alive_self_pinger() -> None:
 async def on_startup(app: web.Application) -> None:
     app["poller"] = asyncio.create_task(poll_telegram_updates())
     app["bonus_scheduler"] = asyncio.create_task(auto_daily_bonus_scheduler())
+    app["order_poller"] = asyncio.create_task(live_order_status_poller())
     app["keep_alive"] = asyncio.create_task(keep_alive_self_pinger())
 
 
 async def on_cleanup(app: web.Application) -> None:
-    for task_key in ("poller", "bonus_scheduler", "keep_alive"):
+    for task_key in ("poller", "bonus_scheduler", "order_poller", "keep_alive"):
         task = app.get(task_key)
         if task:
             task.cancel()
@@ -2489,6 +2729,8 @@ def create_app() -> web.Application:
     app.router.add_post("/api/admin/fc-test", api_admin_fc_test)
     app.router.add_get("/api/admin/fc-logs", api_admin_fc_logs)
     app.router.add_post("/api/admin/clear-logs", api_admin_clear_logs)
+    app.router.add_post("/api/sync-orders", api_sync_orders_status)
+    app.router.add_get("/api/sync-orders", api_sync_orders_status)
     app.on_startup.append(on_startup)
     app.on_cleanup.append(on_cleanup)
     return app
