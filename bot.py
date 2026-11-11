@@ -35,7 +35,10 @@ from datetime import datetime
 import base64
 import hashlib
 import hmac
+import threading
 import time
+
+PAYMENT_LOCK = threading.Lock()
 from pathlib import Path
 from urllib.parse import quote
 
@@ -1867,23 +1870,18 @@ def check_taknapay_transactions(
                     continue
 
                 pay_id = str(p.get("orderId") or p.get("_id") or "").strip()
-                if not pay_id or pay_id in used_utrs:
-                    continue
-
                 link_title = str(p.get("linkTitle") or "").strip()
                 link_id = str(p.get("linkId") or "").strip()
                 amt_val = int(float(p.get("amount") or 0))
 
-                # Match 1: Exact Session ID in linkTitle (e.g. "JPW1794375...") or exact linkId
+                # Skip if ANY identifier of this payment/link was already credited!
+                if not pay_id or any(x in used_utrs for x in (pay_id, link_id, f"TAKNA_LINK_{link_id}", link_title) if x):
+                    continue
+
+                # Strict Match: Exact Session ID in linkTitle (e.g. "JPW1794375...") or exact linkId
                 if (session_id and session_id == link_title) or (expected_link_id and expected_link_id == link_id):
                     append_fc_log(f"🎉 TaknaPay MATCHED Session {session_id}! OrderID={pay_id} | +₹{amt_val}")
                     return True, amt_val, pay_id
-
-                # Match 2: Tech ID in linkTitle (e.g. "8609829354" or "ID_8609829354") and matching amount
-                if tech_id and (tech_id == link_title or f"_{tech_id}" in link_title or f"{tech_id}_" in link_title):
-                    if expected_amt is None or amt_val == int(float(expected_amt)):
-                        append_fc_log(f"🎉 TaknaPay MATCHED TechID {tech_id}! OrderID={pay_id} | +₹{amt_val}")
-                        return True, amt_val, pay_id
 
             # Secondary Verification via GET /api/link/list (screenshot 1000579784.jpg: `"paid": 1, "collected": 10`)
             if session_id or expected_link_id:
@@ -1901,7 +1899,7 @@ def check_taknapay_transactions(
                         if (session_id and lk_title == session_id) or (expected_link_id and lk_id == expected_link_id):
                             if lk_paid >= 1 and lk_collected >= max(1, lk_amt):
                                 ref_tag = f"TAKNA_LINK_{lk_id or lk_title}"
-                                if ref_tag not in used_utrs:
+                                if not any(x in used_utrs for x in (ref_tag, lk_id, lk_title) if x):
                                     append_fc_log(f"🎉 TaknaPay /api/link/list Paid=1 Confirmed! Link={lk_title} | +₹{lk_collected}")
                                     return True, lk_collected, ref_tag
 
@@ -2076,24 +2074,80 @@ def check_real_bharatpe_api(utr: str, expected_amount: int) -> tuple[bool, int]:
     return False, 0
 
 
-def credit_customer_verified_utr(cust: dict, utr: str, amount: int, source_label: str) -> None:
-    """Credits customer wallet once a UTR is genuinely verified by Bank SMS Webhook, BharatPe API, or Admin 1-Tap."""
-    used_utrs = STATE.setdefault("used_utrs", [])
-    if utr not in used_utrs:
-        used_utrs.append(utr)
-    cust["balance"] = int(cust.get("balance", 0)) + amount
-    log_user_activity(
-        str(cust.get("techId", "")),
-        "PAYMENT",
-        "SUCCESS",
-        f"+₹{amount} Credited via {source_label} (Ref: {utr}) • New Bal: ₹{cust['balance']}",
-    )
-    STATE["stats"]["collected"] = int(STATE["stats"].get("collected", 0)) + amount
-    STATE["stats"]["cost"] = int(STATE["stats"].get("cost", 0)) + (amount // 20) * 13
-    STATE["stats"]["profit"] = STATE["stats"]["collected"] - STATE["stats"]["cost"]
-    # Remove from pending_payments if present
-    STATE["pending_payments"] = [p for p in STATE.get("pending_payments", []) if p.get("utr") != utr]
-    save_state(STATE)
+def credit_customer_verified_utr(cust: dict, utr: str, amount: int, source_label: str, extra_locks: list[str] | None = None) -> bool:
+    """
+    Thread-safe, idempotent wallet credit function protected by PAYMENT_LOCK.
+    Returns True if credited now, or False if `utr` or any `extra_locks` (sessionId / linkId) was ALREADY credited!
+    """
+    with PAYMENT_LOCK:
+        used_utrs = STATE.setdefault("used_utrs", [])
+        all_keys = [str(k).strip() for k in ([utr] + (extra_locks or [])) if k and str(k).strip()]
+        if any(k in used_utrs for k in all_keys):
+            return False
+
+        for k in all_keys:
+            used_utrs.append(k)
+
+        cust["balance"] = int(cust.get("balance", 0)) + amount
+        log_user_activity(
+            str(cust.get("techId", "")),
+            "PAYMENT",
+            "SUCCESS",
+            f"+₹{amount} Credited via {source_label} (Ref: {utr}) • New Bal: ₹{cust['balance']}",
+        )
+        STATE["stats"]["collected"] = int(STATE["stats"].get("collected", 0)) + amount
+        STATE["stats"]["cost"] = int(STATE["stats"].get("cost", 0)) + (amount // 20) * 13
+        STATE["stats"]["profit"] = STATE["stats"]["collected"] - STATE["stats"]["cost"]
+        STATE["pending_payments"] = [p for p in STATE.get("pending_payments", []) if p.get("utr") not in all_keys]
+        save_state(STATE)
+        return True
+
+
+def complete_payment_session_atomically(sess: dict, cust: dict, ref_id: str, source_label: str) -> bool:
+    """
+    Atomically marks `sess` COMPLETED and credits `cust` ONCE AND ONLY ONCE under PAYMENT_LOCK.
+    Locks `ref_id`, `sessionId`, `taknaLinkId`, and `TAKNA_LINK_<linkId>` together in `used_utrs`
+    so `/api/link/list` and `/api/link/payments` can NEVER double-credit the same payment!
+    """
+    if not sess or not cust:
+        return False
+
+    sid = str(sess.get("sessionId") or "").strip()
+    lk_id = str(sess.get("taknaLinkId") or "").strip()
+    extra_keys = [sid]
+    if lk_id:
+        extra_keys.append(lk_id)
+        extra_keys.append(f"TAKNA_LINK_{lk_id}")
+
+    with PAYMENT_LOCK:
+        if sess.get("status") == "COMPLETED" or sess.get("credited") is True:
+            return False
+        used_utrs = STATE.setdefault("used_utrs", [])
+        all_keys = [str(k).strip() for k in ([ref_id] + extra_keys) if k and str(k).strip()]
+        if any(k in used_utrs for k in all_keys):
+            sess["status"] = "COMPLETED"
+            sess["credited"] = True
+            return False
+
+        for k in all_keys:
+            used_utrs.append(k)
+
+        sess["status"] = "COMPLETED"
+        sess["credited"] = True
+        amount = int(sess.get("baseAmount", 20))
+        cust["balance"] = int(cust.get("balance", 0)) + amount
+        log_user_activity(
+            str(cust.get("techId", "")),
+            "PAYMENT",
+            "SUCCESS",
+            f"+₹{amount} Credited via {source_label} (Ref: {ref_id}) • New Bal: ₹{cust['balance']}",
+        )
+        STATE["stats"]["collected"] = int(STATE["stats"].get("collected", 0)) + amount
+        STATE["stats"]["cost"] = int(STATE["stats"].get("cost", 0)) + (amount // 20) * 13
+        STATE["stats"]["profit"] = STATE["stats"]["collected"] - STATE["stats"]["cost"]
+        STATE["pending_payments"] = [p for p in STATE.get("pending_payments", []) if p.get("utr") not in all_keys]
+        save_state(STATE)
+        return True
 
 
 def allocate_unique_amount(base_amount: int) -> float:
@@ -2216,6 +2270,10 @@ async def api_customer_create_payment(request: web.Request) -> web.Response:
             "status": "PENDING",
             "createdAt": time.time(),
         }
+        # Supersede any older PENDING session for this same techId so only 1 session is active per user at a time!
+        for old_sid, old_s in list(STATE.setdefault("payment_sessions", {}).items()):
+            if str(old_s.get("techId")) == tech_id and old_s.get("status") == "PENDING":
+                old_s["status"] = "SUPERSEDED"
         STATE.setdefault("payment_sessions", {})[session_id] = sess_obj
         log_user_activity(
             tech_id,
@@ -2302,8 +2360,7 @@ async def api_customer_check_payment(request: web.Request) -> web.Response:
                 sess.get("taknaLinkId"),
             )
             if tk_ok:
-                sess["status"] = "COMPLETED"
-                credit_customer_verified_utr(cust, tk_id, int(sess["baseAmount"]), "TaknaPay Auto-API")
+                complete_payment_session_atomically(sess, cust, tk_id, "TaknaPay Auto-API")
                 return web.json_response({
                     "ok": True,
                     "status": "COMPLETED",
@@ -2321,8 +2378,7 @@ async def api_customer_check_payment(request: web.Request) -> web.Response:
                 tech_id,
             )
             if fc_ok:
-                sess["status"] = "COMPLETED"
-                credit_customer_verified_utr(cust, fc_utr, int(sess["baseAmount"]), "Freecharge 24x7 Auto-Detect")
+                complete_payment_session_atomically(sess, cust, fc_utr, "Freecharge 24x7 Auto-Detect")
                 if ADMIN_CHAT_ID:
                     asyncio.create_task(
                         asyncio.to_thread(
@@ -2357,8 +2413,7 @@ async def api_customer_check_payment(request: web.Request) -> web.Response:
                     tx_note = str(tx.get("payerHandle") or tx.get("remarks") or tx.get("note") or "")
                     if status == "SUCCESS" and bank_ref and bank_ref not in used_utrs:
                         if tx_amt == round(float(sess["uniqueAmount"]), 2) or session_id in tx_note or tech_id in tx_note:
-                            sess["status"] = "COMPLETED"
-                            credit_customer_verified_utr(cust, bank_ref, int(sess["baseAmount"]), "BharatPe Auto-Detect")
+                            complete_payment_session_atomically(sess, cust, bank_ref, "BharatPe Auto-Detect")
                             return web.json_response({
                                 "ok": True,
                                 "status": "COMPLETED",
@@ -2373,8 +2428,7 @@ async def api_customer_check_payment(request: web.Request) -> web.Response:
         v_bank = STATE.setdefault("verified_bank_utrs", {})
         if amt_key in v_bank and cust:
             v_bank.pop(amt_key, None)
-            sess["status"] = "COMPLETED"
-            credit_customer_verified_utr(cust, f"FC_{int(time.time())}", int(sess["baseAmount"]), "Freecharge BIZ Webhook")
+            complete_payment_session_atomically(sess, cust, f"FC_{int(time.time())}", "Freecharge BIZ Webhook")
             return web.json_response({
                 "ok": True,
                 "status": "COMPLETED",
@@ -2516,8 +2570,7 @@ async def api_payment_webhook(request: web.Request) -> web.Response:
                     cust = next((c for c in STATE.get("customers", []) if str(c.get("techId")) == str(tid)), None)
                     if cust:
                         utr_tag = utr_matches[0] if utr_matches else f"FC_{int(time.time())}_{random.randint(10,99)}"
-                        sess["status"] = "COMPLETED"
-                        credit_customer_verified_utr(cust, utr_tag, int(sess.get("baseAmount", detected_amt)), "Freecharge BIZ Auto-Match")
+                        complete_payment_session_atomically(sess, cust, utr_tag, "Freecharge BIZ Auto-Match")
                         matched_session_user = f"{tid} (+₹{sess.get('baseAmount', detected_amt)})"
                         if ADMIN_CHAT_ID:
                             asyncio.create_task(
@@ -2546,8 +2599,7 @@ async def api_payment_webhook(request: web.Request) -> web.Response:
                 cust = next((c for c in STATE.get("customers", []) if str(c.get("techId")) == str(tid)), None)
                 if cust:
                     utr_tag = utr_matches[0] if utr_matches else f"FC_{int(time.time())}"
-                    sess["status"] = "COMPLETED"
-                    credit_customer_verified_utr(cust, utr_tag, int(sess.get("baseAmount", detected_amt)), "Freecharge BIZ Auto-Match")
+                    complete_payment_session_atomically(sess, cust, utr_tag, "Freecharge BIZ Auto-Match")
                     matched_session_user = f"{tid} (+₹{sess.get('baseAmount', detected_amt)})"
 
         if matched_session_user:
@@ -3034,9 +3086,8 @@ def sync_all_pending_payment_sessions() -> bool:
             sess.get("taknaLinkId"),
         )
         if tk_ok:
-            sess["status"] = "COMPLETED"
-            credit_customer_verified_utr(cust, tk_id, int(sess.get("baseAmount", 20)), "TaknaPay Auto-API")
-            credited_any = True
+            if complete_payment_session_atomically(sess, cust, tk_id, "TaknaPay Auto-API"):
+                credited_any = True
     return credited_any
 
 
