@@ -73,9 +73,12 @@ logger = logging.getLogger("jpw_bot")
 # ================= STATE STORAGE =================
 DEFAULT_STATE = {
     "settings": {
-        "upiId": "jpwportal@ybl",
-        "appTitle": "JPW Order Mini App",
+        "upiId": "jpwportal@freecharge",
+        "appTitle": "JPW REACH",
         "registerApiUrl": CASHTREE_REGISTER_API,
+        "taknaEmail": os.environ.get("TAKNA_EMAIL", "saniyaparween700@gmail.com"),
+        "taknaPassword": os.environ.get("TAKNA_PASSWORD", "Aman@0786"),
+        "taknaToken": os.environ.get("TAKNA_TOKEN", "6af09dbd70d6be4bad5773ba.1794375195925.82217db5aa0aa04a0e4a418763beffd62041885242674b7c5a86a6f1c6cd7bfa"),
     },
     "stats": {
         "collected": 60,
@@ -143,6 +146,11 @@ STATE["customers"] = [c for c in STATE["customers"] if str(c.get("techId")) != "
 STATE.setdefault("used_utrs", [])
 STATE.setdefault("verified_bank_utrs", {})  # { "12_digit_utr": amount_float } received from Bank SMS Webhook or BharatPe API
 STATE.setdefault("pending_payments", [])
+STATE["settings"].setdefault("taknaEmail", os.environ.get("TAKNA_EMAIL", "saniyaparween700@gmail.com"))
+STATE["settings"].setdefault("taknaPassword", os.environ.get("TAKNA_PASSWORD", "Aman@0786"))
+if not STATE["settings"].get("taknaPassword"):
+    STATE["settings"]["taknaPassword"] = "Aman@0786"
+STATE["settings"].setdefault("taknaToken", os.environ.get("TAKNA_TOKEN", "6af09dbd70d6be4bad5773ba.1794375195925.82217db5aa0aa04a0e4a418763beffd62041885242674b7c5a86a6f1c6cd7bfa"))
 STATE["settings"].setdefault("freechargeCookie", os.environ.get("FREECHARGE_COOKIE", ""))
 STATE["settings"].setdefault("bharatpeMid", os.environ.get("BHARATPE_MID", ""))
 STATE["settings"].setdefault("bharatpeToken", os.environ.get("BHARATPE_TOKEN", ""))
@@ -1633,6 +1641,278 @@ def _parse_fc_amount(tx: dict) -> float:
     return 0.0
 
 
+TAKNAPAY_LOGIN_API = "https://www.taknapay.in/api/link/login"
+TAKNAPAY_CREATE_LINK_API = "https://www.taknapay.in/api/link/create"
+TAKNAPAY_LIST_LINKS_API = "https://www.taknapay.in/api/link/list"
+TAKNAPAY_PAYMENTS_API = "https://www.taknapay.in/api/link/payments"
+
+
+def _takna_headers(token: str) -> dict:
+    tok = token.strip()
+    return {
+        "Content-Type": "application/json",
+        "Accept": "*/*",
+        "Authorization": tok if tok.startswith("Bearer ") else f"Bearer {tok}",
+        "Origin": "https://www.taknapay.in",
+        "Referer": "https://www.taknapay.in/links.html",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36",
+    }
+
+
+def login_taknapay(email: str = "", password: str = "") -> dict:
+    """
+    Calls POST https://www.taknapay.in/api/link/login with {"email": ..., "password": ...}
+    Returns {"ok": True, "token": "...", "message": "..."} and saves token in STATE['settings']['taknaToken'].
+    """
+    em = (email or STATE["settings"].get("taknaEmail") or "saniyaparween700@gmail.com").strip()
+    pw = (password or STATE["settings"].get("taknaPassword") or "Aman@0786").strip()
+    if not em or not pw:
+        return {"ok": False, "message": "⚠️ Enter TaknaPay Email & Password in Admin tab"}
+
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "*/*",
+        "Origin": "https://www.taknapay.in",
+        "Referer": "https://www.taknapay.in/links.html",
+        "Cache-Control": "no-cache",
+        "Pragma": "no-cache",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/122.0.0.0 Safari/537.36",
+    }
+    try:
+        resp = requests.post(TAKNAPAY_LOGIN_API, json={"email": em, "password": pw}, headers=headers, timeout=12)
+        data = resp.json() if resp.content else {}
+        if resp.ok and data.get("success") and data.get("token"):
+            tok = str(data["token"]).strip()
+            STATE["settings"]["taknaEmail"] = em
+            STATE["settings"]["taknaPassword"] = pw
+            STATE["settings"]["taknaToken"] = tok
+            STATE["settings"]["updatedAt"] = int(time.time() * 1000)
+            save_state(STATE)
+            append_fc_log(f"✅ TaknaPay Login OK ({em}) | Token: {tok[:20]}...")
+            return {"ok": True, "token": tok, "message": f"✅ TaknaPay Connected! Token active."}
+        err_msg = data.get("message") or data.get("error") or f"HTTP {resp.status_code}"
+        append_fc_log(f"❌ TaknaPay Login Failed: {err_msg}")
+        return {"ok": False, "message": f"❌ TaknaPay Login Failed: {err_msg}"}
+    except Exception as exc:
+        append_fc_log(f"⚠️ TaknaPay Login Error: {exc}")
+        return {"ok": False, "message": str(exc)}
+
+
+def create_taknapay_payment_link(title: str, description: str, amount: int) -> dict:
+    """
+    Calls POST https://www.taknapay.in/api/link/create
+    Payload from screenshot 1000579772.jpg:
+      {"title": "0639656", "description": "0639656", "amount": "20"}
+    Returns {"ok": True, "paymentUrl": "https://taknapay.in/l/...", "linkId": "...", "raw": data}
+    """
+    tok = (STATE["settings"].get("taknaToken") or "").strip()
+    if not tok:
+        l_res = login_taknapay()
+        tok = l_res.get("token") or ""
+    if not tok:
+        return {"ok": False, "paymentUrl": "", "linkId": ""}
+
+    payload = {
+        "title": str(title).strip(),
+        "description": str(description).strip(),
+        "amount": str(int(amount)),
+    }
+
+    for attempt in range(2):
+        try:
+            resp = requests.post(TAKNAPAY_CREATE_LINK_API, json=payload, headers=_takna_headers(tok), timeout=12)
+            if resp.status_code in (401, 403) and attempt == 0:
+                l_res = login_taknapay()
+                tok = l_res.get("token") or ""
+                if tok:
+                    continue
+            data = resp.json() if resp.content else {}
+            if resp.ok and data.get("success", True):
+                link_obj = data.get("link") or data.get("data") or data
+                if not isinstance(link_obj, dict):
+                    link_obj = data
+                link_id = str(link_obj.get("_id") or link_obj.get("id") or link_obj.get("linkId") or "").strip()
+                slug = str(
+                    link_obj.get("slug")
+                    or link_obj.get("shortCode")
+                    or link_obj.get("code")
+                    or link_obj.get("shortId")
+                    or ""
+                ).strip()
+                raw_url = str(
+                    link_obj.get("url")
+                    or link_obj.get("shortUrl")
+                    or link_obj.get("paymentUrl")
+                    or link_obj.get("linkUrl")
+                    or data.get("url")
+                    or data.get("shortUrl")
+                    or ""
+                ).strip()
+
+                if raw_url:
+                    if raw_url.startswith("/"):
+                        pay_url = f"https://taknapay.in{raw_url}"
+                    elif not raw_url.startswith("http"):
+                        pay_url = f"https://taknapay.in/l/{raw_url}"
+                    else:
+                        pay_url = raw_url
+                elif slug:
+                    pay_url = f"https://taknapay.in/l/{slug}"
+                else:
+                    pay_url = ""
+
+                # If /api/link/create didn't return the full `https://taknapay.in/l/<slug>` URL directly,
+                # fetch GET /api/link/list (screenshot 1000579785.jpg) to grab the exact `url`, `slug`, and `id`!
+                if not pay_url or not link_id:
+                    try:
+                        list_resp = requests.get(TAKNAPAY_LIST_LINKS_API, headers=_takna_headers(tok), timeout=10)
+                        if list_resp.ok and list_resp.content:
+                            list_data = list_resp.json()
+                            links_arr = list_data.get("links") or []
+                            base_domain = str(list_data.get("base") or "https://taknapay.in").rstrip("/")
+                            for lk in links_arr:
+                                if isinstance(lk, dict) and str(lk.get("title") or "").strip() == str(title).strip():
+                                    link_id = str(lk.get("id") or lk.get("_id") or link_id).strip()
+                                    slug = str(lk.get("slug") or slug).strip()
+                                    pay_url = str(lk.get("url") or (f"{base_domain}/l/{slug}" if slug else "")).strip()
+                                    break
+                    except Exception as list_exc:
+                        logger.warning("TaknaPay /api/link/list lookup warning: %s", list_exc)
+
+                append_fc_log(f"🔗 TaknaPay Link Ready: Title={title} | ₹{amount} | URL={pay_url} (ID={link_id})")
+                return {
+                    "ok": bool(pay_url or link_id),
+                    "paymentUrl": pay_url,
+                    "linkId": link_id,
+                    "raw": data,
+                }
+            else:
+                append_fc_log(f"⚠️ TaknaPay /api/link/create HTTP {resp.status_code}: {resp.text[:120]}")
+        except Exception as exc:
+            append_fc_log(f"⚠️ TaknaPay create link error: {exc}")
+        break
+
+    return {"ok": False, "paymentUrl": "", "linkId": ""}
+
+
+def check_taknapay_transactions(
+    expected_amt: float | None = None,
+    session_id: str | None = None,
+    tech_id: str | None = None,
+    expected_link_id: str | None = None,
+) -> tuple[bool, int, str]:
+    """
+    Calls GET https://www.taknapay.in/api/link/payments with Authorization: Bearer <token>
+    Exact Response from screenshot 1000579777.jpg:
+    {
+      "success": true,
+      "payments": [
+        {
+          "_id": "6af32d2e70d6be4bad57d5b8",
+          "orderId": "PL1023194FF4505C",
+          "amount": 10,
+          "status": "SUCCESS",
+          "linkId": "6af32d1970d6be4bad57d5a2",
+          "payerName": "",
+          "payerContact": "",
+          "fee": 0.2,
+          "createdAt": "2026-11-10T14:41:50.088Z",
+          "paidAt": "2026-11-10T14:58:18.335Z",
+          "linkTitle": "Suresh"
+        }
+      ]
+    }
+    """
+    tok = (STATE["settings"].get("taknaToken") or "").strip()
+    if not tok:
+        l_res = login_taknapay()
+        tok = l_res.get("token") or ""
+    if not tok:
+        return False, 0, ""
+
+    used_utrs = STATE.setdefault("used_utrs", [])
+
+    for attempt in range(2):
+        try:
+            resp = requests.get(TAKNAPAY_PAYMENTS_API, headers=_takna_headers(tok), timeout=10)
+            if resp.status_code in (401, 403) and attempt == 0:
+                l_res = login_taknapay()
+                tok = l_res.get("token") or ""
+                if tok:
+                    continue
+
+            if not resp.ok or not resp.content:
+                append_fc_log(f"⚠️ TaknaPay /api/link/payments HTTP {resp.status_code}")
+                return False, 0, ""
+
+            data = resp.json()
+            payments = data.get("payments") or []
+            if not isinstance(payments, list):
+                return False, 0, ""
+
+            # Log top 3 recent payments for Admin Live Logs
+            preview = [
+                f"{p.get('linkTitle','?')}:₹{p.get('amount',0)}({p.get('status','?')}:{p.get('orderId','')})"
+                for p in payments[:3] if isinstance(p, dict)
+            ]
+            append_fc_log(f"✅ TaknaPay Payments ({len(payments)} total) | Latest: {', '.join(preview) if preview else 'None'}")
+
+            for p in payments:
+                if not isinstance(p, dict):
+                    continue
+                st = str(p.get("status") or "").strip().upper()
+                if st != "SUCCESS":
+                    continue
+
+                pay_id = str(p.get("orderId") or p.get("_id") or "").strip()
+                if not pay_id or pay_id in used_utrs:
+                    continue
+
+                link_title = str(p.get("linkTitle") or "").strip()
+                link_id = str(p.get("linkId") or "").strip()
+                amt_val = int(float(p.get("amount") or 0))
+
+                # Match 1: Exact Session ID in linkTitle (e.g. "JPW1794375...") or exact linkId
+                if (session_id and session_id == link_title) or (expected_link_id and expected_link_id == link_id):
+                    append_fc_log(f"🎉 TaknaPay MATCHED Session {session_id}! OrderID={pay_id} | +₹{amt_val}")
+                    return True, amt_val, pay_id
+
+                # Match 2: Tech ID in linkTitle (e.g. "8609829354" or "ID_8609829354") and matching amount
+                if tech_id and (tech_id == link_title or f"_{tech_id}" in link_title or f"{tech_id}_" in link_title):
+                    if expected_amt is None or amt_val == int(float(expected_amt)):
+                        append_fc_log(f"🎉 TaknaPay MATCHED TechID {tech_id}! OrderID={pay_id} | +₹{amt_val}")
+                        return True, amt_val, pay_id
+
+            # Secondary Verification via GET /api/link/list (screenshot 1000579784.jpg: `"paid": 1, "collected": 10`)
+            if session_id or expected_link_id:
+                list_resp = requests.get(TAKNAPAY_LIST_LINKS_API, headers=_takna_headers(tok), timeout=8)
+                if list_resp.ok and list_resp.content:
+                    list_data = list_resp.json()
+                    for lk in (list_data.get("links") or []):
+                        if not isinstance(lk, dict):
+                            continue
+                        lk_id = str(lk.get("id") or lk.get("_id") or "").strip()
+                        lk_title = str(lk.get("title") or "").strip()
+                        lk_paid = int(lk.get("paid") or 0)
+                        lk_collected = int(float(lk.get("collected") or 0))
+                        lk_amt = int(float(lk.get("amount") or 0))
+                        if (session_id and lk_title == session_id) or (expected_link_id and lk_id == expected_link_id):
+                            if lk_paid >= 1 and lk_collected >= max(1, lk_amt):
+                                ref_tag = f"TAKNA_LINK_{lk_id or lk_title}"
+                                if ref_tag not in used_utrs:
+                                    append_fc_log(f"🎉 TaknaPay /api/link/list Paid=1 Confirmed! Link={lk_title} | +₹{lk_collected}")
+                                    return True, lk_collected, ref_tag
+
+            break
+        except Exception as exc:
+            append_fc_log(f"⚠️ TaknaPay check error: {exc}")
+            break
+
+    return False, 0, ""
+
+
 def check_freecharge_transactions(
     expected_utr: str | None = None,
     expected_unique_amt: float | None = None,
@@ -1907,6 +2187,20 @@ async def api_customer_create_payment(request: web.Request) -> web.Response:
             f"{mc_part}&am={unique_amt:.2f}&cu=INR"
         )
 
+        # Create a live TaknaPay Payment Link (POST https://www.taknapay.in/api/link/create) with title=session_id!
+        takna_url = ""
+        takna_link_id = ""
+        if STATE["settings"].get("taknaToken") or STATE["settings"].get("taknaPassword"):
+            tk_res = await asyncio.to_thread(
+                create_taknapay_payment_link,
+                session_id,
+                f"Tech {tech_id}",
+                base_amt,
+            )
+            if tk_res.get("ok"):
+                takna_url = tk_res.get("paymentUrl") or ""
+                takna_link_id = tk_res.get("linkId") or ""
+
         sess_obj = {
             "sessionId": session_id,
             "techId": tech_id,
@@ -1915,6 +2209,8 @@ async def api_customer_create_payment(request: web.Request) -> web.Response:
             "upiId": upi_id,
             "appTitle": app_title,
             "upiUri": upi_uri,
+            "taknaPayUrl": takna_url,
+            "taknaLinkId": takna_link_id,
             "rzpKeyId": rzp_key_id if rzp_order_id else None,
             "rzpOrderId": rzp_order_id,
             "status": "PENDING",
@@ -1995,6 +2291,25 @@ async def api_customer_check_payment(request: web.Request) -> web.Response:
                 "message": f"🎉 ₹{sess['baseAmount']} Added to Wallet!",
                 "customer": cust,
             })
+
+        # Check 0: Live TaknaPay API (`https://www.taknapay.in/api/link/...` — Render-to-Render 200 OK!)
+        if cust and (STATE["settings"].get("taknaToken") or STATE["settings"].get("taknaPassword")):
+            tk_ok, tk_amt, tk_id = await asyncio.to_thread(
+                check_taknapay_transactions,
+                float(sess["baseAmount"]),
+                session_id,
+                tech_id,
+                sess.get("taknaLinkId"),
+            )
+            if tk_ok:
+                sess["status"] = "COMPLETED"
+                credit_customer_verified_utr(cust, tk_id, int(sess["baseAmount"]), "TaknaPay Auto-API")
+                return web.json_response({
+                    "ok": True,
+                    "status": "COMPLETED",
+                    "message": f"🎉 ₹{sess['baseAmount']} TaknaPay Verified! Wallet Updated!",
+                    "customer": cust,
+                })
 
         # Check 1: Live Freecharge 24x7 Cloud Checker (using app_fc session cookie — No Phone Needed!)
         if cust:
@@ -2078,6 +2393,24 @@ async def api_admin_fc_send_otp(request: web.Request) -> web.Response:
         mobile = str(body.get("mobile") or "").strip()
         res = await asyncio.to_thread(fc_send_otp_request, mobile)
         return web.json_response(res, status=200 if res.get("ok") else 400)
+    except Exception as exc:
+        return web.json_response({"ok": False, "message": str(exc)}, status=400)
+
+
+async def api_admin_takna_login(request: web.Request) -> web.Response:
+    try:
+        body = await request.json()
+        em = str(body.get("email") or "").strip()
+        pw = str(body.get("password") or "").strip()
+        res = await asyncio.to_thread(login_taknapay, em, pw)
+        if res.get("ok"):
+            await asyncio.to_thread(check_taknapay_transactions, None, None, None, None)
+        return web.json_response({
+            "ok": res.get("ok", False),
+            "token": res.get("token", ""),
+            "message": res.get("message", ""),
+            "logs": STATE.get("fc_logs", [])[:30],
+        }, status=200 if res.get("ok") else 400)
     except Exception as exc:
         return web.json_response({"ok": False, "message": str(exc)}, status=400)
 
@@ -2670,15 +3003,56 @@ async def api_sync_orders_status(request: web.Request) -> web.Response:
     })
 
 
+def sync_all_pending_payment_sessions() -> bool:
+    """
+    Server-side background verifier for all PENDING payment sessions in STATE['payment_sessions'].
+    Checks TaknaPay (/api/link/payments & /api/link/list) so even if the customer is on the TaknaPay tab
+    or switches apps, their wallet is credited automatically within 3 seconds of payment!
+    """
+    now_ts = time.time()
+    sessions = STATE.setdefault("payment_sessions", {})
+    pending_sessions = [
+        (sid, s) for sid, s in list(sessions.items())
+        if s.get("status") == "PENDING" and (now_ts - float(s.get("createdAt", 0))) <= 600
+    ]
+    if not pending_sessions:
+        return False
+
+    if not (STATE["settings"].get("taknaToken") or STATE["settings"].get("taknaPassword")):
+        return False
+
+    credited_any = False
+    for sid, sess in pending_sessions:
+        tech_id = str(sess.get("techId") or "")
+        cust = next((c for c in STATE.get("customers", []) if str(c.get("techId")) == tech_id), None)
+        if not cust:
+            continue
+        tk_ok, tk_amt, tk_id = check_taknapay_transactions(
+            float(sess.get("baseAmount", 20)),
+            sid,
+            tech_id,
+            sess.get("taknaLinkId"),
+        )
+        if tk_ok:
+            sess["status"] = "COMPLETED"
+            credit_customer_verified_utr(cust, tk_id, int(sess.get("baseAmount", 20)), "TaknaPay Auto-API")
+            credited_any = True
+    return credited_any
+
+
 async def live_order_status_poller() -> None:
-    """Background task: Polls Cashtree /api/app/check-status every 8 seconds whenever any order is PROCESSING."""
-    await asyncio.sleep(8)
+    """Background task: Polls pending TaknaPay payment sessions (every 4s) & Cashtree PROCESSING orders (every 8s)."""
+    await asyncio.sleep(5)
+    tick = 0
     while True:
         try:
-            await asyncio.to_thread(sync_all_pending_orders_from_cashtree)
+            await asyncio.to_thread(sync_all_pending_payment_sessions)
+            if tick % 2 == 0:
+                await asyncio.to_thread(sync_all_pending_orders_from_cashtree)
+            tick += 1
         except Exception as exc:
             logger.warning("live_order_status_poller warning: %s", exc)
-        await asyncio.sleep(8)
+        await asyncio.sleep(4)
 
 
 async def keep_alive_self_pinger() -> None:
@@ -2727,6 +3101,7 @@ def create_app() -> web.Application:
     app.router.add_post("/api/admin/fc-send-otp", api_admin_fc_send_otp)
     app.router.add_post("/api/admin/fc-verify-otp", api_admin_fc_verify_otp)
     app.router.add_post("/api/admin/fc-test", api_admin_fc_test)
+    app.router.add_post("/api/admin/takna-login", api_admin_takna_login)
     app.router.add_get("/api/admin/fc-logs", api_admin_fc_logs)
     app.router.add_post("/api/admin/clear-logs", api_admin_clear_logs)
     app.router.add_post("/api/sync-orders", api_sync_orders_status)
