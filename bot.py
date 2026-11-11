@@ -1784,11 +1784,99 @@ def create_taknapay_payment_link(title: str, description: str, amount: int) -> d
                     except Exception as list_exc:
                         logger.warning("TaknaPay /api/link/list lookup warning: %s", list_exc)
 
-                append_fc_log(f"🔗 TaknaPay Link Ready: Title={title} | ₹{amount} | URL={pay_url} (ID={link_id})")
+                # Auto-Skip Screen 1 ("Your name / Mobile") on `https://taknapay.in/l/<slug>` to extract Direct UPI QR & `upi://pay` link!
+                direct_upi_uri = ""
+                pl_order_id = ""
+                if pay_url:
+                    try:
+                        slug_val = pay_url.rstrip("/").split("/")[-1]
+                        page_resp = requests.get(pay_url, headers=_takna_headers(tok), timeout=8)
+                        page_html = page_resp.text if page_resp.ok else ""
+
+                        # 1. Check if `upi://pay` is already in the page HTML
+                        upi_m = re.search(r"(upi://pay\?[^\s<>\"\']+)", page_html, re.IGNORECASE)
+                        if upi_m:
+                            direct_upi_uri = upi_m.group(1)
+
+                        # 2. Find any `/api/...` checkout endpoints inside the `/l/<slug>` page's <script> tag
+                        script_apis = re.findall(r"(\/api\/[a-zA-Z0-9_\/${}-]+)", page_html)
+                        candidate_checkout_urls = []
+                        for sa in script_apis:
+                            clean_sa = sa.replace("${slug}", slug_val).replace("${id}", link_id).replace("${linkId}", link_id)
+                            if "login" not in clean_sa and "list" not in clean_sa and "create" not in clean_sa:
+                                full_u = f"https://www.taknapay.in{clean_sa}"
+                                if full_u not in candidate_checkout_urls:
+                                    candidate_checkout_urls.append(full_u)
+
+                        # Also add standard TaknaPay public link checkout endpoints
+                        for fallback_ep in (
+                            f"https://www.taknapay.in/api/link/pay/{slug_val}",
+                            f"https://www.taknapay.in/api/link/{slug_val}/pay",
+                            f"https://www.taknapay.in/api/link/order/{slug_val}",
+                            "https://www.taknapay.in/api/link/pay",
+                            "https://www.taknapay.in/api/link/order",
+                            f"https://www.taknapay.in/api/link/public/{slug_val}",
+                            f"https://www.taknapay.in/api/link/{slug_val}",
+                        ):
+                            if fallback_ep not in candidate_checkout_urls:
+                                candidate_checkout_urls.append(fallback_ep)
+
+                        checkout_body = {
+                            "slug": slug_val,
+                            "linkId": link_id,
+                            "id": link_id,
+                            "amount": int(amount),
+                            "payerName": str(description).strip() or "Tech",
+                            "payerContact": "",
+                            "name": str(description).strip() or "Tech",
+                            "contact": "",
+                            "mobile": "",
+                        }
+
+                        for chk_url in candidate_checkout_urls[:8]:
+                            if direct_upi_uri:
+                                break
+                            try:
+                                # Try POST first (submitting the Name/Mobile form to get QR & upi://pay)
+                                c_resp = requests.post(chk_url, json=checkout_body, headers=_takna_headers(tok), timeout=6)
+                                if not c_resp.ok:
+                                    c_resp = requests.get(chk_url, headers=_takna_headers(tok), timeout=6)
+                                if c_resp.ok and c_resp.content:
+                                    c_text = c_resp.text
+                                    u_match = re.search(r"(upi://pay\?[^\s<>\"\'\\]+)", c_text, re.IGNORECASE)
+                                    pl_match = re.search(r"\b(PL[A-Z0-9]{8,20})\b", c_text)
+                                    if pl_match:
+                                        pl_order_id = pl_match.group(1)
+                                    if u_match:
+                                        direct_upi_uri = u_match.group(1)
+                                        append_fc_log(f"⚡ Extracted Direct UPI URI from {chk_url.split('.in')[-1]} (Order: {pl_order_id})")
+                                        break
+                                    # Also check if response JSON has vpa/upiId/merchantVpa to build upi://pay
+                                    c_json = c_resp.json()
+                                    vpa_found = (
+                                        c_json.get("upiId")
+                                        or c_json.get("vpa")
+                                        or c_json.get("merchantVpa")
+                                        or (c_json.get("data") or {}).get("upiId")
+                                        or (c_json.get("link") or {}).get("upiId")
+                                    ) if isinstance(c_json, dict) else None
+                                    if vpa_found and "@" in str(vpa_found):
+                                        ord_ref = pl_order_id or str(c_json.get("orderId") or title)
+                                        direct_upi_uri = f"upi://pay?pa={quote(str(vpa_found))}&pn=TaknaPay&am={int(amount)}.00&cu=INR&tr={quote(ord_ref)}&tn={quote(ord_ref)}"
+                                        append_fc_log(f"⚡ Built Direct TaknaPay UPI URI (VPA: {vpa_found} | Order: {ord_ref})")
+                                        break
+                            except Exception:
+                                pass
+                    except Exception as step2_exc:
+                        logger.warning("TaknaPay direct UPI extraction warning: %s", step2_exc)
+
+                append_fc_log(f"🔗 TaknaPay Link Ready: Title={title} | ₹{amount} | URL={pay_url} | DirectUPI={'YES' if direct_upi_uri else 'NO'}")
                 return {
                     "ok": bool(pay_url or link_id),
                     "paymentUrl": pay_url,
                     "linkId": link_id,
+                    "directUpiUri": direct_upi_uri,
+                    "plOrderId": pl_order_id,
                     "raw": data,
                 }
             else:
@@ -2254,6 +2342,8 @@ async def api_customer_create_payment(request: web.Request) -> web.Response:
             if tk_res.get("ok"):
                 takna_url = tk_res.get("paymentUrl") or ""
                 takna_link_id = tk_res.get("linkId") or ""
+                if tk_res.get("directUpiUri"):
+                    upi_uri = tk_res["directUpiUri"]
 
         sess_obj = {
             "sessionId": session_id,
@@ -2265,6 +2355,8 @@ async def api_customer_create_payment(request: web.Request) -> web.Response:
             "upiUri": upi_uri,
             "taknaPayUrl": takna_url,
             "taknaLinkId": takna_link_id,
+            "directUpiUri": tk_res.get("directUpiUri", "") if (STATE["settings"].get("taknaToken") or STATE["settings"].get("taknaPassword")) and 'tk_res' in locals() else "",
+            "plOrderId": tk_res.get("plOrderId", "") if (STATE["settings"].get("taknaToken") or STATE["settings"].get("taknaPassword")) and 'tk_res' in locals() else "",
             "rzpKeyId": rzp_key_id if rzp_order_id else None,
             "rzpOrderId": rzp_order_id,
             "status": "PENDING",
@@ -2449,6 +2541,154 @@ async def api_admin_fc_send_otp(request: web.Request) -> web.Response:
         return web.json_response(res, status=200 if res.get("ok") else 400)
     except Exception as exc:
         return web.json_response({"ok": False, "message": str(exc)}, status=400)
+
+
+async def api_takna_proxy(request: web.Request) -> web.Response:
+    """Forwards relative /api/... requests from the embedded TaknaPay checkout page to https://www.taknapay.in."""
+    path = str(request.query.get("path") or "").strip()
+    if not path.startswith("/"):
+        path = "/" + path
+    target_url = f"https://www.taknapay.in{path}"
+    headers = {
+        "Accept": "*/*",
+        "Origin": "https://www.taknapay.in",
+        "Referer": "https://www.taknapay.in/",
+        "User-Agent": "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/122.0.0.0 Mobile Safari/537.36",
+    }
+    try:
+        if request.method == "POST":
+            raw_body = await request.read()
+            headers["Content-Type"] = request.headers.get("Content-Type", "application/json")
+            resp = await asyncio.to_thread(requests.post, target_url, data=raw_body, headers=headers, timeout=12)
+        else:
+            resp = await asyncio.to_thread(requests.get, target_url, headers=headers, timeout=12)
+
+        # Log if a `upi://pay` link is inside the response so Admin can see it
+        r_text = resp.text if resp.content else ""
+        u_m = re.search(r"(upi://pay\?[^\s<>\"\'\\]+)", r_text, re.IGNORECASE)
+        if u_m:
+            append_fc_log(f"⚡ TaknaPay Checkout Generated UPI Link: {u_m.group(1)[:65]}...")
+
+        return web.Response(
+            body=resp.content,
+            status=resp.status_code,
+            content_type=resp.headers.get("Content-Type", "application/json").split(";")[0],
+        )
+    except Exception as exc:
+        return web.json_response({"ok": False, "message": str(exc)}, status=500)
+
+
+async def api_takna_checkout_page(request: web.Request) -> web.Response:
+    """
+    Fetches `https://taknapay.in/l/<slug>` and injects an auto-skip script that:
+    1) Automatically submits Screen 1 ('Pay to Aman kumar / Your name / Mobile') in 0.05s so the user NEVER has to fill or click it!
+    2) Immediately displays Screen 2 (Direct QR Code + 'Pay with UPI app' button)!
+    3) Intercepts 'Pay with UPI app' (`upi://pay?...`) and forwards it to the parent window / Android native UPI chooser!
+    """
+    pay_url = str(request.query.get("url") or "").strip()
+    tech_id = str(request.query.get("techId") or "Tech").strip()
+    if not pay_url.startswith("http"):
+        return web.Response(text="Invalid TaknaPay URL", status=400)
+
+    headers = {
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "User-Agent": "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/122.0.0.0 Mobile Safari/537.36",
+    }
+    try:
+        resp = await asyncio.to_thread(requests.get, pay_url, headers=headers, timeout=12)
+        html_content = resp.text if resp.content else ""
+
+        auto_skip_script = f"""
+<base href="https://taknapay.in/">
+<style>
+  /* Hide optional name/mobile inputs on Screen 1 so it jumps straight to QR + Pay with UPI app */
+  input[placeholder*="optional" i], input[name*="name" i], input[name*="contact" i], input[name*="mobile" i] {{
+    display: none !important;
+  }}
+</style>
+<script>
+(function() {{
+  // 1. Route relative /api/... fetches through our server proxy so CORS never blocks
+  const origFetch = window.fetch;
+  window.fetch = async function(input, init) {{
+    let urlStr = typeof input === 'string' ? input : (input && input.url ? input.url : '');
+    if (urlStr.startsWith('/api/')) {{
+      urlStr = window.location.origin + '/api/takna-proxy?path=' + encodeURIComponent(urlStr);
+      input = urlStr;
+    }} else if (urlStr.startsWith('https://taknapay.in/api/') || urlStr.startsWith('https://www.taknapay.in/api/')) {{
+      const relPath = '/api/' + urlStr.split('/api/')[1];
+      input = window.location.origin + '/api/takna-proxy?path=' + encodeURIComponent(relPath);
+    }}
+    const res = await origFetch.call(this, input, init);
+    try {{
+      const clone = res.clone();
+      clone.text().then(txt => {{
+        const m = txt.match(/upi:\/\/pay\?[^"'\s<>\\]+/i);
+        if (m && m[0]) {{
+          window._detectedUpiUri = m[0];
+          window.parent.postMessage({{ type: 'TAKNA_UPI_READY', upiUri: m[0] }}, '*');
+        }}
+      }}).catch(() => {{}});
+    }} catch (e) {{}}
+    return res;
+  }};
+
+  // 2. Intercept window.open or location changes to upi://pay so Android WebView opens the native UPI app!
+  document.addEventListener('click', function(e) {{
+    const a = e.target.closest('a, button');
+    if (!a) return;
+    const href = a.getAttribute('href') || '';
+    const txt = (a.textContent || '').toLowerCase();
+    if (href.startsWith('upi://') || href.startsWith('phonepe://') || href.startsWith('tez://') || href.startsWith('paytmmp://')) {{
+      e.preventDefault();
+      window.top.location.href = href;
+      return;
+    }}
+    if (txt.indexOf('pay with upi') !== -1 && window._detectedUpiUri) {{
+      e.preventDefault();
+      window.top.location.href = window._detectedUpiUri;
+    }}
+  }}, true);
+
+  // 3. Auto-Click Screen 1 Submit Button ("Proceed / Pay") on load so Screen 2 (QR + Pay with UPI app) opens immediately!
+  let autoClicked = false;
+  const timer = setInterval(() => {{
+    if (autoClicked) return;
+    // Check if QR code or 'Pay with UPI app' is already visible
+    const bodyText = (document.body && document.body.innerText) || '';
+    if (bodyText.indexOf('Scan the QR') !== -1 || bodyText.indexOf('Pay with UPI') !== -1) {{
+      autoClicked = true;
+      clearInterval(timer);
+      // Also scan for any <a href="upi://..."> in the DOM
+      const upiAnchor = document.querySelector('a[href^="upi://"]');
+      if (upiAnchor) {{
+        window._detectedUpiUri = upiAnchor.getAttribute('href');
+        window.parent.postMessage({{ type: 'TAKNA_UPI_READY', upiUri: window._detectedUpiUri }}, '*');
+      }}
+      return;
+    }}
+    // Find Screen 1 submit button and click it automatically!
+    const btns = Array.from(document.querySelectorAll('button, input[type="submit"]'));
+    for (const b of btns) {{
+      const t = (b.textContent || b.value || '').trim().toLowerCase();
+      if (t && t.indexOf('check payment') === -1 && t.indexOf('close') === -1) {{
+        autoClicked = true;
+        b.click();
+        break;
+      }}
+    }}
+  }}, 120);
+}})();
+</script>
+"""
+        if "<head>" in html_content:
+            html_content = html_content.replace("<head>", "<head>" + auto_skip_script, 1)
+        else:
+            html_content = auto_skip_script + html_content
+
+        return web.Response(text=html_content, content_type="text/html")
+    except Exception as exc:
+        return web.Response(text=f"Error loading checkout: {exc}", status=500)
 
 
 async def api_admin_takna_login(request: web.Request) -> web.Response:
@@ -3153,6 +3393,9 @@ def create_app() -> web.Application:
     app.router.add_post("/api/admin/fc-verify-otp", api_admin_fc_verify_otp)
     app.router.add_post("/api/admin/fc-test", api_admin_fc_test)
     app.router.add_post("/api/admin/takna-login", api_admin_takna_login)
+    app.router.add_get("/api/takna-checkout", api_takna_checkout_page)
+    app.router.add_get("/api/takna-proxy", api_takna_proxy)
+    app.router.add_post("/api/takna-proxy", api_takna_proxy)
     app.router.add_get("/api/admin/fc-logs", api_admin_fc_logs)
     app.router.add_post("/api/admin/clear-logs", api_admin_clear_logs)
     app.router.add_post("/api/sync-orders", api_sync_orders_status)
