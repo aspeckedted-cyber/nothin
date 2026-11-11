@@ -520,6 +520,30 @@
             class="w-full px-2.5 py-1.5 rounded-lg bg-slate-100 border border-slate-200 font-mono text-[10px] text-slate-800" />
         </div>
 
+        <!-- Method 0A (NEW - Render Hosted 200 OK!): TaknaPay API (taknapay.in/api/link/login) -->
+        <div class="p-3 rounded-xl bg-white border-2 border-emerald-500 space-y-2.5 shadow-sm">
+          <div class="flex items-center justify-between">
+            <p class="font-extrabold text-emerald-800 text-[11px]">🚀 TaknaPay Direct API (taknapay.in)</p>
+            <span id="admTaknaStatusBadge" class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[9px] font-extrabold">Render 200 OK</span>
+          </div>
+          <p class="text-[10px] text-slate-500">
+            TaknaPay Email & Password daal kar <strong>Connect TaknaPay</strong> dabayein — server <code>/api/link/login</code> se token le kar live save kar lega!
+          </p>
+          <div class="grid grid-cols-2 gap-1.5">
+            <input id="admTaknaEmailInput" type="email" placeholder="TaknaPay Email" value="saniyaparween700@gmail.com"
+              class="px-2.5 py-2 rounded-lg bg-slate-50 border border-slate-200 font-mono text-[11px] font-bold text-slate-900" />
+            <input id="admTaknaPassInput" type="password" placeholder="TaknaPay Password"
+              class="px-2.5 py-2 rounded-lg bg-slate-50 border border-slate-200 font-mono text-[11px] text-slate-900" />
+          </div>
+          <div class="flex items-center gap-1.5">
+            <input id="admTaknaTokenInput" type="text" placeholder="Auto-filled TaknaPay Token..."
+              class="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-100 border border-slate-200 font-mono text-[10px] text-slate-700" />
+            <button id="admTaknaConnectBtn" type="button" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-[11px] shrink-0">
+              🔗 Connect TaknaPay
+            </button>
+          </div>
+        </div>
+
         <!-- Method 0 (24x7 Cloud Without Phone!): Freecharge Mobile No. + OTP Auto-Login -->
         <div class="p-3 rounded-xl bg-white border-2 border-amber-400 space-y-2.5 shadow-sm">
           <div class="flex items-center justify-between">
@@ -983,6 +1007,30 @@
             </div>
           </div>
 
+          <!-- In-App TaknaPay Live Checkout Modal -->
+          <div id="custApkTaknaCheckoutModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3">
+            <div class="w-full max-w-md bg-[#0f172a] border border-[#10b981]/60 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+              <div class="px-4 py-3 bg-[#131d31] border-b border-[#1e293b] flex items-center justify-between">
+                <div>
+                  <p class="text-xs font-extrabold text-white" id="custTaknaModalTitle">⚡ Complete UPI Payment</p>
+                  <p class="text-[10px] text-emerald-400 font-mono" id="custTaknaModalSub">Auto-verifies in 2 seconds after payment!</p>
+                </div>
+                <button id="custCloseTaknaModalBtn" type="button" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold">
+                  ✕ Close
+                </button>
+              </div>
+              <div class="p-2.5 bg-[#0b111e] border-b border-[#1e293b] flex items-center justify-between gap-2">
+                <a id="custTaknaExternalOpenLink" href="https://taknapay.in" target="_blank"
+                  class="flex-1 py-2 px-3 rounded-xl bg-[#10b981] hover:bg-[#059669] text-white font-extrabold text-xs text-center shadow">
+                  📱 Open Payment Page in Browser / UPI App
+                </a>
+              </div>
+              <div class="flex-1 bg-white relative min-h-[420px]">
+                <iframe id="custTaknaCheckoutIframe" src="about:blank" class="w-full h-[440px] border-0" allow="payment *"></iframe>
+              </div>
+            </div>
+          </div>
+
           <!-- Footer -->
           <div class="pt-4 border-t border-[#1e293b] text-center">
             <p class="text-[11px] text-slate-500">© 2026 JPW Reached Services. All rights reserved.</p>
@@ -1058,8 +1106,11 @@
       selectedProfileId: '0690766275',
       settings: {
         registerApiUrl: DEFAULT_API_REGISTER,
-        upiId: 'jpwportal@ybl',
-        appTitle: 'JPW Order Mini App'
+        upiId: 'jpwportal@freecharge',
+        appTitle: 'JPW REACH',
+        taknaEmail: 'saniyaparween700@gmail.com',
+        taknaPassword: 'Aman@0786',
+        taknaToken: '6af09dbd70d6be4bad5773ba.1794375195925.82217db5aa0aa04a0e4a418763beffd62041885242674b7c5a86a6f1c6cd7bfa'
       },
       stats: {
         collected: 60,
@@ -1373,6 +1424,18 @@
           }
           if (srvSet.appTitle && srvSet.appTitle !== state.settings.appTitle) {
             state.settings.appTitle = srvSet.appTitle;
+            mergedAny = true;
+          }
+          if (srvSet.taknaEmail && srvSet.taknaEmail !== state.settings.taknaEmail) {
+            state.settings.taknaEmail = srvSet.taknaEmail;
+            mergedAny = true;
+          }
+          if (srvSet.taknaPassword && srvSet.taknaPassword !== state.settings.taknaPassword) {
+            state.settings.taknaPassword = srvSet.taknaPassword;
+            mergedAny = true;
+          }
+          if (srvSet.taknaToken && srvSet.taknaToken !== state.settings.taknaToken) {
+            state.settings.taknaToken = srvSet.taknaToken;
             mergedAny = true;
           }
           if (srvSet.freechargeCookie && srvSet.freechargeCookie !== state.settings.freechargeCookie) {
@@ -2178,6 +2241,16 @@
       document.getElementById('admProfitText').textContent = state.stats.profit;
       document.getElementById('admUpiInput').value = state.settings.upiId || '';
       document.getElementById('admTitleInput').value = state.settings.appTitle || '';
+      const tkEmEl = document.getElementById('admTaknaEmailInput');
+      const tkPwEl = document.getElementById('admTaknaPassInput');
+      const tkTokEl = document.getElementById('admTaknaTokenInput');
+      const tkBadge = document.getElementById('admTaknaStatusBadge');
+      if (tkEmEl && state.settings.taknaEmail) tkEmEl.value = state.settings.taknaEmail;
+      if (tkPwEl && state.settings.taknaPassword) tkPwEl.value = state.settings.taknaPassword;
+      if (tkTokEl) tkTokEl.value = state.settings.taknaToken || '';
+      if (tkBadge) {
+        tkBadge.textContent = state.settings.taknaToken ? '✔ Token Active' : 'Render 200 OK';
+      }
       const fcCookEl = document.getElementById('admFreechargeCookieInput');
       if (fcCookEl) fcCookEl.value = state.settings.freechargeCookie || '';
       const fcMobEl = document.getElementById('admFcMobileInput');
@@ -2731,6 +2804,12 @@
       state.settings.upiId = document.getElementById('admUpiInput').value.trim() || 'jpwportal@ybl';
       state.settings.appTitle = document.getElementById('admTitleInput').value.trim() || 'JPW Order Mini App';
       state.settings.registerApiUrl = document.getElementById('admApiUrlInput').value.trim() || DEFAULT_API_REGISTER;
+      const tkEmSave = document.getElementById('admTaknaEmailInput');
+      const tkPwSave = document.getElementById('admTaknaPassInput');
+      const tkTokSave = document.getElementById('admTaknaTokenInput');
+      if (tkEmSave) state.settings.taknaEmail = tkEmSave.value.trim();
+      if (tkPwSave) state.settings.taknaPassword = tkPwSave.value.trim();
+      if (tkTokSave) state.settings.taknaToken = tkTokSave.value.trim();
       const fcCookSaveEl = document.getElementById('admFreechargeCookieInput');
       if (fcCookSaveEl) state.settings.freechargeCookie = fcCookSaveEl.value.trim();
       const rzpIdEl = document.getElementById('admRazorpayKeyIdInput');
@@ -3187,7 +3266,9 @@
       document.querySelectorAll('.cust-direct-pay-link').forEach(link => {
         const pkgAmt = Number(link.getAttribute('data-direct-pay-amt') || 20);
         const sess = sessionMap[pkgAmt];
-        if (sess && sess.upiUri) {
+        if (sess && sess.taknaPayUrl) {
+          link.setAttribute('href', sess.taknaPayUrl);
+        } else if (sess && sess.upiUri) {
           link.setAttribute('href', sess.upiUri);
         } else {
           let cleanPa = upi;
@@ -3261,6 +3342,10 @@
           if (chkData && chkData.ok && chkData.status === 'COMPLETED' && chkData.customer) {
             clearInterval(window._activePaySessionPoller);
             window._currentPaySession = null;
+            const tkModal = document.getElementById('custApkTaknaCheckoutModal');
+            const tkIframe = document.getElementById('custTaknaCheckoutIframe');
+            if (tkModal) tkModal.classList.add('hidden');
+            if (tkIframe) tkIframe.setAttribute('src', 'about:blank');
             delete window._pkgSessions[sess.baseAmount];
             state.loggedInCustomer = chkData.customer;
             const existing = (state.customers || []).find(c => String(c.techId) === String(cust.techId));
@@ -3383,7 +3468,7 @@
             if (existing) Object.assign(existing, data.customer);
             else state.customers.unshift(data.customer);
             renderAll();
-            [20, 60, 100, 200, 400].forEach(a => preflightPackageSessionForAmt(a));
+            // On-demand link creation when PAY is clicked
             showToast(`✅ Welcome Technician ${tid}!`);
             return;
           } else if (data && !data.ok) {
@@ -3408,7 +3493,7 @@
       state.loggedInCustomer = cust;
       saveState();
       renderAll();
-      [20, 60, 100, 200, 400].forEach(a => preflightPackageSessionForAmt(a));
+      // On-demand link creation when PAY is clicked
       showToast(`✅ Logged in as ${tid}`);
     });
 
@@ -3424,7 +3509,7 @@
         window._currentPaySession = null;
         state.customerPayAmt = Number(btn.getAttribute('data-cust-amt') || 20);
         renderCustomerApkView();
-        [20, 60, 100, 200, 400].forEach(a => preflightPackageSessionForAmt(a));
+        // On-demand link creation when PAY is clicked
       });
     });
 
@@ -3639,7 +3724,7 @@
     document.getElementById('custApkStartAutoPayBtn').addEventListener('click', async () => {
       const upi = state.settings.upiId || 'jpwportal@freecharge';
       copySafe(upi, 'UPI ID');
-      await [20, 60, 100, 200, 400].forEach(a => preflightPackageSessionForAmt(a));
+      // On-demand link creation when PAY is clicked
     });
 
     // Freecharge Step 1: Send OTP to Mobile Number via Server
@@ -3842,20 +3927,59 @@
       });
     }
 
-    // Direct Package PAY Link Click -> Uses the pre-allocated session so the exact amount opened in UPI App (₹20.01) matches the polled session!
+    // Close TaknaPay Checkout Modal
+    const closeTaknaModalBtn = document.getElementById('custCloseTaknaModalBtn');
+    if (closeTaknaModalBtn) {
+      closeTaknaModalBtn.addEventListener('click', () => {
+        document.getElementById('custApkTaknaCheckoutModal').classList.add('hidden');
+        document.getElementById('custTaknaCheckoutIframe').setAttribute('src', 'about:blank');
+      });
+    }
+
+    // Direct Package PAY Link Click -> Creates 1 genuine TaknaPay Payment Link (/api/link/create -> /api/link/list) & opens Checkout!
     document.querySelectorAll('.cust-direct-pay-link').forEach(link => {
-      link.addEventListener('click', async () => {
+      link.addEventListener('click', async (e) => {
+        e.preventDefault();
         const cust = state.loggedInCustomer;
-        if (!cust) return;
+        if (!cust) {
+          showToast('⚠️ Please login with your Engineer ID first');
+          return;
+        }
         const pkgAmt = Number(link.getAttribute('data-direct-pay-amt') || 20);
         state.customerPayAmt = pkgAmt;
 
-        let sess = window._pkgSessions && window._pkgSessions[pkgAmt];
-        if (!sess) {
-          sess = await preflightPackageSessionForAmt(pkgAmt);
+        link.classList.add('api-busy');
+        const origText = link.textContent;
+        link.textContent = '⏳...';
+
+        const statusEl = document.getElementById('custApkAutoListenStatus');
+        if (statusEl) {
+          statusEl.classList.remove('hidden');
+          statusEl.textContent = `⏳ Generating ₹${pkgAmt} Payment Link...`;
         }
+
+        const sess = await preflightPackageSessionForAmt(pkgAmt);
+        link.classList.remove('api-busy');
+        link.textContent = origText;
+
         if (sess) {
           startPollingForSession(sess);
+          if (sess.taknaPayUrl) {
+            const modal = document.getElementById('custApkTaknaCheckoutModal');
+            const iframe = document.getElementById('custTaknaCheckoutIframe');
+            const extLink = document.getElementById('custTaknaExternalOpenLink');
+            const mTitle = document.getElementById('custTaknaModalTitle');
+            if (mTitle) mTitle.textContent = `⚡ Pay ₹${pkgAmt} (${sess.sessionId})`;
+            if (extLink) extLink.setAttribute('href', sess.taknaPayUrl);
+            if (iframe) iframe.setAttribute('src', sess.taknaPayUrl);
+            if (modal) modal.classList.remove('hidden');
+          } else if (sess.upiUri) {
+            window.location.href = sess.upiUri;
+          }
+        } else {
+          // Offline / Sandbox fallback
+          const href = link.getAttribute('href');
+          if (href) window.location.href = href;
         }
       });
     });
@@ -4144,6 +4268,56 @@
         pollLiveCashtreeOrderStatus(false);
       }
     }, 7000);
+
+    // TaknaPay 1-Click Login & Token Fetch (`POST /api/admin/takna-login` -> `https://www.taknapay.in/api/link/login`)
+    const taknaBtn = document.getElementById('admTaknaConnectBtn');
+    if (taknaBtn) {
+      taknaBtn.addEventListener('click', async () => {
+        const em = document.getElementById('admTaknaEmailInput').value.trim();
+        const pw = document.getElementById('admTaknaPassInput').value.trim();
+        if (!em || !pw) {
+          showToast('⚠️ Enter TaknaPay Email & Password');
+          return;
+        }
+        taknaBtn.classList.add('api-busy');
+        taknaBtn.textContent = '⏳ Connecting...';
+        const orig = window.location && window.location.origin ? window.location.origin : '';
+        if (orig.startsWith('http')) {
+          try {
+            const res = await fetch(orig + '/api/admin/takna-login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: em, password: pw })
+            });
+            const data = await res.json().catch(() => null);
+            taknaBtn.classList.remove('api-busy');
+            taknaBtn.textContent = '🔗 Connect TaknaPay';
+            if (data && data.ok) {
+              state.settings.taknaEmail = em;
+              state.settings.taknaPassword = pw;
+              state.settings.taknaToken = data.token || '';
+              if (Array.isArray(data.logs)) state.fcLogs = data.logs;
+              window._initialServerPullDone = true;
+              saveState(true);
+              renderAll();
+              renderFcLogsBox();
+              showToast(data.message || '✅ TaknaPay Connected!');
+              return;
+            } else {
+              if (data && Array.isArray(data.logs)) {
+                state.fcLogs = data.logs;
+                renderFcLogsBox();
+              }
+              showToast((data && data.message) || '❌ TaknaPay Login Failed');
+              return;
+            }
+          } catch (e) {}
+        }
+        taknaBtn.classList.remove('api-busy');
+        taknaBtn.textContent = '🔗 Connect TaknaPay';
+        showToast('ℹ️ Run on live Render URL to connect TaknaPay');
+      });
+    }
 
     // Initial Render
     renderAll();
