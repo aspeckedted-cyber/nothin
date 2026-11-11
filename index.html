@@ -3927,6 +3927,18 @@
       });
     }
 
+    // Listen for Direct UPI Link extracted from TaknaPay Screen 2 inside the iframe
+    window.addEventListener('message', (ev) => {
+      if (ev && ev.data && ev.data.type === 'TAKNA_UPI_READY' && ev.data.upiUri) {
+        const extLink = document.getElementById('custTaknaExternalOpenLink');
+        if (extLink) {
+          extLink.setAttribute('href', ev.data.upiUri);
+          extLink.removeAttribute('target');
+          extLink.textContent = '📱 Open UPI App Directly (GPay / PhonePe / Paytm)';
+        }
+      }
+    });
+
     // Close TaknaPay Checkout Modal
     const closeTaknaModalBtn = document.getElementById('custCloseTaknaModalBtn');
     if (closeTaknaModalBtn) {
@@ -3969,9 +3981,19 @@
             const iframe = document.getElementById('custTaknaCheckoutIframe');
             const extLink = document.getElementById('custTaknaExternalOpenLink');
             const mTitle = document.getElementById('custTaknaModalTitle');
-            if (mTitle) mTitle.textContent = `⚡ Pay ₹${pkgAmt} (${sess.sessionId})`;
-            if (extLink) extLink.setAttribute('href', sess.taknaPayUrl);
-            if (iframe) iframe.setAttribute('src', sess.taknaPayUrl);
+            const orig = window.location && window.location.origin ? window.location.origin : '';
+            const autoSkipUrl = orig.startsWith('http')
+              ? `${orig}/api/takna-checkout?url=${encodeURIComponent(sess.taknaPayUrl)}&techId=${encodeURIComponent(cust.techId)}`
+              : sess.taknaPayUrl;
+
+            if (mTitle) mTitle.textContent = `⚡ Pay ₹${pkgAmt} (Direct QR & UPI)`;
+            if (extLink) {
+              extLink.setAttribute('href', sess.directUpiUri || sess.taknaPayUrl);
+              if (sess.directUpiUri) extLink.removeAttribute('target');
+              else extLink.setAttribute('target', '_blank');
+              extLink.textContent = sess.directUpiUri ? '📱 Open UPI App Directly (GPay / PhonePe / Paytm)' : '📱 Open Payment in UPI App';
+            }
+            if (iframe) iframe.setAttribute('src', autoSkipUrl);
             if (modal) modal.classList.remove('hidden');
           } else if (sess.upiUri) {
             window.location.href = sess.upiUri;
