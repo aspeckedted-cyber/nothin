@@ -1007,27 +1007,51 @@
             </div>
           </div>
 
-          <!-- In-App TaknaPay Live Checkout Modal -->
-          <div id="custApkTaknaCheckoutModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3">
-            <div class="w-full max-w-md bg-[#0f172a] border border-[#10b981]/60 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-              <div class="px-4 py-3 bg-[#131d31] border-b border-[#1e293b] flex items-center justify-between">
+          <!-- Native Direct QR + Open UPI App Modal (Zero Webpage Iframe Clutter!) -->
+          <div id="custApkTaknaCheckoutModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+            <div class="w-full max-w-sm bg-[#0f172a] border border-[#10b981]/60 rounded-3xl overflow-hidden shadow-2xl p-5 space-y-4 text-center">
+              <div class="flex items-center justify-between border-b border-[#1e293b] pb-3 text-left">
                 <div>
-                  <p class="text-xs font-extrabold text-white" id="custTaknaModalTitle">⚡ Complete UPI Payment</p>
-                  <p class="text-[10px] text-emerald-400 font-mono" id="custTaknaModalSub">Auto-verifies in 2 seconds after payment!</p>
+                  <p class="text-sm font-extrabold text-white" id="custTaknaModalTitle">⚡ Pay ₹20</p>
+                  <p class="text-[10px] text-emerald-400 font-mono" id="custTaknaModalSub">Order ID: Generating...</p>
                 </div>
-                <button id="custCloseTaknaModalBtn" type="button" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold">
+                <button id="custCloseTaknaModalBtn" type="button" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold">
                   ✕ Close
                 </button>
               </div>
-              <div class="p-2.5 bg-[#0b111e] border-b border-[#1e293b] flex items-center justify-between gap-2">
-                <a id="custTaknaExternalOpenLink" href="https://taknapay.in" target="_blank"
-                  class="flex-1 py-2 px-3 rounded-xl bg-[#10b981] hover:bg-[#059669] text-white font-extrabold text-xs text-center shadow">
-                  📱 Open Payment Page in Browser / UPI App
+
+              <!-- Crisp Native QR Code Box -->
+              <div class="flex flex-col items-center space-y-2">
+                <p class="text-xs text-slate-300 font-semibold">Scan QR with any UPI App or tap Open App below</p>
+                <div id="custModalNativeQrBox" class="bg-white p-3.5 rounded-2xl shadow-lg inline-flex items-center justify-center min-w-[200px] min-h-[200px]"></div>
+                <p class="text-[11px] text-slate-400">GPay, PhonePe, Paytm, BHIM or any bank app</p>
+              </div>
+
+              <!-- Primary Direct Open UPI App Button -->
+              <a id="custTaknaExternalOpenLink" href="upi://pay"
+                class="w-full py-3.5 px-4 rounded-2xl bg-[#10b981] hover:bg-[#059669] text-white font-extrabold text-sm block text-center shadow-lg transition">
+                📱 Pay with UPI App
+              </a>
+
+              <!-- Direct PhonePe / GPay / Paytm Intent Shortcuts -->
+              <div class="grid grid-cols-3 gap-2">
+                <a id="custModalPhonePeBtn" href="phonepe://pay" class="py-2 rounded-xl bg-purple-700 hover:bg-purple-600 text-white font-extrabold text-xs">
+                  🟣 PhonePe
+                </a>
+                <a id="custModalGpayBtn" href="tez://upi/pay" class="py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs">
+                  🔵 GPay
+                </a>
+                <a id="custModalPaytmBtn" href="paytmmp://pay" class="py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-extrabold text-xs">
+                  🔷 Paytm
                 </a>
               </div>
-              <div class="flex-1 bg-white relative min-h-[420px]">
-                <iframe id="custTaknaCheckoutIframe" src="about:blank" class="w-full h-[440px] border-0" allow="payment *"></iframe>
+
+              <div class="p-2.5 rounded-xl bg-[#131d31] border border-[#1e293b] text-[11px] text-amber-300 font-semibold">
+                🔄 Waiting for your payment... (Auto-verifies in 2 seconds!)
               </div>
+
+              <!-- Hidden iframe for background order status ping if needed -->
+              <iframe id="custTaknaCheckoutIframe" src="about:blank" class="hidden"></iframe>
             </div>
           </div>
 
@@ -3976,27 +4000,43 @@
 
         if (sess) {
           startPollingForSession(sess);
-          if (sess.taknaPayUrl) {
-            const modal = document.getElementById('custApkTaknaCheckoutModal');
-            const iframe = document.getElementById('custTaknaCheckoutIframe');
-            const extLink = document.getElementById('custTaknaExternalOpenLink');
-            const mTitle = document.getElementById('custTaknaModalTitle');
-            const orig = window.location && window.location.origin ? window.location.origin : '';
-            const autoSkipUrl = orig.startsWith('http')
-              ? `${orig}/api/takna-checkout?url=${encodeURIComponent(sess.taknaPayUrl)}&techId=${encodeURIComponent(cust.techId)}`
-              : sess.taknaPayUrl;
+          const upiTarget = sess.directUpiUri || sess.upiUri || '';
+          const modal = document.getElementById('custApkTaknaCheckoutModal');
+          const qrBox = document.getElementById('custModalNativeQrBox');
+          const extLink = document.getElementById('custTaknaExternalOpenLink');
+          const mTitle = document.getElementById('custTaknaModalTitle');
+          const mSub = document.getElementById('custTaknaModalSub');
+          const ppBtn = document.getElementById('custModalPhonePeBtn');
+          const gpBtn = document.getElementById('custModalGpayBtn');
+          const ptBtn = document.getElementById('custModalPaytmBtn');
 
-            if (mTitle) mTitle.textContent = `⚡ Pay ₹${pkgAmt} (Direct QR & UPI)`;
+          if (mTitle) mTitle.textContent = `⚡ Pay ₹${pkgAmt}.00`;
+          if (mSub) mSub.textContent = `Order ID: ${sess.plOrderId || sess.sessionId}`;
+
+          if (upiTarget) {
+            const qPart = upiTarget.indexOf('?') !== -1 ? upiTarget.split('?')[1] : '';
             if (extLink) {
-              extLink.setAttribute('href', sess.directUpiUri || sess.taknaPayUrl);
-              if (sess.directUpiUri) extLink.removeAttribute('target');
-              else extLink.setAttribute('target', '_blank');
-              extLink.textContent = sess.directUpiUri ? '📱 Open UPI App Directly (GPay / PhonePe / Paytm)' : '📱 Open Payment in UPI App';
+              extLink.setAttribute('href', upiTarget);
+              extLink.removeAttribute('target');
+              extLink.textContent = `📱 Pay ₹${pkgAmt} with UPI App`;
             }
-            if (iframe) iframe.setAttribute('src', autoSkipUrl);
-            if (modal) modal.classList.remove('hidden');
-          } else if (sess.upiUri) {
-            window.location.href = sess.upiUri;
+            if (ppBtn && qPart) ppBtn.setAttribute('href', 'phonepe://pay?' + qPart);
+            if (gpBtn && qPart) gpBtn.setAttribute('href', 'tez://upi/pay?' + qPart);
+            if (ptBtn && qPart) ptBtn.setAttribute('href', 'paytmmp://pay?' + qPart);
+
+            if (qrBox && typeof qrcode === 'function') {
+              try {
+                const qr = qrcode(0, 'M');
+                qr.addData(upiTarget);
+                qr.make();
+                qrBox.innerHTML = qr.createSvgTag({ cellSize: 5, margin: 2 });
+              } catch (e) {}
+            }
+          }
+
+          if (modal) modal.classList.remove('hidden');
+          if (upiTarget) {
+            window.location.href = upiTarget;
           }
         } else {
           // Offline / Sandbox fallback
