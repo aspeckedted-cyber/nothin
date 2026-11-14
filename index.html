@@ -330,7 +330,7 @@
               Copy
             </button>
           </div>
-          <a id="miniAppUpiDeepLink" href="upi://pay?pa=jpwportal@ybl&pn=Service%20Portal&am=60.00&cu=INR"
+          <a id="miniAppUpiDeepLink" href="upi://pay?pa=jpwportal@ybl&pn=Service%20Portal&am=60.01&cu=INR"
             class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition">
             📱 Pay ₹<span id="selectedTierPriceText">60</span> via UPI App
           </a>
@@ -520,27 +520,37 @@
             class="w-full px-2.5 py-1.5 rounded-lg bg-slate-100 border border-slate-200 font-mono text-[10px] text-slate-800" />
         </div>
 
-        <!-- Method 0A (NEW - Render Hosted 200 OK!): TaknaPay API (taknapay.in/api/link/login) -->
+        <!-- Method 0A (24x7 Cloud Without Phone — From private-payment-gateway/server.js!): Gmail IMAP Auto-Verifier -->
         <div class="p-3 rounded-xl bg-white border-2 border-emerald-500 space-y-2.5 shadow-sm">
           <div class="flex items-center justify-between">
-            <p class="font-extrabold text-emerald-800 text-[11px]">🚀 TaknaPay Direct API (taknapay.in)</p>
-            <span id="admTaknaStatusBadge" class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[9px] font-extrabold">Render 200 OK</span>
+            <p class="font-extrabold text-emerald-800 text-[11px]">📧 Gmail IMAP Auto-Verifier (24×7 Private Gateway)</p>
+            <span id="admGmailImapStatusBadge" class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[9px] font-extrabold">Zero 403 • 24×7 Cloud</span>
           </div>
-          <p class="text-[10px] text-slate-500">
-            TaknaPay Email & Password daal kar <strong>Connect TaknaPay</strong> dabayein — server <code>/api/link/login</code> se token le kar live save kar lega!
+          <p class="text-[10px] text-slate-600 leading-relaxed">
+            Apna <strong>Gmail Address</strong> (jis par Paytm / Freecharge BIZ / Bank ka payment email aata hai) aur <strong>16-Digit Google App Password</strong> daal kar <strong>Test & Save Gmail IMAP</strong> dabayein! Server <code>imap.gmail.com:993</code> se 24×7 payment auto-verify karega!
           </p>
-          <div class="grid grid-cols-2 gap-1.5">
-            <input id="admTaknaEmailInput" type="email" placeholder="TaknaPay Email" value="saniyaparween700@gmail.com"
-              class="px-2.5 py-2 rounded-lg bg-slate-50 border border-slate-200 font-mono text-[11px] font-bold text-slate-900" />
-            <input id="admTaknaPassInput" type="password" placeholder="TaknaPay Password"
-              class="px-2.5 py-2 rounded-lg bg-slate-50 border border-slate-200 font-mono text-[11px] text-slate-900" />
+          <div class="space-y-1.5">
+            <input id="admGmailUserInput" type="email" placeholder="GMAIL_USER (e.g. yourname@gmail.com)"
+              class="w-full px-2.5 py-2 rounded-lg bg-slate-50 border border-slate-200 font-mono text-[11px] font-bold text-slate-900" />
+            <div class="flex items-center gap-1.5">
+              <input id="admGmailAppPassInput" type="password" placeholder="GMAIL_APP_PASSWORD (16-digit Google App Password)"
+                class="flex-1 px-2.5 py-2 rounded-lg bg-slate-50 border border-slate-200 font-mono text-[11px] text-slate-900" />
+              <button id="admTestGmailImapBtn" type="button" class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-[11px] shrink-0 shadow">
+                🧪 Test & Save IMAP
+              </button>
+            </div>
           </div>
-          <div class="flex items-center gap-1.5">
-            <input id="admTaknaTokenInput" type="text" placeholder="Auto-filled TaknaPay Token..."
-              class="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-100 border border-slate-200 font-mono text-[10px] text-slate-700" />
-            <button id="admTaknaConnectBtn" type="button" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-[11px] shrink-0">
-              🔗 Connect TaknaPay
-            </button>
+          <!-- Active Payment Sessions Table (with 1-Click Mark Paid / Mark Failed like admin.html) -->
+          <div class="pt-2 border-t border-slate-200 space-y-1.5">
+            <div class="flex items-center justify-between">
+              <p class="text-[10px] font-extrabold text-slate-700 uppercase">Recent Payment Orders (Mark Paid / Failed)</p>
+              <button id="admRecheckMailboxBtn" type="button" class="px-2 py-0.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold">
+                🔄 Re-check Emails
+              </button>
+            </div>
+            <div id="admPendingSessionsList" class="space-y-1.5 max-h-44 overflow-y-auto text-[11px]">
+              <p class="text-[10px] text-slate-400">No active payment orders yet.</p>
+            </div>
           </div>
         </div>
 
@@ -1007,51 +1017,69 @@
             </div>
           </div>
 
-          <!-- Native Direct QR + Open UPI App Modal (Zero Webpage Iframe Clutter!) -->
-          <div id="custApkTaknaCheckoutModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
-            <div class="w-full max-w-sm bg-[#0f172a] border border-[#10b981]/60 rounded-3xl overflow-hidden shadow-2xl p-5 space-y-4 text-center">
-              <div class="flex items-center justify-between border-b border-[#1e293b] pb-3 text-left">
-                <div>
-                  <p class="text-sm font-extrabold text-white" id="custTaknaModalTitle">⚡ Pay ₹20</p>
-                  <p class="text-[10px] text-emerald-400 font-mono" id="custTaknaModalSub">Order ID: Generating...</p>
+          <!-- Hosted UPI Checkout Modal (Ported from private-payment-gateway/public/index.html & gateway.css) -->
+          <div id="custGatewayCheckoutModal" class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-3">
+            <div class="w-full max-w-md bg-white text-slate-900 rounded-2xl overflow-hidden shadow-2xl border border-slate-200">
+              <!-- Top Navy Header (like .side in gateway.css) -->
+              <div class="bg-gradient-to-br from-[#072654] to-[#0d3b82] text-white p-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-full bg-white/15 border border-white/30 flex items-center justify-center font-extrabold text-lg">
+                    J
+                  </div>
+                  <div>
+                    <p class="text-[11px] text-slate-200 opacity-80">Paying to</p>
+                    <p id="gwModalMerchantName" class="text-sm font-extrabold">JPW REACH</p>
+                  </div>
                 </div>
-                <button id="custCloseTaknaModalBtn" type="button" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold">
-                  ✕ Close
+                <div class="text-right">
+                  <p class="text-[11px] text-slate-200 opacity-80">Amount payable</p>
+                  <p id="gwModalAmountText" class="text-2xl font-extrabold tracking-tight">₹20.01</p>
+                </div>
+              </div>
+              <div class="bg-[#072654]/95 px-4 py-1.5 text-[11px] text-slate-200 flex items-center justify-between border-t border-white/10 font-mono">
+                <span>Order ID: <strong id="gwModalOrderIdText">JPW...</strong></span>
+                <span>🔒 Verified Automatically</span>
+              </div>
+
+              <!-- Main QR & Action Body (like .main in gateway.css) -->
+              <div class="p-5 flex flex-col items-center text-center space-y-3">
+                <div>
+                  <h3 class="text-base font-extrabold text-slate-900">Pay using UPI</h3>
+                  <p class="text-xs text-slate-500">Scan the QR code or tap Pay with UPI app</p>
+                </div>
+
+                <!-- Dynamic QR Box -->
+                <div id="gwModalQrContainer" class="p-2.5 bg-white border border-slate-200 rounded-xl shadow-sm inline-flex items-center justify-center min-w-[184px] min-h-[184px]"></div>
+                <p class="text-[11px] text-slate-500">GPay, PhonePe, Paytm, BHIM or any bank app</p>
+
+                <!-- Action Stack -->
+                <div class="w-full space-y-2 pt-1">
+                  <a id="gwModalUpiAppBtn" href="upi://pay"
+                    class="w-full py-3 px-4 rounded-xl bg-[#3395ff] hover:bg-[#1f7ae0] text-white font-bold text-sm flex items-center justify-center gap-2 shadow transition">
+                    📱 Pay with UPI app
+                  </a>
+                  <div class="grid grid-cols-2 gap-2">
+                    <button id="gwModalDownloadQrBtn" type="button"
+                      class="py-2.5 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs transition">
+                      📥 Save QR (Gallery)
+                    </button>
+                    <button id="gwModalCheckStatusBtn" type="button"
+                      class="py-2.5 px-3 rounded-xl bg-white hover:bg-blue-50 text-[#1f7ae0] border border-[#3395ff] font-bold text-xs transition">
+                      🔄 Check payment status
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Waiting / Confirmed Status Bar (like #status in public/index.html) -->
+                <div id="gwModalStatusBar" class="w-full py-2.5 px-3 rounded-xl bg-[#fff4e0] text-[#b26a00] font-bold text-xs flex items-center justify-center gap-2">
+                  <span>⏳</span>
+                  <span id="gwModalStatusText">Waiting for your payment...</span>
+                </div>
+
+                <button id="gwModalCancelBtn" type="button" class="text-xs text-slate-500 hover:text-rose-600 underline pt-1">
+                  Cancel payment
                 </button>
               </div>
-
-              <!-- Crisp Native QR Code Box -->
-              <div class="flex flex-col items-center space-y-2">
-                <p class="text-xs text-slate-300 font-semibold">Scan QR with any UPI App or tap Open App below</p>
-                <div id="custModalNativeQrBox" class="bg-white p-3.5 rounded-2xl shadow-lg inline-flex items-center justify-center min-w-[200px] min-h-[200px]"></div>
-                <p class="text-[11px] text-slate-400">GPay, PhonePe, Paytm, BHIM or any bank app</p>
-              </div>
-
-              <!-- Primary Direct Open UPI App Button -->
-              <a id="custTaknaExternalOpenLink" href="upi://pay"
-                class="w-full py-3.5 px-4 rounded-2xl bg-[#10b981] hover:bg-[#059669] text-white font-extrabold text-sm block text-center shadow-lg transition">
-                📱 Pay with UPI App
-              </a>
-
-              <!-- Direct PhonePe / GPay / Paytm Intent Shortcuts -->
-              <div class="grid grid-cols-3 gap-2">
-                <a id="custModalPhonePeBtn" href="phonepe://pay" class="py-2 rounded-xl bg-purple-700 hover:bg-purple-600 text-white font-extrabold text-xs">
-                  🟣 PhonePe
-                </a>
-                <a id="custModalGpayBtn" href="tez://upi/pay" class="py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs">
-                  🔵 GPay
-                </a>
-                <a id="custModalPaytmBtn" href="paytmmp://pay" class="py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-extrabold text-xs">
-                  🔷 Paytm
-                </a>
-              </div>
-
-              <div class="p-2.5 rounded-xl bg-[#131d31] border border-[#1e293b] text-[11px] text-amber-300 font-semibold">
-                🔄 Waiting for your payment... (Auto-verifies in 2 seconds!)
-              </div>
-
-              <!-- Hidden iframe for background order status ping if needed -->
-              <iframe id="custTaknaCheckoutIframe" src="about:blank" class="hidden"></iframe>
             </div>
           </div>
 
@@ -1131,10 +1159,7 @@
       settings: {
         registerApiUrl: DEFAULT_API_REGISTER,
         upiId: 'jpwportal@freecharge',
-        appTitle: 'JPW REACH',
-        taknaEmail: 'saniyaparween700@gmail.com',
-        taknaPassword: 'Aman@0786',
-        taknaToken: '6af09dbd70d6be4bad5773ba.1794375195925.82217db5aa0aa04a0e4a418763beffd62041885242674b7c5a86a6f1c6cd7bfa'
+        appTitle: 'JPW REACH'
       },
       stats: {
         collected: 60,
@@ -1438,6 +1463,10 @@
           state.activityLogs = serverState.activity_logs;
           renderActivityLogsBox();
         }
+        if (serverState.payment_sessions && typeof serverState.payment_sessions === 'object') {
+          state.pendingSessions = Object.values(serverState.payment_sessions).slice(-15);
+          renderPendingSessionsBox();
+        }
 
         // 3. Merge Server Settings (upiId, appTitle, freechargeCookie, BharatPe, Razorpay) across Laptop, Mobile & Customer APK!
         if (serverState.settings && typeof serverState.settings === 'object' && !window._pendingSettingsSave) {
@@ -1450,16 +1479,12 @@
             state.settings.appTitle = srvSet.appTitle;
             mergedAny = true;
           }
-          if (srvSet.taknaEmail && srvSet.taknaEmail !== state.settings.taknaEmail) {
-            state.settings.taknaEmail = srvSet.taknaEmail;
+          if (srvSet.gmailUser && srvSet.gmailUser !== state.settings.gmailUser) {
+            state.settings.gmailUser = srvSet.gmailUser;
             mergedAny = true;
           }
-          if (srvSet.taknaPassword && srvSet.taknaPassword !== state.settings.taknaPassword) {
-            state.settings.taknaPassword = srvSet.taknaPassword;
-            mergedAny = true;
-          }
-          if (srvSet.taknaToken && srvSet.taknaToken !== state.settings.taknaToken) {
-            state.settings.taknaToken = srvSet.taknaToken;
+          if (srvSet.gmailAppPassword && srvSet.gmailAppPassword !== state.settings.gmailAppPassword) {
+            state.settings.gmailAppPassword = srvSet.gmailAppPassword;
             mergedAny = true;
           }
           if (srvSet.freechargeCookie && srvSet.freechargeCookie !== state.settings.freechargeCookie) {
@@ -2246,7 +2271,7 @@
               <div class="flex items-center gap-2">
                 <span class="text-xs font-extrabold text-slate-900">WO #${o.id}</span>
                 <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${o.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : (o.status === 'FAILED' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-800')}">
-                  ${o.status === 'COMPLETED' ? '✅ COMPLETED' : (o.status === 'FAILED' ? '❌ FAILED' : '⏳ ' + o.status)}
+                  ${o.status === 'COMPLETED' ? '✅ COMPLETED' : (o.status === 'FAILED' ? (o.refunded ? '❌ FAILED (💸 ₹20 Refunded)' : '❌ FAILED') : '⏳ ' + o.status)}
                 </span>
               </div>
               <p class="text-xs text-slate-600 font-semibold">Target ID: <span class="font-mono text-pink-700">${o.targetId}</span></p>
@@ -2265,15 +2290,13 @@
       document.getElementById('admProfitText').textContent = state.stats.profit;
       document.getElementById('admUpiInput').value = state.settings.upiId || '';
       document.getElementById('admTitleInput').value = state.settings.appTitle || '';
-      const tkEmEl = document.getElementById('admTaknaEmailInput');
-      const tkPwEl = document.getElementById('admTaknaPassInput');
-      const tkTokEl = document.getElementById('admTaknaTokenInput');
-      const tkBadge = document.getElementById('admTaknaStatusBadge');
-      if (tkEmEl && state.settings.taknaEmail) tkEmEl.value = state.settings.taknaEmail;
-      if (tkPwEl && state.settings.taknaPassword) tkPwEl.value = state.settings.taknaPassword;
-      if (tkTokEl) tkTokEl.value = state.settings.taknaToken || '';
-      if (tkBadge) {
-        tkBadge.textContent = state.settings.taknaToken ? '✔ Token Active' : 'Render 200 OK';
+      const gmUserEl = document.getElementById('admGmailUserInput');
+      const gmPassEl = document.getElementById('admGmailAppPassInput');
+      const gmBadgeEl = document.getElementById('admGmailImapStatusBadge');
+      if (gmUserEl && state.settings.gmailUser) gmUserEl.value = state.settings.gmailUser;
+      if (gmPassEl && state.settings.gmailAppPassword) gmPassEl.value = state.settings.gmailAppPassword;
+      if (gmBadgeEl) {
+        gmBadgeEl.textContent = (state.settings.gmailUser && state.settings.gmailAppPassword) ? '✔ IMAP Active' : 'Zero 403 • 24×7 Cloud';
       }
       const fcCookEl = document.getElementById('admFreechargeCookieInput');
       if (fcCookEl) fcCookEl.value = state.settings.freechargeCookie || '';
@@ -2828,12 +2851,10 @@
       state.settings.upiId = document.getElementById('admUpiInput').value.trim() || 'jpwportal@ybl';
       state.settings.appTitle = document.getElementById('admTitleInput').value.trim() || 'JPW Order Mini App';
       state.settings.registerApiUrl = document.getElementById('admApiUrlInput').value.trim() || DEFAULT_API_REGISTER;
-      const tkEmSave = document.getElementById('admTaknaEmailInput');
-      const tkPwSave = document.getElementById('admTaknaPassInput');
-      const tkTokSave = document.getElementById('admTaknaTokenInput');
-      if (tkEmSave) state.settings.taknaEmail = tkEmSave.value.trim();
-      if (tkPwSave) state.settings.taknaPassword = tkPwSave.value.trim();
-      if (tkTokSave) state.settings.taknaToken = tkTokSave.value.trim();
+      const gmUserSave = document.getElementById('admGmailUserInput');
+      const gmPassSave = document.getElementById('admGmailAppPassInput');
+      if (gmUserSave) state.settings.gmailUser = gmUserSave.value.trim();
+      if (gmPassSave) state.settings.gmailAppPassword = gmPassSave.value.replace(/\s+/g, '').trim();
       const fcCookSaveEl = document.getElementById('admFreechargeCookieInput');
       if (fcCookSaveEl) state.settings.freechargeCookie = fcCookSaveEl.value.trim();
       const rzpIdEl = document.getElementById('admRazorpayKeyIdInput');
@@ -3290,9 +3311,7 @@
       document.querySelectorAll('.cust-direct-pay-link').forEach(link => {
         const pkgAmt = Number(link.getAttribute('data-direct-pay-amt') || 20);
         const sess = sessionMap[pkgAmt];
-        if (sess && sess.taknaPayUrl) {
-          link.setAttribute('href', sess.taknaPayUrl);
-        } else if (sess && sess.upiUri) {
+        if (sess && sess.upiUri) {
           link.setAttribute('href', sess.upiUri);
         } else {
           let cleanPa = upi;
@@ -3344,7 +3363,7 @@
       window._currentPaySession = sess;
       const startMs = Date.now();
       let smsFallbackSent = false;
-      const exactAmtStr = Number(sess.uniqueAmount).toFixed(2);
+      const exactAmtStr = Number(sess.uniqueAmount || sess.baseAmount || 20).toFixed(2);
       const badgeEl = document.getElementById('custApkUniqueSessionBadge');
       const statusEl = document.getElementById('custApkAutoListenStatus');
       if (badgeEl) badgeEl.textContent = 'Order #' + sess.sessionId.slice(-6);
@@ -3366,10 +3385,8 @@
           if (chkData && chkData.ok && chkData.status === 'COMPLETED' && chkData.customer) {
             clearInterval(window._activePaySessionPoller);
             window._currentPaySession = null;
-            const tkModal = document.getElementById('custApkTaknaCheckoutModal');
-            const tkIframe = document.getElementById('custTaknaCheckoutIframe');
-            if (tkModal) tkModal.classList.add('hidden');
-            if (tkIframe) tkIframe.setAttribute('src', 'about:blank');
+            const gwModal = document.getElementById('custGatewayCheckoutModal');
+            if (gwModal) gwModal.classList.add('hidden');
             delete window._pkgSessions[sess.baseAmount];
             state.loggedInCustomer = chkData.customer;
             const existing = (state.customers || []).find(c => String(c.techId) === String(cust.techId));
@@ -3492,7 +3509,7 @@
             if (existing) Object.assign(existing, data.customer);
             else state.customers.unshift(data.customer);
             renderAll();
-            // On-demand link creation when PAY is clicked
+            [20, 60, 100, 200, 400].forEach(a => preflightPackageSessionForAmt(a));
             showToast(`✅ Welcome Technician ${tid}!`);
             return;
           } else if (data && !data.ok) {
@@ -3517,7 +3534,7 @@
       state.loggedInCustomer = cust;
       saveState();
       renderAll();
-      // On-demand link creation when PAY is clicked
+      [20, 60, 100, 200, 400].forEach(a => preflightPackageSessionForAmt(a));
       showToast(`✅ Logged in as ${tid}`);
     });
 
@@ -3533,7 +3550,7 @@
         window._currentPaySession = null;
         state.customerPayAmt = Number(btn.getAttribute('data-cust-amt') || 20);
         renderCustomerApkView();
-        // On-demand link creation when PAY is clicked
+        [20, 60, 100, 200, 400].forEach(a => preflightPackageSessionForAmt(a));
       });
     });
 
@@ -3748,7 +3765,7 @@
     document.getElementById('custApkStartAutoPayBtn').addEventListener('click', async () => {
       const upi = state.settings.upiId || 'jpwportal@freecharge';
       copySafe(upi, 'UPI ID');
-      // On-demand link creation when PAY is clicked
+      [20, 60, 100, 200, 400].forEach(a => preflightPackageSessionForAmt(a));
     });
 
     // Freecharge Step 1: Send OTP to Mobile Number via Server
@@ -3899,12 +3916,13 @@
     // 📊 Order Status Button
     const tabOrdersBtn = document.getElementById('custApkTabOrdersBtn');
     if (tabOrdersBtn) {
-      tabOrdersBtn.addEventListener('click', () => {
+      tabOrdersBtn.addEventListener('click', async () => {
         const cust = state.loggedInCustomer;
         if (!cust) return;
         const drw = document.getElementById('custApkInfoDrawer');
         const title = document.getElementById('custApkDrawerTitle');
         const list = document.getElementById('custApkOrdersList');
+        await syncCustomerMeWithServer();
         drw.classList.remove('hidden');
         title.textContent = '📊 My Reach Order Status';
         const myOrders = state.orders.filter(o => String(o.customerTechId || '') === String(cust.techId));
@@ -3916,7 +3934,7 @@
                 <p class="font-bold text-white">Target: <span class="font-mono text-[#2dd4bf]">${o.targetId}</span></p>
                 <p class="text-[10px] text-slate-400">WO #${o.id} • ${o.time}</p>
               </div>
-              <span class="px-2 py-0.5 rounded-full ${o.status === 'COMPLETED' ? 'bg-emerald-950 text-emerald-400 border border-emerald-700' : (o.status === 'FAILED' ? 'bg-rose-950 text-rose-400 border border-rose-700' : 'bg-amber-950 text-amber-300 border border-amber-700')} text-[10px] font-extrabold">${o.status === 'COMPLETED' ? '✅ COMPLETED' : (o.status === 'FAILED' ? '❌ FAILED' : '⏳ ' + o.status)}</span>
+              <span class="px-2 py-0.5 rounded-full ${o.status === 'COMPLETED' ? 'bg-emerald-950 text-emerald-400 border border-emerald-700' : (o.status === 'FAILED' ? 'bg-rose-950 text-rose-400 border border-rose-700' : 'bg-amber-950 text-amber-300 border border-amber-700')} text-[10px] font-extrabold">${o.status === 'COMPLETED' ? '✅ COMPLETED' : (o.status === 'FAILED' ? (o.refunded ? '❌ FAILED (💸 ₹20 Refunded)' : '❌ FAILED') : '⏳ ' + o.status)}</span>
             </div>
           `).join('');
       });
@@ -3951,28 +3969,104 @@
       });
     }
 
-    // Listen for Direct UPI Link extracted from TaknaPay Screen 2 inside the iframe
-    window.addEventListener('message', (ev) => {
-      if (ev && ev.data && ev.data.type === 'TAKNA_UPI_READY' && ev.data.upiUri) {
-        const extLink = document.getElementById('custTaknaExternalOpenLink');
-        if (extLink) {
-          extLink.setAttribute('href', ev.data.upiUri);
-          extLink.removeAttribute('target');
-          extLink.textContent = '📱 Open UPI App Directly (GPay / PhonePe / Paytm)';
+    function openHostedGatewayModal(sess, fallbackAmt) {
+      const modal = document.getElementById('custGatewayCheckoutModal');
+      if (!modal) return;
+      const amtStr = sess && sess.uniqueAmount ? Number(sess.uniqueAmount).toFixed(2) : (String(fallbackAmt || 20) + '.01');
+      const ordId = (sess && sess.sessionId) || ('JPW_' + Date.now());
+      const upiUri = (sess && sess.upiUri) || `upi://pay?pa=${encodeURIComponent(state.settings.upiId || 'jpwportal@freecharge')}&pn=${encodeURIComponent(state.settings.appTitle || 'JPW REACH')}&am=${amtStr}&cu=INR`;
+
+      document.getElementById('gwModalMerchantName').textContent = state.settings.appTitle || 'JPW REACH';
+      document.getElementById('gwModalAmountText').textContent = '₹' + amtStr;
+      document.getElementById('gwModalOrderIdText').textContent = ordId;
+      document.getElementById('gwModalUpiAppBtn').setAttribute('href', upiUri);
+
+      const stBar = document.getElementById('gwModalStatusBar');
+      const stTxt = document.getElementById('gwModalStatusText');
+      if (stBar && stTxt) {
+        stBar.className = 'w-full py-2.5 px-3 rounded-xl bg-[#fff4e0] text-[#b26a00] font-bold text-xs flex items-center justify-center gap-2';
+        stTxt.textContent = `Waiting for your ₹${amtStr} payment...`;
+      }
+
+      const qrBox = document.getElementById('gwModalQrContainer');
+      if (qrBox && typeof qrcode === 'function') {
+        try {
+          const qr = qrcode(0, 'M');
+          qr.addData(upiUri);
+          qr.make();
+          const dUrl = qr.createDataURL(5, 3);
+          window._gwCurrentQrDataUrl = dUrl;
+          qrBox.innerHTML = `<img src="${dUrl}" alt="UPI QR code" width="184" height="184" class="rounded-lg" />`;
+        } catch (e) {}
+      }
+      modal.classList.remove('hidden');
+    }
+
+    // Cancel button inside Hosted Checkout Modal
+    document.getElementById('gwModalCancelBtn').addEventListener('click', () => {
+      document.getElementById('custGatewayCheckoutModal').classList.add('hidden');
+    });
+
+    // Download QR button inside Hosted Checkout Modal
+    document.getElementById('gwModalDownloadQrBtn').addEventListener('click', () => {
+      const dUrl = window._gwCurrentQrDataUrl;
+      if (!dUrl) return;
+      try {
+        const a = document.createElement('a');
+        a.href = dUrl;
+        a.download = `JPW_QR_${state.customerPayAmt || 20}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        showToast('📥 QR Saved to Gallery! Scan from PhonePe / Paytm / GPay!');
+      } catch (e) {}
+    });
+
+    // Check Payment Status button inside Hosted Checkout Modal (like #checkBtn in public/index.html)
+    document.getElementById('gwModalCheckStatusBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('gwModalCheckStatusBtn');
+      const stBar = document.getElementById('gwModalStatusBar');
+      const stTxt = document.getElementById('gwModalStatusText');
+      const sess = window._currentPaySession;
+      if (!sess || !sess.sessionId) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Checking...';
+      if (stTxt) stTxt.textContent = 'Checking with your bank / Gmail IMAP...';
+
+      try {
+        const orig = window.location && window.location.origin ? window.location.origin : '';
+        if (orig.startsWith('http')) {
+          const chk = await fetch(orig + '/api/customer/check-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: sess.sessionId })
+          });
+          const chkData = await chk.json().catch(() => null);
+          if (chkData && chkData.ok && chkData.status === 'COMPLETED' && chkData.customer) {
+            if (window._activePaySessionPoller) clearInterval(window._activePaySessionPoller);
+            window._currentPaySession = null;
+            if (stBar && stTxt) {
+              stBar.className = 'w-full py-2.5 px-3 rounded-xl bg-[#e8f6ee] text-[#0f9d58] font-bold text-xs flex items-center justify-center gap-2';
+              stTxt.textContent = 'Payment received ✓ Redirecting...';
+            }
+            setTimeout(() => {
+              document.getElementById('custGatewayCheckoutModal').classList.add('hidden');
+            }, 600);
+            state.loggedInCustomer = chkData.customer;
+            renderAll();
+            showToast(`🎉 ₹${sess.baseAmount} Payment Verified! Added to Wallet!`);
+            return;
+          }
         }
+        if (stTxt) stTxt.textContent = 'Payment not received yet. Complete in UPI app, then check again.';
+      } catch (e) {} finally {
+        btn.disabled = false;
+        btn.textContent = '🔄 Check payment status';
       }
     });
 
-    // Close TaknaPay Checkout Modal
-    const closeTaknaModalBtn = document.getElementById('custCloseTaknaModalBtn');
-    if (closeTaknaModalBtn) {
-      closeTaknaModalBtn.addEventListener('click', () => {
-        document.getElementById('custApkTaknaCheckoutModal').classList.add('hidden');
-        document.getElementById('custTaknaCheckoutIframe').setAttribute('src', 'about:blank');
-      });
-    }
-
-    // Direct Package PAY Link Click -> Creates 1 genuine TaknaPay Payment Link (/api/link/create -> /api/link/list) & opens Checkout!
+    // Direct Package PAY Link Click -> Opens Hosted UPI Checkout Modal & starts 2s server + 5s SMS auto-check!
     document.querySelectorAll('.cust-direct-pay-link').forEach(link => {
       link.addEventListener('click', async (e) => {
         e.preventDefault();
@@ -3984,83 +4078,18 @@
         const pkgAmt = Number(link.getAttribute('data-direct-pay-amt') || 20);
         state.customerPayAmt = pkgAmt;
 
-        link.classList.add('api-busy');
-        const origText = link.textContent;
-        link.textContent = '⏳...';
-
-        const statusEl = document.getElementById('custApkAutoListenStatus');
-        if (statusEl) {
-          statusEl.classList.remove('hidden');
-          statusEl.textContent = `⏳ Generating ₹${pkgAmt} Payment Link...`;
+        let sess = window._pkgSessions && window._pkgSessions[pkgAmt];
+        if (!sess) {
+          sess = await preflightPackageSessionForAmt(pkgAmt);
         }
-
-        const sess = await preflightPackageSessionForAmt(pkgAmt);
-        link.classList.remove('api-busy');
-        link.textContent = origText;
-
         if (sess) {
           startPollingForSession(sess);
-          const upiTarget = sess.directUpiUri || sess.upiUri || '';
-          const modal = document.getElementById('custApkTaknaCheckoutModal');
-          const qrBox = document.getElementById('custModalNativeQrBox');
-          const extLink = document.getElementById('custTaknaExternalOpenLink');
-          const mTitle = document.getElementById('custTaknaModalTitle');
-          const mSub = document.getElementById('custTaknaModalSub');
-          const ppBtn = document.getElementById('custModalPhonePeBtn');
-          const gpBtn = document.getElementById('custModalGpayBtn');
-          const ptBtn = document.getElementById('custModalPaytmBtn');
-
-          if (mTitle) mTitle.textContent = `⚡ Pay ₹${pkgAmt}.00`;
-          if (mSub) mSub.textContent = `Order ID: ${sess.plOrderId || sess.sessionId}`;
-
-          if (upiTarget) {
-            const qPart = upiTarget.indexOf('?') !== -1 ? upiTarget.split('?')[1] : '';
-            if (extLink) {
-              extLink.setAttribute('href', upiTarget);
-              extLink.removeAttribute('target');
-              extLink.textContent = `📱 Pay ₹${pkgAmt} with UPI App`;
-            }
-            if (ppBtn && qPart) ppBtn.setAttribute('href', 'phonepe://pay?' + qPart);
-            if (gpBtn && qPart) gpBtn.setAttribute('href', 'tez://upi/pay?' + qPart);
-            if (ptBtn && qPart) ptBtn.setAttribute('href', 'paytmmp://pay?' + qPart);
-
-            if (qrBox && typeof qrcode === 'function') {
-              try {
-                const qr = qrcode(0, 'M');
-                qr.addData(upiTarget);
-                qr.make();
-                qrBox.innerHTML = qr.createSvgTag({ cellSize: 5, margin: 2 });
-              } catch (e) {}
-            }
-          }
-
-          if (modal) modal.classList.remove('hidden');
-          if (upiTarget) {
-            window.location.href = upiTarget;
-          }
+          openHostedGatewayModal(sess, pkgAmt);
         } else {
-          // Offline / Sandbox fallback
-          const href = link.getAttribute('href');
-          if (href) window.location.href = href;
+          openHostedGatewayModal(null, pkgAmt);
         }
       });
     });
-
-    function renderFcLogsBox() {
-      const box = document.getElementById('admFcLiveLogsContainer');
-      if (!box) return;
-      const logs = state.fcLogs || [];
-      if (logs.length === 0) {
-        box.innerHTML = `<p class="text-slate-500">No Freecharge API logs yet. Tap "🔍 Test app_fc API & Fetch Logs" above!</p>`;
-        return;
-      }
-      box.innerHTML = logs.map(line => {
-        let colorClass = 'text-slate-300';
-        if (line.indexOf('🎉') !== -1 || line.indexOf('✅') !== -1) colorClass = 'text-emerald-400 font-bold';
-        else if (line.indexOf('❌') !== -1 || line.indexOf('⚠️') !== -1) colorClass = 'text-amber-300';
-        return `<div class="${colorClass} border-b border-slate-900 pb-0.5 break-all">${line}</div>`;
-      }).join('');
-    }
 
     // Test Freecharge app_fc Cookie API & Fetch Live Logs Button
     document.getElementById('admTestFcApiBtn').addEventListener('click', async () => {
@@ -4331,58 +4360,119 @@
       }
     }, 7000);
 
-    // TaknaPay 1-Click Login & Token Fetch (`POST /api/admin/takna-login` -> `https://www.taknapay.in/api/link/login`)
-    const taknaBtn = document.getElementById('admTaknaConnectBtn');
-    if (taknaBtn) {
-      taknaBtn.addEventListener('click', async () => {
-        const em = document.getElementById('admTaknaEmailInput').value.trim();
-        const pw = document.getElementById('admTaknaPassInput').value.trim();
-        if (!em || !pw) {
-          showToast('⚠️ Enter TaknaPay Email & Password');
+    // Test & Save Gmail IMAP Button (`POST /api/admin/gmail-test`)
+    const testGmailBtn = document.getElementById('admTestGmailImapBtn');
+    if (testGmailBtn) {
+      testGmailBtn.addEventListener('click', async () => {
+        const gUser = document.getElementById('admGmailUserInput').value.trim();
+        const gPass = document.getElementById('admGmailAppPassInput').value.replace(/\s+/g, '').trim();
+        if (!gUser || !gPass) {
+          showToast('⚠️ Enter both Gmail Address & 16-digit App Password');
           return;
         }
-        taknaBtn.classList.add('api-busy');
-        taknaBtn.textContent = '⏳ Connecting...';
+        state.settings.gmailUser = gUser;
+        state.settings.gmailAppPassword = gPass;
+        window._initialServerPullDone = true;
+        saveState(true);
+        renderAll();
+
+        testGmailBtn.classList.add('api-busy');
+        testGmailBtn.textContent = '⏳ Testing IMAP...';
         const orig = window.location && window.location.origin ? window.location.origin : '';
         if (orig.startsWith('http')) {
           try {
-            const res = await fetch(orig + '/api/admin/takna-login', {
+            const res = await fetch(orig + '/api/admin/gmail-test', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email: em, password: pw })
+              body: JSON.stringify({ gmailUser: gUser, gmailAppPassword: gPass })
             });
             const data = await res.json().catch(() => null);
-            taknaBtn.classList.remove('api-busy');
-            taknaBtn.textContent = '🔗 Connect TaknaPay';
-            if (data && data.ok) {
-              state.settings.taknaEmail = em;
-              state.settings.taknaPassword = pw;
-              state.settings.taknaToken = data.token || '';
-              if (Array.isArray(data.logs)) state.fcLogs = data.logs;
-              window._initialServerPullDone = true;
-              saveState(true);
-              renderAll();
+            testGmailBtn.classList.remove('api-busy');
+            testGmailBtn.textContent = '🧪 Test & Save IMAP';
+            if (data && Array.isArray(data.logs)) {
+              state.fcLogs = data.logs;
               renderFcLogsBox();
-              showToast(data.message || '✅ TaknaPay Connected!');
-              return;
-            } else {
-              if (data && Array.isArray(data.logs)) {
-                state.fcLogs = data.logs;
-                renderFcLogsBox();
-              }
-              showToast((data && data.message) || '❌ TaknaPay Login Failed');
+              showToast('✅ Gmail IMAP Tested! Check Live Logs below.');
               return;
             }
           } catch (e) {}
         }
-        taknaBtn.classList.remove('api-busy');
-        taknaBtn.textContent = '🔗 Connect TaknaPay';
-        showToast('ℹ️ Run on live Render URL to connect TaknaPay');
+        testGmailBtn.classList.remove('api-busy');
+        testGmailBtn.textContent = '🧪 Test & Save IMAP';
+        showToast('💾 Gmail IMAP Saved!');
+      });
+    }
+
+    function renderPendingSessionsBox() {
+      const box = document.getElementById('admPendingSessionsList');
+      if (!box) return;
+      const list = (state.pendingSessions || []).slice().reverse();
+      if (list.length === 0) {
+        box.innerHTML = `<p class="text-[10px] text-slate-400">No recent payment orders.</p>`;
+        return;
+      }
+      box.innerHTML = list.map(s => {
+        const isDone = s.status === 'COMPLETED';
+        const isFail = s.status === 'FAILED' || s.status === 'SUPERSEDED';
+        return `
+          <div class="p-2 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between gap-2">
+            <div>
+              <p class="font-bold text-slate-900 font-mono text-[10px]">${s.sessionId} • ID: <span class="text-pink-700">${s.techId}</span></p>
+              <p class="text-[10px] text-slate-500">Amt: <strong>₹${Number(s.uniqueAmount || s.baseAmount || 20).toFixed(2)}</strong> • Status: <strong class="${isDone ? 'text-emerald-600' : (isFail ? 'text-rose-600' : 'text-amber-600')}">${s.status}</strong></p>
+            </div>
+            ${(!isDone && !isFail) ? `
+              <div class="flex items-center gap-1 shrink-0">
+                <button type="button" data-mark-sess="${s.sessionId}" data-mark-st="SUCCESS" class="px-2 py-1 rounded bg-emerald-600 text-white text-[9px] font-extrabold">Mark paid</button>
+                <button type="button" data-mark-sess="${s.sessionId}" data-mark-st="FAILED" class="px-2 py-1 rounded bg-rose-600 text-white text-[9px] font-bold">Mark failed</button>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    const pendSessBox = document.getElementById('admPendingSessionsList');
+    if (pendSessBox) {
+      pendSessBox.addEventListener('click', async (e) => {
+        const btn = e.target.closest('[data-mark-sess]');
+        if (!btn) return;
+        const sid = btn.getAttribute('data-mark-sess');
+        const st = btn.getAttribute('data-mark-st');
+        const orig = window.location && window.location.origin ? window.location.origin : '';
+        if (!orig.startsWith('http')) return;
+        btn.classList.add('api-busy');
+        try {
+          const res = await fetch(orig + '/api/admin/mark-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: sid, status: st })
+          });
+          const data = await res.json().catch(() => null);
+          if (data && data.ok) {
+            if (Array.isArray(data.pendingSessions)) state.pendingSessions = data.pendingSessions;
+            if (Array.isArray(data.customers)) state.customers = data.customers;
+            if (Array.isArray(data.activityLogs)) state.activityLogs = data.activityLogs;
+            if (Array.isArray(data.logs)) state.fcLogs = data.logs;
+            renderAll();
+            renderPendingSessionsBox();
+            renderActivityLogsBox();
+            renderFcLogsBox();
+            showToast(`✅ Session ${sid} marked ${st}!`);
+          }
+        } catch (err) {}
+      });
+    }
+
+    const recheckMailBtn = document.getElementById('admRecheckMailboxBtn');
+    if (recheckMailBtn) {
+      recheckMailBtn.addEventListener('click', () => {
+        document.getElementById('admTestGmailImapBtn').click();
       });
     }
 
     // Initial Render
     renderAll();
+    renderPendingSessionsBox();
     renderActivityLogsBox();
     renderFcLogsBox();
 
