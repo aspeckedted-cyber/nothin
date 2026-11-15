@@ -818,127 +818,185 @@
         <button id="jpwGoToRechargeBtn" type="button"></button>
       </div>
     </section>
-      <!-- ================= CUSTOMER APK STANDALONE INTERFACE (JPW ENGINEER PORTAL DARK UI) ================= -->
-    <section id="tabSectionCustomerApk" class="hidden -mx-4 -mt-4 min-h-screen bg-[#080d1a] text-white px-3.5 py-4 pb-16">
-      <div class="max-w-md mx-auto bg-[#0f172a] border border-[#1e293b] rounded-3xl p-4 shadow-2xl space-y-4">
+      <!-- ================= CUSTOMER APK STANDALONE INTERFACE (LUXURY NEON DARK UI FROM 1000584050.png) ================= -->
+    <section id="tabSectionCustomerApk" class="hidden -mx-4 -mt-4 min-h-screen bg-[#070b18] text-white px-3 py-4 pb-16">
+      <div class="max-w-md mx-auto bg-gradient-to-b from-[#0d1326] via-[#0a0f1f] to-[#080c1a] border border-slate-800/80 rounded-[32px] p-4 shadow-[0_0_50px_rgba(0,0,0,0.85)] space-y-4">
 
-        <!-- Top Portal Header: Avatar + "JPW Engineer Portal" -->
-        <div class="flex items-center gap-3 pt-1">
-          <div class="w-12 h-12 rounded-full bg-sky-200 border-2 border-sky-400/50 flex items-center justify-center text-2xl shadow-md shrink-0">
-            👨‍💼
+        <!-- 1. TOP PORTAL HEADER: Glowing Avatar + Title + (Logged-In Only: ID/Eng Pill & Right Exit Icon Button) -->
+        <div class="flex items-center justify-between gap-2 pt-1">
+          <div class="flex items-center gap-3.5">
+            <div class="w-14 h-14 rounded-full bg-gradient-to-b from-[#38bdf8] to-[#0284c7] p-0.5 shadow-[0_0_18px_rgba(56,189,248,0.45)] shrink-0">
+              <div class="w-full h-full rounded-full bg-[#0f172a] flex items-center justify-center text-3xl">
+                👨‍💼
+              </div>
+            </div>
+            <div>
+              <h2 class="text-xl font-extrabold text-white tracking-tight leading-tight">JPW Engineer Portal</h2>
+              <p class="text-xs text-slate-400 font-medium">Instant Reach & Wallet Portal</p>
+              <div id="custApkHeaderUserPill" class="hidden mt-1.5 inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#171f36] border border-slate-700/80 text-[11px] text-slate-300 font-mono">
+                <span>ID: <strong id="custApkActiveTechIdDisplay" class="text-white font-bold">Not Logged In</strong></span>
+                <span class="text-slate-500">|</span>
+                <span>Eng: <strong id="custApkEngineerNameText" class="text-slate-200 font-bold">Guest</strong></span>
+              </div>
+            </div>
           </div>
-          <div>
-            <h2 class="text-lg font-extrabold text-white tracking-tight">JPW Engineer Portal</h2>
-            <p class="text-[11px] text-slate-400 font-medium">Instant Reach & Wallet Portal</p>
-          </div>
+
+          <!-- Top-Right Glowing Logout Icon Button (Hidden on Login Page, Shown only when Logged In!) -->
+          <button id="custApkLogoutBtn" type="button" title="Log out"
+            class="hidden p-2.5 rounded-2xl bg-[#161f35]/90 hover:bg-[#232f4d] border border-amber-400/40 text-amber-200 shadow-[0_0_14px_rgba(251,191,36,0.2)] transition shrink-0">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+            <span class="sr-only">Log out</span>
+          </button>
+          <button id="custApkDailyBonusBtn" type="button" class="hidden"></button>
         </div>
 
-        <!-- ID & Rupees Balance Pill Bar -->
-        <div class="px-4 py-3 rounded-2xl bg-[#131d31] border border-[#1e293b] flex items-center justify-between">
-          <div class="text-xs font-bold text-slate-400">
-            ID: <span id="custApkActiveTechIdDisplay" class="text-[#2dd4bf] font-mono text-sm font-extrabold ml-1">Not Logged In</span>
-          </div>
-          <div class="px-4 py-1 rounded-full bg-[#f59e0b] text-slate-950 font-extrabold text-xs tracking-wide shadow">
-            ₹<span id="custApkWalletRupees">0</span>
-          </div>
-          <!-- Hidden span for compatibility -->
-          <span id="custApkWalletCoinsText" class="hidden">0</span>
-        </div>
-
-        <!-- STEP 1: LOGIN / REGISTER CARD (Shown when Technician is not logged in) -->
-        <div id="custApkLoginCard" class="p-4 rounded-2xl bg-[#131d31] border border-[#1e293b] space-y-3.5">
+        <!-- STEP 1: LOGIN / REGISTER CARD (Shown when Technician is not logged in — NO Wallet Bar here!) -->
+        <div id="custApkLoginCard" class="p-4 rounded-2xl bg-gradient-to-b from-[#132338] to-[#0c1626] border border-cyan-500/40 shadow-[0_0_25px_rgba(6,182,212,0.15)] space-y-3.5">
           <div>
-            <h3 class="text-sm font-extrabold text-white">👷 Engineer Login / Register</h3>
-            <p class="text-[11px] text-slate-400 mt-0.5">Apna 10-Digit Mobile / Engineer ID aur Password daalein</p>
+            <h3 class="text-base font-extrabold text-white">👷 Engineer Login / Register</h3>
+            <p class="text-[11px] text-slate-300 mt-0.5">Apna 10-Digit Mobile / Engineer ID aur Password daalein</p>
           </div>
 
           <div class="space-y-2.5">
             <input id="custApkLoginIdInput" type="text" placeholder="Engineer ID / Mobile No." value=""
-              class="w-full px-4 py-3 rounded-xl bg-[#0b111e] border border-[#1e293b] text-sm font-mono font-bold text-white placeholder-slate-500 focus:outline-none focus:border-[#10b981]" />
+              class="w-full px-4 py-3.5 rounded-xl bg-[#09111e] border border-slate-700/80 text-sm font-mono font-bold text-white placeholder-slate-400 focus:outline-none focus:border-[#00e699]" />
             <input id="custApkLoginPassInput" type="password" placeholder="Password" value=""
-              class="w-full px-4 py-3 rounded-xl bg-[#0b111e] border border-[#1e293b] text-sm font-mono text-white placeholder-slate-500 focus:outline-none focus:border-[#10b981]" />
-            <button id="custApkLoginSubmitBtn" type="button" class="w-full py-3 rounded-xl bg-[#10b981] hover:bg-[#059669] text-white font-extrabold text-sm shadow-lg transition">
+              class="w-full px-4 py-3.5 rounded-xl bg-[#09111e] border border-slate-700/80 text-sm font-mono text-white placeholder-slate-400 focus:outline-none focus:border-[#00e699]" />
+            <button id="custApkLoginSubmitBtn" type="button"
+              class="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#00e699] via-[#10b981] to-[#00e699] text-slate-950 font-extrabold text-sm shadow-[0_0_20px_rgba(0,230,153,0.55)] border border-[#a7f3d0] transition">
               Login to Engineer Portal
             </button>
           </div>
         </div>
 
-        <!-- STEP 2: LOGGED-IN ENGINEER PORTAL DASHBOARD -->
+        <!-- STEP 2: LOGGED-IN ENGINEER PORTAL DASHBOARD (Wallet Bar + Place Order + Tiles + Packages only appear AFTER login!) -->
         <div id="custApkDashboardWrap" class="space-y-4 hidden">
 
-          <!-- Engineer Name + Log out Button (No Daily Bonus, No Share Coins) -->
-          <div class="px-4 py-3 rounded-2xl bg-[#131d31] border border-[#1e293b] flex items-center justify-between">
-            <p class="text-xs text-slate-400 font-medium">
-              Engineer: <strong id="custApkEngineerNameText" class="text-white font-extrabold">Engineer</strong>
-            </p>
-            <button id="custApkLogoutBtn" type="button" class="py-2 px-4 rounded-xl bg-[#2a1222] hover:bg-[#3b172f] border border-rose-500/50 text-rose-200 text-xs font-bold transition">
-              Log out
+          <!-- 2. WALLET & ADD BALANCE BAR (Only visible when logged in!) -->
+          <div class="p-2 rounded-2xl bg-[#11182b]/95 border border-slate-800/90 grid grid-cols-2 gap-2.5 shadow-inner">
+            <div class="py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-[#9a6316] via-[#d99b36] to-[#87520d] border border-[#fbd38d]/70 text-white font-extrabold text-sm shadow-[0_0_16px_rgba(217,155,54,0.4)] flex items-center justify-center tracking-wide">
+              Wallet: ₹<span id="custApkWalletRupees">0</span>
+            </div>
+            <button id="custApkScrollAddCoinsBtn" type="button"
+              class="py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#059669] via-[#10b981] to-[#34d399] hover:brightness-110 border border-[#a7f3d0] text-slate-950 font-extrabold text-xs shadow-[0_0_18px_rgba(16,185,129,0.55)] flex items-center justify-center transition">
+              + Add balance (₹)
             </button>
-            <button id="custApkDailyBonusBtn" type="button" class="hidden"></button>
+            <span id="custApkWalletCoinsText" class="hidden">0</span>
           </div>
 
-          <!-- Regular Reach Mode Pill (NO SR Service!) -->
-          <div>
-            <div class="w-full py-3 rounded-xl bg-[#10b981] text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-md">
-              <span>⚡</span> <span>Regular reach</span>
+          <!-- 3. PLACE AN ORDER CARD (Glowing Cyan/Teal Circuit Glass Card from 1000584050.png) -->
+          <div class="p-4 rounded-2xl bg-gradient-to-b from-[#14293d]/95 via-[#0f1e30]/95 to-[#0b1524]/95 border border-cyan-400/35 shadow-[0_0_28px_rgba(34,211,238,0.14)] space-y-3.5">
+            <div class="flex items-center justify-between gap-2">
+              <h3 class="text-xl font-extrabold text-white tracking-tight">Place an order</h3>
+              <span class="px-3 py-1 rounded-full bg-[#064e3b]/90 border border-[#10b981]/80 text-[#34d399] text-xs font-extrabold shadow-[0_0_12px_rgba(16,185,129,0.35)] flex items-center gap-1">
+                <span>⚡</span> <span>Regular reach</span>
+              </span>
             </div>
-          </div>
-
-          <!-- Place an order Section (Rupees System: ₹20 / Reach) -->
-          <div class="space-y-3 pt-1">
-            <div>
-              <h3 class="text-base font-extrabold text-white">Place an order</h3>
-              <p class="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1">
-                <span>🕒</span> <span>Hours: 09:30 AM - 10:15 PM (IST) | Cost: ₹20 / Reach</span>
-              </p>
-            </div>
+            <p class="text-[11px] text-slate-300/90 -mt-2">
+              Hours: 09:30 AM - 10:15 PM (IST) | Cost: ₹20 / Reach
+            </p>
 
             <div class="space-y-2.5">
-              <input id="custApkTargetIdInput" type="text" placeholder="Target ID"
-                class="w-full px-4 py-3.5 rounded-xl bg-[#0b111e] border border-[#1e293b] text-sm font-mono text-white placeholder-slate-500 focus:outline-none focus:border-[#10b981]" />
+              <!-- Target ID Input with User Outline Icon -->
+              <div class="relative">
+                <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                  <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                  </svg>
+                </span>
+                <input id="custApkTargetIdInput" type="text" placeholder="Target ID"
+                  class="w-full pl-11 pr-4 py-3.5 rounded-xl bg-[#1e2c3d]/75 border border-slate-500/50 text-sm font-mono text-white placeholder-slate-300/80 focus:outline-none focus:border-[#00e699]" />
+              </div>
 
-              <input id="custApkTargetPassInput" type="text" placeholder="Target password"
-                class="w-full px-4 py-3.5 rounded-xl bg-[#0b111e] border border-[#1e293b] text-sm font-mono text-white placeholder-slate-500 focus:outline-none focus:border-[#10b981]" />
+              <!-- Target Password Input with Lock Outline Icon -->
+              <div class="relative">
+                <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                  <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
+                </span>
+                <input id="custApkTargetPassInput" type="text" placeholder="Target password"
+                  class="w-full pl-11 pr-4 py-3.5 rounded-xl bg-[#1e2c3d]/75 border border-slate-500/50 text-sm font-mono text-white placeholder-slate-300/80 focus:outline-none focus:border-[#00e699]" />
+              </div>
 
-              <button id="custApkSubmitOrderBtn" type="button" class="w-full py-3.5 rounded-xl bg-[#10b981] hover:bg-[#059669] text-white font-extrabold text-sm shadow-lg transition">
+              <!-- Glowing Neon Green Submit Button -->
+              <button id="custApkSubmitOrderBtn" type="button"
+                class="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#00e699] via-[#1ee8a5] to-[#00e699] hover:brightness-110 text-slate-950 font-extrabold text-base shadow-[0_0_24px_rgba(0,230,153,0.65)] border border-[#a7f3d0] transition">
                 Place order (₹20)
               </button>
 
-              <button id="custApkScrollAddCoinsBtn" type="button" class="w-full py-3 rounded-xl bg-[#0f292e]/60 hover:bg-[#0f292e] border border-[#0d9488]/60 text-[#2dd4bf] font-extrabold text-xs transition">
-                + Add balance (₹)
-              </button>
-
-              <div id="custApkOrderLiveResult" class="hidden p-3 rounded-xl bg-[#131d31] border border-[#1e293b] text-xs font-mono space-y-1"></div>
+              <div id="custApkOrderLiveResult" class="hidden p-3 rounded-xl bg-[#0b1322] border border-cyan-500/30 text-xs font-mono space-y-1"></div>
             </div>
           </div>
 
-          <!-- 3 Action Buttons: 📁 Passbook | 📊 Order Status | 💬 Support -->
-          <div class="grid grid-cols-3 gap-2.5 pt-2 border-t border-[#1e293b]">
-            <button id="custApkTabPassbookBtn" type="button" class="py-3 px-2 rounded-xl bg-[#131d31] hover:bg-[#1c2841] border border-[#1e293b] text-white text-xs font-bold flex items-center justify-center gap-1.5 transition">
-              <span>📁</span> <span>Passbook</span>
+          <!-- 4. THREE LARGE GLOWING GLASS TILES: Passbook (Gold) | Order Status (Cyan) | Support (Purple) -->
+          <div class="grid grid-cols-3 gap-2.5">
+            <!-- Passbook Tile (Gold) -->
+            <button id="custApkTabPassbookBtn" type="button"
+              class="p-3 rounded-2xl bg-gradient-to-b from-[#78521a]/90 via-[#573a10]/85 to-[#332107]/95 hover:brightness-110 border-2 border-[#fbbf24]/70 shadow-[0_0_20px_rgba(245,158,11,0.3)] flex flex-col items-center justify-between min-h-[116px] transition">
+              <div class="mt-1 text-[#fcd34d] drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]">
+                <svg class="w-11 h-11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                  <circle cx="12" cy="10" r="3"/>
+                  <line x1="9" y1="15" x2="15" y2="15"/>
+                </svg>
+              </div>
+              <span class="sr-only">📁 </span><span class="text-xs font-extrabold text-white tracking-wide">Passbook</span>
             </button>
-            <button id="custApkTabOrdersBtn" type="button" class="py-3 px-2 rounded-xl bg-[#131d31] hover:bg-[#1c2841] border border-[#1e293b] text-white text-xs font-bold flex items-center justify-center gap-1.5 transition">
-              <span>📊</span> <span class="leading-tight">Order<br/>Status</span>
+
+            <!-- Order Status Tile (Cyan/Teal) -->
+            <button id="custApkTabOrdersBtn" type="button"
+              class="p-3 rounded-2xl bg-gradient-to-b from-[#155e75]/90 via-[#0e4152]/85 to-[#082630]/95 hover:brightness-110 border-2 border-[#2dd4bf]/70 shadow-[0_0_20px_rgba(45,212,191,0.35)] flex flex-col items-center justify-between min-h-[116px] transition">
+              <div class="mt-1 text-[#5eead4] drop-shadow-[0_0_8px_rgba(45,212,191,0.6)]">
+                <svg class="w-11 h-11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="18" y1="20" x2="18" y2="10"/>
+                  <line x1="12" y1="20" x2="12" y2="14"/>
+                  <line x1="6" y1="20" x2="6" y2="16"/>
+                  <polyline points="4 11 9 6 13 10 20 3"/>
+                  <polyline points="16 3 20 3 20 7"/>
+                </svg>
+              </div>
+              <span class="sr-only">📊 </span><span class="text-xs font-extrabold text-white leading-tight text-center">Order<br/>Status</span>
             </button>
-            <button id="custApkTabSupportBtn" type="button" class="py-3 px-2 rounded-xl bg-[#131d31] hover:bg-[#1c2841] border border-[#1e293b] text-white text-xs font-bold flex items-center justify-center gap-1.5 transition">
-              <span>💬</span> <span>Support</span>
+
+            <!-- Support Tile (Purple/Violet) -->
+            <button id="custApkTabSupportBtn" type="button"
+              class="p-3 rounded-2xl bg-gradient-to-b from-[#6b21a8]/90 via-[#4c1d95]/85 to-[#2e1065]/95 hover:brightness-110 border-2 border-[#c084fc]/70 shadow-[0_0_20px_rgba(192,132,252,0.35)] flex flex-col items-center justify-between min-h-[116px] transition">
+              <div class="mt-1 text-[#e9d5ff] drop-shadow-[0_0_8px_rgba(192,132,252,0.7)]">
+                <svg class="w-11 h-11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+                  <circle cx="9" cy="11.5" r="1"/>
+                  <circle cx="12" cy="11.5" r="1"/>
+                  <circle cx="15" cy="11.5" r="1"/>
+                </svg>
+              </div>
+              <span class="sr-only">💬 </span><span class="text-xs font-extrabold text-white tracking-wide">Support</span>
             </button>
           </div>
 
           <!-- Dynamic Expandable Drawer for Passbook / Order Status / Support -->
-          <div id="custApkInfoDrawer" class="hidden p-3.5 rounded-2xl bg-[#131d31] border border-[#1e293b] space-y-2 text-xs">
-            <div class="flex items-center justify-between border-b border-[#1e293b] pb-2">
+          <div id="custApkInfoDrawer" class="hidden p-3.5 rounded-2xl bg-[#11192e] border border-cyan-500/40 space-y-2 text-xs shadow-lg">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
               <strong id="custApkDrawerTitle" class="text-[#2dd4bf] uppercase text-[11px]">📊 Order Status</strong>
               <button id="custApkCloseDrawerBtn" type="button" class="text-slate-400 hover:text-white text-xs font-bold">✕</button>
             </div>
             <div id="custApkOrdersList" class="space-y-2 text-slate-300"></div>
           </div>
 
-          <!-- PACKAGES SECTION (Direct PAY Links — Zero QR Clutter!) -->
-          <div id="custApkPackagesSection" class="space-y-3 pt-2">
-            <div class="flex items-center justify-between border-b border-[#1e293b] pb-2">
-              <h3 class="text-base font-extrabold text-white">Packages</h3>
-              <span id="custApkUniqueSessionBadge" class="text-[10px] font-mono text-[#2dd4bf] font-bold">⚡ Instant Direct UPI</span>
+          <!-- 5. PACKAGES SECTION (2-Column Grid of Gold-Bordered Cards with Gold Star Ribbon from 1000584050.png!) -->
+          <div id="custApkPackagesSection" class="p-3.5 rounded-2xl bg-[#101729]/95 border border-amber-500/35 space-y-3 shadow-lg">
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-extrabold text-white tracking-tight">Packages</h3>
+              <span id="custApkUniqueSessionBadge" class="px-2.5 py-1 rounded-md bg-gradient-to-r from-[#06b6d4] to-[#22d3ee] text-slate-950 text-[10px] font-extrabold shadow-[0_0_12px_rgba(34,211,238,0.4)]">
+                ⚡ Instant Direct UPI
+              </span>
             </div>
 
             <!-- Live Payment Auto-Detection Status Banner (Appears when PAY is clicked) -->
@@ -946,72 +1004,80 @@
               🔄 Waiting for UPI Payment... (Coins auto-add to wallet on payment!)
             </div>
 
-            <!-- Package 1: ₹20 -> 1 Reach -->
-            <div class="p-3.5 rounded-2xl bg-[#131d31] border border-[#1e293b] flex items-center justify-between">
-              <div>
-                <p class="text-sm font-extrabold text-white flex items-center gap-1.5">
-                  <span>₹20</span> <span class="text-sky-400 text-xs">➡️</span> <span>₹20 Wallet (1 Reach)</span>
-                </p>
-                <p class="text-[11px] text-slate-400 mt-0.5">(₹20.00 per reach order)</p>
+            <!-- 2-Column Grid of Luxury Gold-Ribbon Package Cards -->
+            <div class="grid grid-cols-2 gap-2.5">
+              <!-- Package 1: 1 Reach (₹20) -->
+              <div class="relative p-3.5 rounded-2xl bg-[#181f30] border border-amber-500/50 text-center space-y-1.5 shadow-md overflow-hidden">
+                <div class="absolute top-0 right-2.5 bg-gradient-to-b from-[#fbbf24] to-[#b45309] text-slate-950 px-1.5 pt-1 pb-1.5 rounded-b-md text-[10px] font-black shadow">
+                  ★
+                </div>
+                <p class="text-sm font-extrabold text-white pt-1">1 Reach</p>
+                <p class="text-3xl font-extrabold text-[#f5b041] tracking-tight">₹20</p>
+                <p class="text-[11px] font-bold text-slate-100">₹20 Wallet (1 Reach)</p>
+                <p class="text-[10px] text-slate-400 pb-1">(₹20.00 per reach order)</p>
+                <a data-direct-pay-amt="20" href="upi://pay?pa=jpwportal@freecharge&pn=JPW%20REACH&am=20.01&cu=INR"
+                  class="cust-direct-pay-link block w-full py-2 rounded-lg bg-[#10b981] hover:bg-[#059669] text-slate-950 font-extrabold text-sm shadow-md transition">
+                  PAY
+                </a>
               </div>
-              <a data-direct-pay-amt="20" href="upi://pay?pa=jpwportal@freecharge&pn=JPW%20REACH&am=20.01&cu=INR"
-                class="cust-direct-pay-link px-5 py-2 rounded-full bg-[#10b981] hover:bg-[#059669] text-white font-extrabold text-xs shadow-md transition">
-                PAY
-              </a>
+
+              <!-- Package 2: 3 Reach (₹60) -->
+              <div class="relative p-3.5 rounded-2xl bg-[#181f30] border border-amber-500/50 text-center space-y-1.5 shadow-md overflow-hidden">
+                <div class="absolute top-0 right-2.5 bg-gradient-to-b from-[#fbbf24] to-[#b45309] text-slate-950 px-1.5 pt-1 pb-1.5 rounded-b-md text-[10px] font-black shadow">
+                  ★
+                </div>
+                <p class="text-sm font-extrabold text-white pt-1">3 Reach</p>
+                <p class="text-3xl font-extrabold text-[#f5b041] tracking-tight">₹60</p>
+                <p class="text-[11px] font-bold text-slate-100">₹60 Wallet (3 Reach)</p>
+                <p class="text-[10px] text-slate-400 pb-1">(₹20.00 per reach order)</p>
+                <a data-direct-pay-amt="60" href="upi://pay?pa=jpwportal@freecharge&pn=JPW%20REACH&am=60.01&cu=INR"
+                  class="cust-direct-pay-link block w-full py-2 rounded-lg bg-[#10b981] hover:bg-[#059669] text-slate-950 font-extrabold text-sm shadow-md transition">
+                  PAY
+                </a>
+              </div>
+
+              <!-- Package 3: 5 Reach (₹100) -->
+              <div class="relative p-3.5 rounded-2xl bg-[#181f30] border border-amber-500/50 text-center space-y-1.5 shadow-md overflow-hidden">
+                <div class="absolute top-0 right-2.5 bg-gradient-to-b from-[#fbbf24] to-[#b45309] text-slate-950 px-1.5 pt-1 pb-1.5 rounded-b-md text-[10px] font-black shadow">
+                  ★
+                </div>
+                <p class="text-sm font-extrabold text-white pt-1">5 Reach</p>
+                <p class="text-3xl font-extrabold text-[#f5b041] tracking-tight">₹100</p>
+                <p class="text-[11px] font-bold text-slate-100">₹100 Wallet (5 Reach)</p>
+                <p class="text-[10px] text-slate-400 pb-1">(₹20.00 per reach order)</p>
+                <a data-direct-pay-amt="100" href="upi://pay?pa=jpwportal@freecharge&pn=JPW%20REACH&am=100.01&cu=INR"
+                  class="cust-direct-pay-link block w-full py-2 rounded-lg bg-[#10b981] hover:bg-[#059669] text-slate-950 font-extrabold text-sm shadow-md transition">
+                  PAY
+                </a>
+              </div>
+
+              <!-- Package 4: 10 Reach (₹200) -->
+              <div class="relative p-3.5 rounded-2xl bg-[#181f30] border border-amber-500/50 text-center space-y-1.5 shadow-md overflow-hidden">
+                <div class="absolute top-0 right-2.5 bg-gradient-to-b from-[#fbbf24] to-[#b45309] text-slate-950 px-1.5 pt-1 pb-1.5 rounded-b-md text-[10px] font-black shadow">
+                  ★
+                </div>
+                <p class="text-sm font-extrabold text-white pt-1">10 Reach</p>
+                <p class="text-3xl font-extrabold text-[#f5b041] tracking-tight">₹200</p>
+                <p class="text-[11px] font-bold text-slate-100">₹200 Wallet (10 Reach)</p>
+                <p class="text-[10px] text-slate-400 pb-1">(₹20.00 per reach order)</p>
+                <a data-direct-pay-amt="200" href="upi://pay?pa=jpwportal@freecharge&pn=JPW%20REACH&am=200.01&cu=INR"
+                  class="cust-direct-pay-link block w-full py-2 rounded-lg bg-[#10b981] hover:bg-[#059669] text-slate-950 font-extrabold text-sm shadow-md transition">
+                  PAY
+                </a>
+              </div>
             </div>
 
-            <!-- Package 2: ₹60 -> 3 Reach -->
-            <div class="p-3.5 rounded-2xl bg-[#131d31] border border-[#1e293b] flex items-center justify-between">
-              <div>
-                <p class="text-sm font-extrabold text-white flex items-center gap-1.5">
-                  <span>₹60</span> <span class="text-sky-400 text-xs">➡️</span> <span>₹60 Wallet (3 Reach)</span>
-                </p>
-                <p class="text-[11px] text-slate-400 mt-0.5">(₹20.00 per reach order)</p>
+            <!-- Package 5: 20 Reach (₹400) Full-Width Gold Card -->
+            <div class="relative p-3.5 rounded-2xl bg-[#181f30] border border-amber-500/50 flex items-center justify-between gap-3 shadow-md overflow-hidden">
+              <div class="absolute top-0 right-2.5 bg-gradient-to-b from-[#fbbf24] to-[#b45309] text-slate-950 px-1.5 pt-1 pb-1.5 rounded-b-md text-[10px] font-black shadow">
+                ★
               </div>
-              <a data-direct-pay-amt="60" href="upi://pay?pa=jpwportal@freecharge&pn=JPW%20REACH&am=60.01&cu=INR"
-                class="cust-direct-pay-link px-5 py-2 rounded-full bg-[#10b981] hover:bg-[#059669] text-white font-extrabold text-xs shadow-md transition">
-                PAY
-              </a>
-            </div>
-
-            <!-- Package 3: ₹100 -> 5 Reach -->
-            <div class="p-3.5 rounded-2xl bg-[#131d31] border border-[#1e293b] flex items-center justify-between">
               <div>
-                <p class="text-sm font-extrabold text-white flex items-center gap-1.5">
-                  <span>₹100</span> <span class="text-sky-400 text-xs">➡️</span> <span>₹100 Wallet (5 Reach)</span>
-                </p>
-                <p class="text-[11px] text-slate-400 mt-0.5">(₹20.00 per reach order)</p>
-              </div>
-              <a data-direct-pay-amt="100" href="upi://pay?pa=jpwportal@freecharge&pn=JPW%20REACH&am=100.01&cu=INR"
-                class="cust-direct-pay-link px-5 py-2 rounded-full bg-[#10b981] hover:bg-[#059669] text-white font-extrabold text-xs shadow-md transition">
-                PAY
-              </a>
-            </div>
-
-            <!-- Package 4: ₹200 -> 10 Reach -->
-            <div class="p-3.5 rounded-2xl bg-[#131d31] border border-[#1e293b] flex items-center justify-between">
-              <div>
-                <p class="text-sm font-extrabold text-white flex items-center gap-1.5">
-                  <span>₹200</span> <span class="text-sky-400 text-xs">➡️</span> <span>₹200 Wallet (10 Reach)</span>
-                </p>
-                <p class="text-[11px] text-slate-400 mt-0.5">(₹20.00 per reach order)</p>
-              </div>
-              <a data-direct-pay-amt="200" href="upi://pay?pa=jpwportal@freecharge&pn=JPW%20REACH&am=200.01&cu=INR"
-                class="cust-direct-pay-link px-5 py-2 rounded-full bg-[#10b981] hover:bg-[#059669] text-white font-extrabold text-xs shadow-md transition">
-                PAY
-              </a>
-            </div>
-
-            <!-- Package 5: ₹400 -> 20 Reach -->
-            <div class="p-3.5 rounded-2xl bg-[#131d31] border border-[#1e293b] flex items-center justify-between">
-              <div>
-                <p class="text-sm font-extrabold text-white flex items-center gap-1.5">
-                  <span>₹400</span> <span class="text-sky-400 text-xs">➡️</span> <span>₹400 Wallet (20 Reach)</span>
-                </p>
-                <p class="text-[11px] text-slate-400 mt-0.5">(₹20.00 per reach order)</p>
+                <p class="text-sm font-extrabold text-white">20 Reach • <span class="text-[#f5b041] text-xl">₹400</span></p>
+                <p class="text-[11px] font-bold text-slate-200">₹400 Wallet (20 Reach) <span class="text-slate-400 font-normal">(₹20.00/order)</span></p>
               </div>
               <a data-direct-pay-amt="400" href="upi://pay?pa=jpwportal@freecharge&pn=JPW%20REACH&am=400.01&cu=INR"
-                class="cust-direct-pay-link px-5 py-2 rounded-full bg-[#10b981] hover:bg-[#059669] text-white font-extrabold text-xs shadow-md transition">
+                class="cust-direct-pay-link px-6 py-2.5 rounded-lg bg-[#10b981] hover:bg-[#059669] text-slate-950 font-extrabold text-sm shadow-md transition shrink-0">
                 PAY
               </a>
             </div>
@@ -1312,7 +1378,27 @@
         const orig = window.location && window.location.origin ? window.location.origin : '';
         if (!orig.startsWith('http')) return false;
         const tid = state.loggedInCustomer ? encodeURIComponent(state.loggedInCustomer.techId) : '';
-        const meUrl = orig + '/api/customer/me?techId=' + tid; const res = await fetch(meUrl, { method: 'GET', cache: 'no-store' });
+        const meUrl = orig + '/api/customer/me?techId=' + tid;
+        const res = await fetch(meUrl, { method: 'GET', cache: 'no-store' });
+        if (res.status === 404 && state.loggedInCustomer && state.loggedInCustomer.techId) {
+          // Server restarted after GitHub code push -> Auto-Restore this customer's account, balance & orders to server!
+          const lc = state.loggedInCustomer;
+          const myLocalOrders = (state.orders || []).filter(o => String(o.customerTechId || '') === String(lc.techId));
+          await fetch(orig + '/api/customer/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              techId: lc.techId,
+              password: lc.password || '12345',
+              name: lc.name || ('Tech_' + String(lc.techId).slice(-4)),
+              restoreFromApk: true,
+              restoredBalance: Number(lc.balance || 0),
+              restoredTotalOrders: Number(lc.totalOrders || 0),
+              restoredOrders: myLocalOrders
+            })
+          }).catch(() => {});
+          return false;
+        }
         if (!res.ok) return false;
         const data = await res.json().catch(() => null);
         if (!data || !data.ok) return false;
@@ -1334,10 +1420,13 @@
           state.loggedInCustomer.balance = Number(data.customer.balance || 0);
           state.loggedInCustomer.totalOrders = Number(data.customer.totalOrders || 0);
         }
-        if (Array.isArray(data.orders)) {
+        if (Array.isArray(data.orders) && data.orders.length > 0) {
           state.orders = data.orders;
         }
-        if (changed) renderAll();
+        if (changed) {
+          saveState();
+          renderAll();
+        }
         return changed;
       } catch (e) {
         return false;
@@ -3282,9 +3371,13 @@
       if (!loginCard || !dashWrap) return;
 
       const cust = state.loggedInCustomer;
+      const hdrPill = document.getElementById('custApkHeaderUserPill');
+      const logoutBtnEl = document.getElementById('custApkLogoutBtn');
       if (!cust) {
         loginCard.classList.remove('hidden');
         dashWrap.classList.add('hidden');
+        if (hdrPill) hdrPill.classList.add('hidden');
+        if (logoutBtnEl) logoutBtnEl.classList.add('hidden');
         idDisp.textContent = 'Not Logged In';
         if (coinsDisp) coinsDisp.textContent = '0.00';
         if (balDisp) balDisp.textContent = '0';
@@ -3293,6 +3386,8 @@
 
       loginCard.classList.add('hidden');
       dashWrap.classList.remove('hidden');
+      if (hdrPill) hdrPill.classList.remove('hidden');
+      if (logoutBtnEl) logoutBtnEl.classList.remove('hidden');
       idDisp.textContent = String(cust.techId);
       if (engNameEl) engNameEl.textContent = cust.name || ('Tech_' + String(cust.techId).slice(-4));
 
@@ -3502,7 +3597,9 @@
           });
           const data = await res.json().catch(() => null);
           if (data && data.ok && data.customer) {
+            data.customer.password = pwd;
             state.loggedInCustomer = data.customer;
+            saveState();
             if (data.upiId) state.settings.upiId = data.upiId;
             if (data.appTitle) state.settings.appTitle = data.appTitle;
             const existing = (state.customers || []).find(c => String(c.techId) === tid);
