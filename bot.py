@@ -1246,7 +1246,15 @@ async def ping_health(request: web.Request) -> web.Response:
 
 
 async def api_state_get(request: web.Request) -> web.Response:
-    return web.json_response(STATE)
+    """Returns STATE with sensitive credentials masked so Gmail App Password / API Secrets are NEVER exposed in browser traffic!"""
+    safe_state = dict(STATE)
+    raw_settings = dict(STATE.get("settings", {}))
+    for secret_key in ("gmailAppPassword", "razorpayKeySecret", "bharatpeToken", "freechargeCookie"):
+        val = str(raw_settings.get(secret_key) or "").strip()
+        if val:
+            raw_settings[secret_key] = "****************"
+    safe_state["settings"] = raw_settings
+    return web.json_response(safe_state)
 
 
 async def api_state_post(request: web.Request) -> web.Response:
@@ -1328,20 +1336,34 @@ async def api_state_post(request: web.Request) -> web.Response:
             srv_ts = int(STATE["settings"].get("updatedAt") or 0)
             if body.get("saveSettings") is True or inc_ts > srv_ts:
                 for k, v in incoming_settings.items():
-                    # Never wipe a saved freechargeCookie with an empty string unless explicitly cleared
-                    if k == "freechargeCookie" and not v and STATE["settings"].get("freechargeCookie") and not body.get("saveSettings"):
-                        continue
+                    # Never overwrite saved secrets with empty strings or masked '****************' placeholders
+                    if k in ("gmailAppPassword", "freechargeCookie", "bharatpeToken", "razorpayKeySecret"):
+                        if not v or str(v).strip() == "****************":
+                            continue
                     STATE["settings"][k] = v
                 if body.get("saveSettings") is True and inc_ts <= srv_ts:
                     STATE["settings"]["updatedAt"] = int(time.time() * 1000)
 
-        if body.get("adminCustomerUpdate") is True:
-            incoming_customers = body.get("customers")
-            if isinstance(incoming_customers, list):
-                STATE["customers"] = [
-                    c for c in incoming_customers
-                    if isinstance(c, dict) and c.get("techId") and str(c.get("techId")) != "TECH101"
-                ]
+        incoming_customers = body.get("customers")
+        if isinstance(incoming_customers, list):
+            valid_inc_custs = [
+                c for c in incoming_customers
+                if isinstance(c, dict) and c.get("techId") and str(c.get("techId")) != "TECH101"
+            ]
+            if body.get("adminCustomerUpdate") is True:
+                STATE["customers"] = valid_inc_custs
+            else:
+                # Self-Heal after GitHub code push / Render restart: restore any customer missing on server!
+                existing_cmap = {str(c.get("techId")): c for c in STATE.setdefault("customers", []) if c.get("techId")}
+                for ic in reversed(valid_inc_custs):
+                    tid_str = str(ic["techId"])
+                    if tid_str not in existing_cmap:
+                        STATE["customers"].insert(0, ic)
+                        existing_cmap[tid_str] = ic
+                    else:
+                        ec = existing_cmap[tid_str]
+                        if int(ic.get("totalOrders", 0)) > int(ec.get("totalOrders", 0)):
+                            ec["totalOrders"] = int(ic.get("totalOrders", 0))
 
         reconcile_failed_order_refunds()
         save_state(STATE)
@@ -1407,15 +1429,25 @@ async def api_customer_auth(request: web.Request) -> web.Response:
                 return web.json_response({"ok": False, "message": "❌ Wrong Password for this Technician ID!"}, status=401)
             log_user_activity(tech_id, "LOGIN", "SUCCESS", f"Logged in (Wallet: ₹{cust.get('balance', 0)})")
         else:
+            restored_bal = max(0, int(body.get("restoredBalance") or 0)) if body.get("restoreFromApk") is True else 0
+            restored_ords = max(0, int(body.get("restoredTotalOrders") or 0)) if body.get("restoreFromApk") is True else 0
             cust = {
                 "techId": tech_id,
                 "password": password,
                 "name": str(body.get("name") or f"Tech_{tech_id[-4:]}"),
-                "balance": 0,
-                "totalOrders": 0,
+                "balance": restored_bal,
+                "totalOrders": restored_ords,
                 "createdAt": datetime.now().strftime("%Y-%m-%d %H:%M"),
             }
             customers.insert(0, cust)
+            # Also restore any local orders of this customer if server restarted
+            inc_cust_orders = body.get("restoredOrders")
+            if body.get("restoreFromApk") is True and isinstance(inc_cust_orders, list):
+                existing_oids = {int(o.get("id", 0)) for o in STATE.setdefault("orders", []) if o.get("id")}
+                for ro in reversed(inc_cust_orders):
+                    if isinstance(ro, dict) and ro.get("id") and int(ro["id"]) not in existing_oids:
+                        STATE["orders"].insert(0, ro)
+                        existing_oids.add(int(ro["id"]))
             log_user_activity(tech_id, "LOGIN", "SUCCESS", "New Technician ID Registered")
             save_state(STATE)
             if ADMIN_CHAT_ID:
@@ -2472,7 +2504,7 @@ async def api_admin_gmail_test(request: web.Request) -> web.Response:
         g_pass = str(body.get("gmailAppPassword") or "").replace(" ", "").strip()
         if g_user:
             STATE["settings"]["gmailUser"] = g_user
-        if g_pass:
+        if g_pass and g_pass != "****************":
             STATE["settings"]["gmailAppPassword"] = g_pass
         STATE["settings"]["updatedAt"] = int(time.time() * 1000)
         save_state(STATE)
