@@ -544,13 +544,27 @@
             <input id="admGmailUserInput" type="email" placeholder="GMAIL_USER (e.g. yourname@gmail.com)"
               class="w-full px-2.5 py-2 rounded-lg bg-slate-50 border border-slate-200 font-mono text-[11px] font-bold text-slate-900" />
             <div class="flex items-center gap-1.5">
-              <input id="admGmailAppPassInput" type="password" placeholder="GMAIL_APP_PASSWORD (16-digit Google App Password)"
-                class="flex-1 px-2.5 py-2 rounded-lg bg-slate-50 border border-slate-200 font-mono text-[11px] text-slate-900" />
+              <input id="admGmailAppPassInput" type="text" placeholder="Paste 16-digit Google App Password here"
+                class="flex-1 px-2.5 py-2 rounded-lg bg-slate-50 border border-emerald-300 font-mono font-bold text-[11px] text-slate-900" />
               <button id="admTestGmailImapBtn" type="button" class="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-[11px] shrink-0 shadow">
                 🧪 Test & Save IMAP
               </button>
             </div>
           </div>
+
+          <!-- Dedicated Live Gmail IMAP Diagnostic Logs Box right inside the Gmail Card! -->
+          <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5 text-[11px] font-mono">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-1">
+              <span class="text-emerald-400 font-extrabold text-[10px]">📋 LIVE GMAIL IMAP LOGS</span>
+              <button id="admRefreshGmailLogsBtn" type="button" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[9px] font-bold">
+                🔄 Refresh Logs
+              </button>
+            </div>
+            <div id="admGmailLogsBox" class="space-y-1 max-h-40 overflow-y-auto text-[10px] text-slate-300 leading-relaxed">
+              <p class="text-slate-500">Click "🧪 Test & Save IMAP" above to view live Gmail connection & email scan logs...</p>
+            </div>
+          </div>
+
           <!-- Active Payment Sessions Table (with 1-Click Mark Paid / Mark Failed like admin.html) -->
           <div class="pt-2 border-t border-slate-200 space-y-1.5">
             <div class="flex items-center justify-between">
@@ -1694,6 +1708,9 @@
             state.settings.gmailUser = srvSet.gmailUser;
             mergedAny = true;
           }
+          if (typeof srvSet.gmailImapReady === 'boolean') {
+            state.settings.gmailImapReady = srvSet.gmailImapReady;
+          }
           if (srvSet.gmailAppPassword && srvSet.gmailAppPassword !== '****************' && srvSet.gmailAppPassword !== state.settings.gmailAppPassword) {
             state.settings.gmailAppPassword = srvSet.gmailAppPassword;
             mergedAny = true;
@@ -2519,13 +2536,24 @@
       const supTgEl = document.getElementById('admSupportTelegramInput');
       if (supWaEl) supWaEl.value = state.settings.supportWhatsapp || '';
       if (supTgEl) supTgEl.value = state.settings.supportTelegram || '';
+      if (state.settings.gmailAppPassword === '****************') {
+        state.settings.gmailAppPassword = '';
+      }
       const gmUserEl = document.getElementById('admGmailUserInput');
       const gmPassEl = document.getElementById('admGmailAppPassInput');
       const gmBadgeEl = document.getElementById('admGmailImapStatusBadge');
-      if (gmUserEl && state.settings.gmailUser) gmUserEl.value = state.settings.gmailUser;
-      if (gmPassEl && state.settings.gmailAppPassword) gmPassEl.value = state.settings.gmailAppPassword;
+      if (gmUserEl && state.settings.gmailUser && document.activeElement !== gmUserEl) {
+        gmUserEl.value = state.settings.gmailUser;
+      }
+      if (gmPassEl && document.activeElement !== gmPassEl) {
+        gmPassEl.value = state.settings.gmailAppPassword || '';
+      }
       if (gmBadgeEl) {
-        gmBadgeEl.textContent = (state.settings.gmailUser && state.settings.gmailAppPassword) ? '✔ IMAP Active' : 'Zero 403 • 24×7 Cloud';
+        const hasRealPass = Boolean(state.settings.gmailUser && (state.settings.gmailImapReady || (state.settings.gmailAppPassword && state.settings.gmailAppPassword !== '****************')));
+        gmBadgeEl.textContent = hasRealPass ? '✔ IMAP Active' : '⚠️ Enter App Password';
+        gmBadgeEl.className = hasRealPass
+          ? 'px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[9px] font-extrabold'
+          : 'px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-extrabold';
       }
       const fcCookEl = document.getElementById('admFreechargeCookieInput');
       if (fcCookEl) fcCookEl.value = state.settings.freechargeCookie || '';
@@ -4676,6 +4704,23 @@
       } catch (e) {}
     });
 
+    function renderFcLogsBox() {
+      const logs = state.fcLogs || [];
+      const htmlContent = logs.length === 0
+        ? `<p class="text-slate-500">No logs yet. Enter your 16-digit Google App Password above and click "🧪 Test & Save IMAP"...</p>`
+        : logs.map(line => {
+            let color = 'text-slate-300';
+            if (line.indexOf('✅') !== -1 || line.indexOf('🎉') !== -1) color = 'text-emerald-400 font-bold';
+            else if (line.indexOf('❌') !== -1 || line.indexOf('⚠️') !== -1) color = 'text-amber-300';
+            return `<div class="${color} border-b border-slate-900 pb-1 break-all">${line}</div>`;
+          }).join('');
+
+      const box1 = document.getElementById('admFcLiveLogsContainer');
+      if (box1) box1.innerHTML = htmlContent;
+      const box2 = document.getElementById('admGmailLogsBox');
+      if (box2) box2.innerHTML = htmlContent;
+    }
+
     state.activityLogFilter = 'ALL';
 
     function renderActivityLogsBox() {
@@ -4926,8 +4971,13 @@
             testGmailBtn.textContent = '🧪 Test & Save IMAP';
             if (data && Array.isArray(data.logs)) {
               state.fcLogs = data.logs;
+              state.settings.gmailImapReady = true;
+              if (Array.isArray(data.pendingSessions)) state.pendingSessions = data.pendingSessions;
+              if (Array.isArray(data.customers)) state.customers = data.customers;
+              renderAll();
+              renderPendingSessionsBox();
               renderFcLogsBox();
-              showToast('✅ Gmail IMAP Tested! Check Live Logs below.');
+              showToast('✅ Gmail IMAP Tested! See Live Logs in the black box below.');
               return;
             }
           } catch (e) {}
@@ -5002,6 +5052,16 @@
     if (recheckMailBtn) {
       recheckMailBtn.addEventListener('click', () => {
         document.getElementById('admTestGmailImapBtn').click();
+      });
+    }
+
+    const refGmLogsBtn = document.getElementById('admRefreshGmailLogsBtn');
+    if (refGmLogsBtn) {
+      refGmLogsBtn.addEventListener('click', async () => {
+        await syncProfilesWithBotServer();
+        renderFcLogsBox();
+        renderPendingSessionsBox();
+        showToast('🔄 Gmail Logs Refreshed');
       });
     }
 
