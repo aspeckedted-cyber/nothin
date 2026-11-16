@@ -48,6 +48,17 @@
       pointer-events: none;
       opacity: 0.75;
     }
+
+    /* Native Mobile App Feel for Customer APK */
+    #tabSectionCustomerApk {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #tabSectionCustomerApk input {
+      user-select: text;
+      -webkit-user-select: text;
+    }
   </style>
 </head>
 <body class="min-h-screen pb-24">
@@ -818,22 +829,29 @@
         <button id="jpwGoToRechargeBtn" type="button"></button>
       </div>
     </section>
-      <!-- ================= CUSTOMER APK STANDALONE INTERFACE (LUXURY NEON DARK UI FROM 1000584050.png) ================= -->
-    <section id="tabSectionCustomerApk" class="hidden -mx-4 -mt-4 min-h-screen bg-[#070b18] text-white px-3 py-4 pb-16">
-      <div class="max-w-md mx-auto bg-gradient-to-b from-[#0d1326] via-[#0a0f1f] to-[#080c1a] border border-slate-800/80 rounded-[32px] p-4 shadow-[0_0_50px_rgba(0,0,0,0.85)] space-y-4">
+      <!-- ================= CUSTOMER APK STANDALONE INTERFACE (FULL-SCREEN EDGE-TO-EDGE NATIVE APP UI) ================= -->
+    <section id="tabSectionCustomerApk" class="hidden -mx-4 -mt-4 min-h-screen bg-[#070b18] text-white px-4 pt-3 pb-10">
+      <div class="max-w-md mx-auto space-y-4">
 
-        <!-- 1. TOP PORTAL HEADER: Glowing Avatar + Title + (Logged-In Only: ID/Eng Pill & Right Exit Icon Button) -->
+        <!-- Discreet Back-to-Admin bar (ONLY shown when Admin previews Customer APK, completely hidden in standalone Customer .apk!) -->
+        <div id="custApkAdminBackStrip" class="hidden flex items-center justify-end">
+          <button id="custApkBackToAdminInlineBtn" type="button" class="px-2.5 py-1 rounded-full bg-slate-800/90 border border-slate-700 text-amber-300 text-[10px] font-extrabold">
+            🛡️ Back to Admin
+          </button>
+        </div>
+
+        <!-- 1. TOP NATIVE APP HEADER: Glowing Avatar + Single-Line Title + ID/Eng Pill + Right Exit Icon Button -->
         <div class="flex items-center justify-between gap-2 pt-1">
-          <div class="flex items-center gap-3.5">
-            <div class="w-14 h-14 rounded-full bg-gradient-to-b from-[#38bdf8] to-[#0284c7] p-0.5 shadow-[0_0_18px_rgba(56,189,248,0.45)] shrink-0">
-              <div class="w-full h-full rounded-full bg-[#0f172a] flex items-center justify-center text-3xl">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="rounded-full bg-gradient-to-b from-[#38bdf8] to-[#0284c7] p-0.5 shadow-[0_0_18px_rgba(56,189,248,0.5)] shrink-0" style="width:52px;height:52px;">
+              <div class="w-full h-full rounded-full bg-[#0f172a] flex items-center justify-center text-2xl">
                 👨‍💼
               </div>
             </div>
-            <div>
-              <h2 class="text-xl font-extrabold text-white tracking-tight leading-tight">JPW Engineer Portal</h2>
-              <p class="text-xs text-slate-400 font-medium">Instant Reach & Wallet Portal</p>
-              <div id="custApkHeaderUserPill" class="hidden mt-1.5 inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#171f36] border border-slate-700/80 text-[11px] text-slate-300 font-mono">
+            <div class="min-w-0">
+              <h2 class="text-[18px] font-extrabold text-white tracking-tight leading-snug whitespace-nowrap">JPW Engineer Portal</h2>
+              <p class="text-[11px] text-slate-400 font-medium whitespace-nowrap">Instant Reach & Wallet Portal</p>
+              <div id="custApkHeaderUserPill" class="hidden mt-1 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#171f36] border border-slate-700/80 text-[10px] text-slate-300 font-mono whitespace-nowrap">
                 <span>ID: <strong id="custApkActiveTechIdDisplay" class="text-white font-bold">Not Logged In</strong></span>
                 <span class="text-slate-500">|</span>
                 <span>Eng: <strong id="custApkEngineerNameText" class="text-slate-200 font-bold">Guest</strong></span>
@@ -841,16 +859,19 @@
             </div>
           </div>
 
-          <!-- Top-Right Glowing Logout Icon Button (Hidden on Login Page, Shown only when Logged In!) -->
-          <button id="custApkLogoutBtn" type="button" title="Log out"
-            class="hidden p-2.5 rounded-2xl bg-[#161f35]/90 hover:bg-[#232f4d] border border-amber-400/40 text-amber-200 shadow-[0_0_14px_rgba(251,191,36,0.2)] transition shrink-0">
-            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-              <polyline points="16 17 21 12 16 7"/>
-              <line x1="21" y1="12" x2="9" y2="12"/>
-            </svg>
-            <span class="sr-only">Log out</span>
-          </button>
+          <!-- Top-Right Glowing Logout Icon Button -->
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button id="custApkThemeToggleBtn" type="button" class="hidden">☀️</button>
+            <button id="custApkLogoutBtn" type="button" title="Log out"
+              class="hidden p-2.5 rounded-2xl bg-[#161f35]/90 active:scale-95 border border-amber-400/40 text-amber-200 shadow-[0_0_14px_rgba(251,191,36,0.2)] transition shrink-0">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+              <span class="sr-only">Log out</span>
+            </button>
+          </div>
           <button id="custApkDailyBonusBtn" type="button" class="hidden"></button>
         </div>
 
@@ -1149,10 +1170,7 @@
             </div>
           </div>
 
-          <!-- Footer -->
-          <div class="pt-4 border-t border-[#1e293b] text-center">
-            <p class="text-[11px] text-slate-500">© 2026 JPW Reached Services. All rights reserved.</p>
-          </div>
+
 
           <!-- Hidden compatibility nodes -->
           <div class="hidden">
@@ -2158,21 +2176,27 @@
       const admBadge = document.getElementById('adminProfileCountBadge');
       const apkToggleBtn = document.getElementById('toggleApkCustomerModeBtn');
 
+      const topHdr = document.getElementById('adminTopStickyHeader');
+      const adminBackStrip = document.getElementById('custApkAdminBackStrip');
       if (state.customerApkMode) {
         Object.keys(tabs).forEach(k => document.getElementById(tabs[k]).classList.add('hidden'));
         if (custSec) custSec.classList.remove('hidden');
         if (admBanner) admBanner.classList.add('hidden');
         if (admNav) admNav.classList.add('hidden');
         if (admBadge) admBadge.classList.add('hidden');
-        if (apkToggleBtn) {
-          if (isStandaloneCustomerUrl) { apkToggleBtn.classList.add('hidden'); const topHdr = document.getElementById('adminTopStickyHeader'); if (topHdr) topHdr.classList.add('hidden'); }
-          else apkToggleBtn.textContent = '🛡️ Back to Admin';
+        if (topHdr) topHdr.classList.add('hidden');
+        document.body.style.backgroundColor = '#070b18';
+        if (adminBackStrip) {
+          if (isStandaloneCustomerUrl) adminBackStrip.classList.add('hidden');
+          else adminBackStrip.classList.remove('hidden');
         }
       } else {
         if (custSec) custSec.classList.add('hidden');
         if (admBanner) admBanner.classList.remove('hidden');
         if (admNav) admNav.classList.remove('hidden');
         if (admBadge) admBadge.classList.remove('hidden');
+        if (topHdr) topHdr.classList.remove('hidden');
+        document.body.style.backgroundColor = '';
         if (apkToggleBtn) apkToggleBtn.textContent = '📱 Customer APK';
         Object.keys(tabs).forEach(k => {
           const el = document.getElementById(tabs[k]);
@@ -4564,6 +4588,15 @@
     if (recheckMailBtn) {
       recheckMailBtn.addEventListener('click', () => {
         document.getElementById('admTestGmailImapBtn').click();
+      });
+    }
+
+    const backInlineBtn = document.getElementById('custApkBackToAdminInlineBtn');
+    if (backInlineBtn) {
+      backInlineBtn.addEventListener('click', () => {
+        state.customerApkMode = false;
+        saveState();
+        renderAll();
       });
     }
 
