@@ -3673,7 +3673,11 @@
           const chk = await fetch(orig + '/api/customer/check-payment', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sessionId: sess.sessionId })
+            body: JSON.stringify({
+              sessionId: sess.sessionId,
+              techId: cust ? cust.techId : '',
+              amount: sess.baseAmount || 20
+            })
           });
           const chkData = await chk.json().catch(() => null);
           if (chkData && chkData.ok && chkData.status === 'COMPLETED' && chkData.customer) {
@@ -4559,10 +4563,16 @@
       try {
         const orig = window.location && window.location.origin ? window.location.origin : '';
         if (orig.startsWith('http')) {
+          const cust = state.loggedInCustomer;
           const chk = await fetch(orig + '/api/customer/check-payment', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sessionId: sess.sessionId })
+            body: JSON.stringify({
+              sessionId: sess.sessionId,
+              forceScan: true,
+              techId: cust ? cust.techId : '',
+              amount: sess.baseAmount || state.customerPayAmt || 20
+            })
           });
           const chkData = await chk.json().catch(() => null);
           if (chkData && chkData.ok && chkData.status === 'COMPLETED' && chkData.customer) {
@@ -4576,8 +4586,13 @@
               document.getElementById('custGatewayCheckoutModal').classList.add('hidden');
             }, 600);
             state.loggedInCustomer = chkData.customer;
+            saveState();
             renderAll();
             showToast(`🎉 ₹${sess.baseAmount} Payment Verified! Added to Wallet!`);
+            return;
+          }
+          if (stTxt && chkData && chkData.diag && chkData.diag.indexOf('missing on server') !== -1) {
+            stTxt.textContent = '⚠️ Admin tab me Gmail App Password save karein (Test & Save IMAP)!';
             return;
           }
         }
