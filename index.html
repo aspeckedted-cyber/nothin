@@ -341,7 +341,7 @@
               Copy
             </button>
           </div>
-          <a id="miniAppUpiDeepLink" href="upi://pay?pa=jpwportal@ybl&pn=Service%20Portal&am=60.01&cu=INR"
+          <a id="miniAppUpiDeepLink" href="upi://pay?pa=jpwportal@ybl&pn=Service%20Portal&am=60.00&cu=INR"
             class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition">
             📱 Pay ₹<span id="selectedTierPriceText">60</span> via UPI App
           </a>
@@ -657,6 +657,72 @@
           <input id="admTitleInput" type="text" placeholder="Service Order Mini App"
             class="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-900" />
         </div>
+
+        <!-- Customer APK Reach & 5-Package Price Editor -->
+        <div class="p-3 rounded-xl bg-amber-50/70 border border-amber-200 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <p class="font-extrabold text-amber-900 text-xs">💰 Customer APK Reach & Package Prices (₹)</p>
+            <button id="admAutoCalcPkgsBtn" type="button" class="px-2 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-[10px]">
+              ⚡ Auto-Fill 5 Packages
+            </button>
+          </div>
+          <div class="grid grid-cols-2 gap-2 items-center">
+            <label for="admReachPriceInput" class="font-bold text-slate-700 text-[11px]">1 Reach Order Cost (₹):</label>
+            <input id="admReachPriceInput" type="number" min="1" value="20"
+              class="px-2.5 py-1.5 rounded-lg bg-white border border-amber-300 font-mono font-extrabold text-slate-900 text-xs" />
+          </div>
+          <div class="grid grid-cols-5 gap-1.5 pt-1">
+            <div>
+              <label class="block text-[9px] font-bold text-slate-500 mb-0.5">1 Reach (₹)</label>
+              <input id="admPkg1Input" type="number" min="1" value="20"
+                class="w-full px-2 py-1.5 rounded-lg bg-white border border-slate-200 font-mono font-bold text-slate-900 text-[11px]" />
+            </div>
+            <div>
+              <label class="block text-[9px] font-bold text-slate-500 mb-0.5">3 Reach (₹)</label>
+              <input id="admPkg3Input" type="number" min="1" value="60"
+                class="w-full px-2 py-1.5 rounded-lg bg-white border border-slate-200 font-mono font-bold text-slate-900 text-[11px]" />
+            </div>
+            <div>
+              <label class="block text-[9px] font-bold text-slate-500 mb-0.5">5 Reach (₹)</label>
+              <input id="admPkg5Input" type="number" min="1" value="100"
+                class="w-full px-2 py-1.5 rounded-lg bg-white border border-slate-200 font-mono font-bold text-slate-900 text-[11px]" />
+            </div>
+            <div>
+              <label class="block text-[9px] font-bold text-slate-500 mb-0.5">10 Reach (₹)</label>
+              <input id="admPkg10Input" type="number" min="1" value="200"
+                class="w-full px-2 py-1.5 rounded-lg bg-white border border-slate-200 font-mono font-bold text-slate-900 text-[11px]" />
+            </div>
+            <div>
+              <label class="block text-[9px] font-bold text-slate-500 mb-0.5">20 Reach (₹)</label>
+              <input id="admPkg20Input" type="number" min="1" value="400"
+                class="w-full px-2 py-1.5 rounded-lg bg-white border border-slate-200 font-mono font-bold text-slate-900 text-[11px]" />
+            </div>
+          </div>
+          <p class="text-[10px] text-amber-800">
+            💡 Price badal kar niche <strong>💾 Save Settings</strong> dabayein — sabhi Customer APK me turant naya price dikhega!
+          </p>
+        </div>
+
+        <!-- Customer APK Support Links (WhatsApp & Telegram) Editor -->
+        <div class="p-3 rounded-xl bg-purple-50/80 border border-purple-200 space-y-2">
+          <p class="font-extrabold text-purple-900 text-xs">💬 Customer APK Support Links (WhatsApp & Telegram)</p>
+          <div class="space-y-1.5">
+            <div>
+              <label for="admSupportWhatsappInput" class="block text-[10px] font-bold text-slate-600 mb-0.5">🟢 WhatsApp Number or Link (e.g. 919876543210 or https://wa.me/...)</label>
+              <input id="admSupportWhatsappInput" type="text" placeholder="919876543210 or https://wa.me/919876543210"
+                class="w-full px-2.5 py-2 rounded-lg bg-white border border-purple-200 font-mono text-xs text-slate-900" />
+            </div>
+            <div>
+              <label for="admSupportTelegramInput" class="block text-[10px] font-bold text-slate-600 mb-0.5">🔵 Telegram Username or Link (e.g. @username or https://t.me/...)</label>
+              <input id="admSupportTelegramInput" type="text" placeholder="@jpw_support or https://t.me/jpw_support"
+                class="w-full px-2.5 py-2 rounded-lg bg-white border border-purple-200 font-mono text-xs text-slate-900" />
+            </div>
+          </div>
+          <p class="text-[10px] text-purple-800">
+            💡 Yahan apna WhatsApp No. aur Telegram Link daal kar <strong>💾 Save Settings</strong> dabayein — Customer APK ke <strong>Support</strong> button me dono live khulenge!
+          </p>
+        </div>
+
         <div class="flex gap-2 pt-1">
           <button id="saveMiniAdminBtn" type="button" class="flex-1 py-2.5 rounded-xl brand-btn text-xs">
             💾 Save Settings
@@ -830,7 +896,7 @@
       </div>
     </section>
       <!-- ================= CUSTOMER APK STANDALONE INTERFACE (FULL-SCREEN EDGE-TO-EDGE NATIVE APP UI) ================= -->
-    <section id="tabSectionCustomerApk" class="hidden -mx-4 -mt-4 min-h-screen bg-[#070b18] text-white px-4 pt-3 pb-10">
+    <section id="tabSectionCustomerApk" class="hidden -mx-4 -mt-4 min-h-screen bg-[#070b18] text-white px-4 pt-7 pb-10">
       <div class="max-w-md mx-auto space-y-4">
 
         <!-- Discreet Back-to-Admin bar (ONLY shown when Admin previews Customer APK, completely hidden in standalone Customer .apk!) -->
@@ -917,7 +983,7 @@
                 <span>⚡</span> <span>Regular reach</span>
               </span>
             </div>
-            <p class="text-[11px] text-slate-300/90 -mt-2">
+            <p id="custApkCostSubtitle" class="text-[11px] text-slate-300/90 -mt-2">
               Hours: 09:30 AM - 10:15 PM (IST) | Cost: ₹20 / Reach
             </p>
 
@@ -1027,77 +1093,77 @@
 
             <!-- 2-Column Grid of Luxury Gold-Ribbon Package Cards -->
             <div class="grid grid-cols-2 gap-2.5">
-              <!-- Package 1: 1 Reach (₹20) -->
+              <!-- Package 1: 1 Reach -->
               <div class="relative p-3.5 rounded-2xl bg-[#181f30] border border-amber-500/50 text-center space-y-1.5 shadow-md overflow-hidden">
                 <div class="absolute top-0 right-2.5 bg-gradient-to-b from-[#fbbf24] to-[#b45309] text-slate-950 px-1.5 pt-1 pb-1.5 rounded-b-md text-[10px] font-black shadow">
                   ★
                 </div>
                 <p class="text-sm font-extrabold text-white pt-1">1 Reach</p>
-                <p class="text-3xl font-extrabold text-[#f5b041] tracking-tight">₹20</p>
-                <p class="text-[11px] font-bold text-slate-100">₹20 Wallet (1 Reach)</p>
-                <p class="text-[10px] text-slate-400 pb-1">(₹20.00 per reach order)</p>
-                <a data-direct-pay-amt="20" href="upi://pay?pa=jpwportal@freecharge&pn=JPW%20REACH&am=20.01&cu=INR"
+                <p id="custPkgPriceText_1" class="text-3xl font-extrabold text-[#f5b041] tracking-tight">₹20</p>
+                <p id="custPkgWalletText_1" class="text-[11px] font-bold text-slate-100">₹20 Wallet (1 Reach)</p>
+                <p id="custPkgPerOrderText_1" class="text-[10px] text-slate-400 pb-1">(₹20.00 per reach order)</p>
+                <a data-pkg-reaches="1" data-direct-pay-amt="20" href="upi://pay?pa=jpwportal@freecharge&pn=JPW%20REACH&am=20.00&cu=INR"
                   class="cust-direct-pay-link block w-full py-2 rounded-lg bg-[#10b981] hover:bg-[#059669] text-slate-950 font-extrabold text-sm shadow-md transition">
                   PAY
                 </a>
               </div>
 
-              <!-- Package 2: 3 Reach (₹60) -->
+              <!-- Package 2: 3 Reach -->
               <div class="relative p-3.5 rounded-2xl bg-[#181f30] border border-amber-500/50 text-center space-y-1.5 shadow-md overflow-hidden">
                 <div class="absolute top-0 right-2.5 bg-gradient-to-b from-[#fbbf24] to-[#b45309] text-slate-950 px-1.5 pt-1 pb-1.5 rounded-b-md text-[10px] font-black shadow">
                   ★
                 </div>
                 <p class="text-sm font-extrabold text-white pt-1">3 Reach</p>
-                <p class="text-3xl font-extrabold text-[#f5b041] tracking-tight">₹60</p>
-                <p class="text-[11px] font-bold text-slate-100">₹60 Wallet (3 Reach)</p>
-                <p class="text-[10px] text-slate-400 pb-1">(₹20.00 per reach order)</p>
-                <a data-direct-pay-amt="60" href="upi://pay?pa=jpwportal@freecharge&pn=JPW%20REACH&am=60.01&cu=INR"
+                <p id="custPkgPriceText_3" class="text-3xl font-extrabold text-[#f5b041] tracking-tight">₹60</p>
+                <p id="custPkgWalletText_3" class="text-[11px] font-bold text-slate-100">₹60 Wallet (3 Reach)</p>
+                <p id="custPkgPerOrderText_3" class="text-[10px] text-slate-400 pb-1">(₹20.00 per reach order)</p>
+                <a data-pkg-reaches="3" data-direct-pay-amt="60" href="upi://pay?pa=jpwportal@freecharge&pn=JPW%20REACH&am=60.00&cu=INR"
                   class="cust-direct-pay-link block w-full py-2 rounded-lg bg-[#10b981] hover:bg-[#059669] text-slate-950 font-extrabold text-sm shadow-md transition">
                   PAY
                 </a>
               </div>
 
-              <!-- Package 3: 5 Reach (₹100) -->
+              <!-- Package 3: 5 Reach -->
               <div class="relative p-3.5 rounded-2xl bg-[#181f30] border border-amber-500/50 text-center space-y-1.5 shadow-md overflow-hidden">
                 <div class="absolute top-0 right-2.5 bg-gradient-to-b from-[#fbbf24] to-[#b45309] text-slate-950 px-1.5 pt-1 pb-1.5 rounded-b-md text-[10px] font-black shadow">
                   ★
                 </div>
                 <p class="text-sm font-extrabold text-white pt-1">5 Reach</p>
-                <p class="text-3xl font-extrabold text-[#f5b041] tracking-tight">₹100</p>
-                <p class="text-[11px] font-bold text-slate-100">₹100 Wallet (5 Reach)</p>
-                <p class="text-[10px] text-slate-400 pb-1">(₹20.00 per reach order)</p>
-                <a data-direct-pay-amt="100" href="upi://pay?pa=jpwportal@freecharge&pn=JPW%20REACH&am=100.01&cu=INR"
+                <p id="custPkgPriceText_5" class="text-3xl font-extrabold text-[#f5b041] tracking-tight">₹100</p>
+                <p id="custPkgWalletText_5" class="text-[11px] font-bold text-slate-100">₹100 Wallet (5 Reach)</p>
+                <p id="custPkgPerOrderText_5" class="text-[10px] text-slate-400 pb-1">(₹20.00 per reach order)</p>
+                <a data-pkg-reaches="5" data-direct-pay-amt="100" href="upi://pay?pa=jpwportal@freecharge&pn=JPW%20REACH&am=100.00&cu=INR"
                   class="cust-direct-pay-link block w-full py-2 rounded-lg bg-[#10b981] hover:bg-[#059669] text-slate-950 font-extrabold text-sm shadow-md transition">
                   PAY
                 </a>
               </div>
 
-              <!-- Package 4: 10 Reach (₹200) -->
+              <!-- Package 4: 10 Reach -->
               <div class="relative p-3.5 rounded-2xl bg-[#181f30] border border-amber-500/50 text-center space-y-1.5 shadow-md overflow-hidden">
                 <div class="absolute top-0 right-2.5 bg-gradient-to-b from-[#fbbf24] to-[#b45309] text-slate-950 px-1.5 pt-1 pb-1.5 rounded-b-md text-[10px] font-black shadow">
                   ★
                 </div>
                 <p class="text-sm font-extrabold text-white pt-1">10 Reach</p>
-                <p class="text-3xl font-extrabold text-[#f5b041] tracking-tight">₹200</p>
-                <p class="text-[11px] font-bold text-slate-100">₹200 Wallet (10 Reach)</p>
-                <p class="text-[10px] text-slate-400 pb-1">(₹20.00 per reach order)</p>
-                <a data-direct-pay-amt="200" href="upi://pay?pa=jpwportal@freecharge&pn=JPW%20REACH&am=200.01&cu=INR"
+                <p id="custPkgPriceText_10" class="text-3xl font-extrabold text-[#f5b041] tracking-tight">₹200</p>
+                <p id="custPkgWalletText_10" class="text-[11px] font-bold text-slate-100">₹200 Wallet (10 Reach)</p>
+                <p id="custPkgPerOrderText_10" class="text-[10px] text-slate-400 pb-1">(₹20.00 per reach order)</p>
+                <a data-pkg-reaches="10" data-direct-pay-amt="200" href="upi://pay?pa=jpwportal@freecharge&pn=JPW%20REACH&am=200.00&cu=INR"
                   class="cust-direct-pay-link block w-full py-2 rounded-lg bg-[#10b981] hover:bg-[#059669] text-slate-950 font-extrabold text-sm shadow-md transition">
                   PAY
                 </a>
               </div>
             </div>
 
-            <!-- Package 5: 20 Reach (₹400) Full-Width Gold Card -->
+            <!-- Package 5: 20 Reach Full-Width Gold Card -->
             <div class="relative p-3.5 rounded-2xl bg-[#181f30] border border-amber-500/50 flex items-center justify-between gap-3 shadow-md overflow-hidden">
               <div class="absolute top-0 right-2.5 bg-gradient-to-b from-[#fbbf24] to-[#b45309] text-slate-950 px-1.5 pt-1 pb-1.5 rounded-b-md text-[10px] font-black shadow">
                 ★
               </div>
               <div>
-                <p class="text-sm font-extrabold text-white">20 Reach • <span class="text-[#f5b041] text-xl">₹400</span></p>
-                <p class="text-[11px] font-bold text-slate-200">₹400 Wallet (20 Reach) <span class="text-slate-400 font-normal">(₹20.00/order)</span></p>
+                <p class="text-sm font-extrabold text-white">20 Reach • <span id="custPkgPriceText_20" class="text-[#f5b041] text-xl">₹400</span></p>
+                <p class="text-[11px] font-bold text-slate-200"><span id="custPkgWalletText_20">₹400 Wallet (20 Reach)</span> <span id="custPkgPerOrderText_20" class="text-slate-400 font-normal">(₹20.00/order)</span></p>
               </div>
-              <a data-direct-pay-amt="400" href="upi://pay?pa=jpwportal@freecharge&pn=JPW%20REACH&am=400.01&cu=INR"
+              <a data-pkg-reaches="20" data-direct-pay-amt="400" href="upi://pay?pa=jpwportal@freecharge&pn=JPW%20REACH&am=400.00&cu=INR"
                 class="cust-direct-pay-link px-6 py-2.5 rounded-lg bg-[#10b981] hover:bg-[#059669] text-slate-950 font-extrabold text-sm shadow-md transition shrink-0">
                 PAY
               </a>
@@ -1120,7 +1186,7 @@
                 </div>
                 <div class="text-right">
                   <p class="text-[11px] text-slate-200 opacity-80">Amount payable</p>
-                  <p id="gwModalAmountText" class="text-2xl font-extrabold tracking-tight">₹20.01</p>
+                  <p id="gwModalAmountText" class="text-2xl font-extrabold tracking-tight">₹20.00</p>
                 </div>
               </div>
               <div class="bg-[#072654]/95 px-4 py-1.5 text-[11px] text-slate-200 flex items-center justify-between border-t border-white/10 font-mono">
@@ -1243,7 +1309,11 @@
       settings: {
         registerApiUrl: DEFAULT_API_REGISTER,
         upiId: 'jpwportal@freecharge',
-        appTitle: 'JPW REACH'
+        appTitle: 'JPW REACH',
+        reachPrice: 20,
+        pkgPrices: { '1': 20, '3': 60, '5': 100, '10': 200, '20': 400 },
+        supportWhatsapp: 'https://wa.me/919876543210',
+        supportTelegram: 'https://t.me/jpw_support'
       },
       stats: {
         collected: 60,
@@ -1430,6 +1500,24 @@
           state.settings.appTitle = data.appTitle;
           changed = true;
         }
+        if (data.reachPrice && Number(data.reachPrice) !== Number(state.settings.reachPrice || 20)) {
+          state.settings.reachPrice = Number(data.reachPrice);
+          changed = true;
+        }
+        if (data.pkgPrices && typeof data.pkgPrices === 'object') {
+          if (JSON.stringify(data.pkgPrices) !== JSON.stringify(state.settings.pkgPrices || {})) {
+            state.settings.pkgPrices = data.pkgPrices;
+            changed = true;
+          }
+        }
+        if (data.supportWhatsapp && data.supportWhatsapp !== state.settings.supportWhatsapp) {
+          state.settings.supportWhatsapp = data.supportWhatsapp;
+          changed = true;
+        }
+        if (data.supportTelegram && data.supportTelegram !== state.settings.supportTelegram) {
+          state.settings.supportTelegram = data.supportTelegram;
+          changed = true;
+        }
         if (data.customer && state.loggedInCustomer) {
           if (Number(data.customer.balance) !== Number(state.loggedInCustomer.balance) ||
               Number(data.customer.totalOrders) !== Number(state.loggedInCustomer.totalOrders)) {
@@ -1586,11 +1674,27 @@
             state.settings.appTitle = srvSet.appTitle;
             mergedAny = true;
           }
+          if (srvSet.reachPrice && Number(srvSet.reachPrice) !== Number(state.settings.reachPrice || 20)) {
+            state.settings.reachPrice = Number(srvSet.reachPrice);
+            mergedAny = true;
+          }
+          if (srvSet.pkgPrices && typeof srvSet.pkgPrices === 'object') {
+            state.settings.pkgPrices = srvSet.pkgPrices;
+            mergedAny = true;
+          }
+          if (srvSet.supportWhatsapp && srvSet.supportWhatsapp !== state.settings.supportWhatsapp) {
+            state.settings.supportWhatsapp = srvSet.supportWhatsapp;
+            mergedAny = true;
+          }
+          if (srvSet.supportTelegram && srvSet.supportTelegram !== state.settings.supportTelegram) {
+            state.settings.supportTelegram = srvSet.supportTelegram;
+            mergedAny = true;
+          }
           if (srvSet.gmailUser && srvSet.gmailUser !== state.settings.gmailUser) {
             state.settings.gmailUser = srvSet.gmailUser;
             mergedAny = true;
           }
-          if (srvSet.gmailAppPassword && srvSet.gmailAppPassword !== state.settings.gmailAppPassword) {
+          if (srvSet.gmailAppPassword && srvSet.gmailAppPassword !== '****************' && srvSet.gmailAppPassword !== state.settings.gmailAppPassword) {
             state.settings.gmailAppPassword = srvSet.gmailAppPassword;
             mergedAny = true;
           }
@@ -2403,6 +2507,18 @@
       document.getElementById('admProfitText').textContent = state.stats.profit;
       document.getElementById('admUpiInput').value = state.settings.upiId || '';
       document.getElementById('admTitleInput').value = state.settings.appTitle || '';
+      const rpVal = Number(state.settings.reachPrice || 20);
+      const ppObj = state.settings.pkgPrices || { '1': rpVal, '3': rpVal * 3, '5': rpVal * 5, '10': rpVal * 10, '20': rpVal * 20 };
+      const rpInp = document.getElementById('admReachPriceInput');
+      if (rpInp) rpInp.value = rpVal;
+      [1, 3, 5, 10, 20].forEach(r => {
+        const el = document.getElementById('admPkg' + r + 'Input');
+        if (el) el.value = Number(ppObj[String(r)] || (rpVal * r));
+      });
+      const supWaEl = document.getElementById('admSupportWhatsappInput');
+      const supTgEl = document.getElementById('admSupportTelegramInput');
+      if (supWaEl) supWaEl.value = state.settings.supportWhatsapp || '';
+      if (supTgEl) supTgEl.value = state.settings.supportTelegram || '';
       const gmUserEl = document.getElementById('admGmailUserInput');
       const gmPassEl = document.getElementById('admGmailAppPassInput');
       const gmBadgeEl = document.getElementById('admGmailImapStatusBadge');
@@ -2959,9 +3075,36 @@
       copySafe(rows.join('\n'), 'CSV Report');
     });
 
+    // Auto-Fill 5 Packages button on Admin Page
+    const autoCalcPkgsBtn = document.getElementById('admAutoCalcPkgsBtn');
+    if (autoCalcPkgsBtn) {
+      autoCalcPkgsBtn.addEventListener('click', () => {
+        const rp = Math.max(1, Number(document.getElementById('admReachPriceInput').value || 20));
+        [1, 3, 5, 10, 20].forEach(r => {
+          const inp = document.getElementById('admPkg' + r + 'Input');
+          if (inp) inp.value = rp * r;
+        });
+        showToast(`⚡ Auto-filled packages for ₹${rp}/Reach! Click Save Settings.`);
+      });
+    }
+
     // Admin Settings Save
     document.getElementById('saveMiniAdminBtn').addEventListener('click', () => {
       state.settings.upiId = document.getElementById('admUpiInput').value.trim() || 'jpwportal@ybl';
+      const rpSave = Math.max(1, Number(document.getElementById('admReachPriceInput').value || 20));
+      state.settings.reachPrice = rpSave;
+      state.settings.pkgPrices = {
+        '1': Math.max(1, Number(document.getElementById('admPkg1Input').value || rpSave)),
+        '3': Math.max(1, Number(document.getElementById('admPkg3Input').value || (rpSave * 3))),
+        '5': Math.max(1, Number(document.getElementById('admPkg5Input').value || (rpSave * 5))),
+        '10': Math.max(1, Number(document.getElementById('admPkg10Input').value || (rpSave * 10))),
+        '20': Math.max(1, Number(document.getElementById('admPkg20Input').value || (rpSave * 20)))
+      };
+      window._pkgSessions = {};
+      const supWaSave = document.getElementById('admSupportWhatsappInput');
+      const supTgSave = document.getElementById('admSupportTelegramInput');
+      if (supWaSave) state.settings.supportWhatsapp = supWaSave.value.trim();
+      if (supTgSave) state.settings.supportTelegram = supTgSave.value.trim();
       state.settings.appTitle = document.getElementById('admTitleInput').value.trim() || 'JPW Order Mini App';
       state.settings.registerApiUrl = document.getElementById('admApiUrlInput').value.trim() || DEFAULT_API_REGISTER;
       const gmUserSave = document.getElementById('admGmailUserInput');
@@ -3422,13 +3565,38 @@
       if (coinsDisp) coinsDisp.textContent = totalCoins.toFixed(2);
       if (balDisp) balDisp.textContent = String(rupeeBal);
 
-      // Update all 5 Direct Package PAY links with the live server UPI ID (`jpwportal@freecharge`)!
+      // Dynamically update Reach Cost, Place Order button, and all 5 Package Cards from Admin-configured prices!
+      const reachPrice = Math.max(1, Number(state.settings.reachPrice || 20));
+      const pkgPrices = state.settings.pkgPrices || { '1': reachPrice, '3': reachPrice * 3, '5': reachPrice * 5, '10': reachPrice * 10, '20': reachPrice * 20 };
+
+      const costSubEl = document.getElementById('custApkCostSubtitle');
+      if (costSubEl) costSubEl.textContent = `Hours: 09:30 AM - 10:15 PM (IST) | Cost: ₹${reachPrice} / Reach`;
+      const subOrdBtn = document.getElementById('custApkSubmitOrderBtn');
+      if (subOrdBtn && !subOrdBtn.classList.contains('api-busy')) {
+        subOrdBtn.textContent = `Place order (₹${reachPrice})`;
+      }
+
+      [1, 3, 5, 10, 20].forEach(r => {
+        const payPrice = Math.max(1, Number(pkgPrices[String(r)] || (reachPrice * r)));
+        const walletCred = reachPrice * r;
+        const perOrd = (payPrice / r).toFixed(2);
+        const pEl = document.getElementById('custPkgPriceText_' + r);
+        const wEl = document.getElementById('custPkgWalletText_' + r);
+        const oEl = document.getElementById('custPkgPerOrderText_' + r);
+        if (pEl) pEl.textContent = `₹${payPrice}`;
+        if (wEl) wEl.textContent = `₹${walletCred} Wallet (${r} Reach)`;
+        if (oEl) oEl.textContent = r === 20 ? `(₹${perOrd}/order)` : `(₹${perOrd} per reach order)`;
+      });
+
+      // Update all 5 Direct Package PAY links with the live server UPI ID and dynamic package price!
       const upi = state.settings.upiId || 'jpwportal@freecharge';
       const title = state.settings.appTitle || 'JPW REACH';
       const sessionMap = window._pkgSessions || {};
 
       document.querySelectorAll('.cust-direct-pay-link').forEach(link => {
-        const pkgAmt = Number(link.getAttribute('data-direct-pay-amt') || 20);
+        const rCnt = Number(link.getAttribute('data-pkg-reaches') || 1);
+        const pkgAmt = Math.max(1, Number(pkgPrices[String(rCnt)] || (reachPrice * rCnt)));
+        link.setAttribute('data-direct-pay-amt', String(pkgAmt));
         const sess = sessionMap[pkgAmt];
         if (sess && sess.upiUri) {
           link.setAttribute('href', sess.upiUri);
@@ -3441,7 +3609,7 @@
             if (paM) cleanPa = decodeURIComponent(paM[1]);
             if (mcM) mcPart = '&mc=' + encodeURIComponent(mcM[1]);
           }
-          const fallbackUri = `upi://pay?pa=${encodeURIComponent(cleanPa)}&pn=${encodeURIComponent(title)}${mcPart}&am=${pkgAmt}.01&cu=INR`;
+          const fallbackUri = `upi://pay?pa=${encodeURIComponent(cleanPa)}&pn=${encodeURIComponent(title)}${mcPart}&am=${pkgAmt}.00&cu=INR`;
           link.setAttribute('href', fallbackUri);
         }
       });
@@ -3449,16 +3617,23 @@
 
     // Pre-allocate unique decimal sessions for packages so the PAY button's href (`am=20.01`) matches the EXACT server session!
     window._pkgSessions = {};
-    async function preflightPackageSessionForAmt(pkgAmt) {
+    async function preflightPackageSessionForAmt(pkgAmt, reachesCnt) {
       const cust = state.loggedInCustomer;
       if (!cust) return null;
       const orig = window.location && window.location.origin ? window.location.origin : '';
       if (!orig.startsWith('http')) return null;
+      const rp = Math.max(1, Number(state.settings.reachPrice || 20));
+      const rCount = Number(reachesCnt || Math.max(1, Math.round(Number(pkgAmt || rp) / rp)));
       try {
         const res = await fetch(orig + '/api/customer/create-payment', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ techId: cust.techId, amount: Number(pkgAmt || 20) })
+          body: JSON.stringify({
+            techId: cust.techId,
+            amount: Number(pkgAmt || rp),
+            reaches: rCount,
+            walletCredit: rCount * rp
+          })
         });
         const data = await res.json().catch(() => null);
         if (data && data.ok && data.session) {
@@ -3482,7 +3657,7 @@
       window._currentPaySession = sess;
       const startMs = Date.now();
       let smsFallbackSent = false;
-      const exactAmtStr = Number(sess.uniqueAmount || sess.baseAmount || 20).toFixed(2);
+      const exactAmtStr = Number(sess.baseAmount || sess.uniqueAmount || 20).toFixed(2);
       const badgeEl = document.getElementById('custApkUniqueSessionBadge');
       const statusEl = document.getElementById('custApkAutoListenStatus');
       if (badgeEl) badgeEl.textContent = 'Order #' + sess.sessionId.slice(-6);
@@ -3715,25 +3890,202 @@
       showToast('⏳ Checking UTR with Bank Server... Fake UTR is strictly blocked!');
     });
 
-    // Live Wallet Auto-Poller for Customer APK Mode (Checks server every 4 seconds so when Bank SMS Webhook or Admin 1-Tap confirms payment, ₹20 appears at the top automatically!)
+    // Live Wallet & WorkOrder Completion Poller for Customer APK Mode (Every 3.5 seconds!)
     if (window._customerWalletPoller) clearInterval(window._customerWalletPoller);
     window._customerWalletPoller = setInterval(async () => {
       if (!state.customerApkMode || !state.loggedInCustomer) return;
+      const myTid = String(state.loggedInCustomer.techId);
+      const prevProcessingIds = new Set(
+        (state.orders || [])
+          .filter(o => String(o.customerTechId || '') === myTid && o.status !== 'COMPLETED' && o.status !== 'FAILED')
+          .map(o => Number(o.id))
+      );
+
+      if (prevProcessingIds.size > 0) {
+        await pollLiveCashtreeOrderStatus(false);
+      }
+
       const prevBal = Number(state.loggedInCustomer.balance || 0);
       await syncCustomerMeWithServer();
       const newBal = Number(state.loggedInCustomer.balance || 0);
       if (newBal > prevBal) {
         renderAll();
-        showToast(`🎉 Payment Confirmed by Bank! Wallet Balance: ₹${newBal}`);
+        showToast(`🎉 Wallet Updated! New Balance: ₹${newBal}`);
+      }
+
+      // Check if any previously PROCESSING order just turned COMPLETED or FAILED!
+      if (prevProcessingIds.size > 0) {
+        (state.orders || []).forEach(o => {
+          const oid = Number(o.id);
+          if (prevProcessingIds.has(oid) && !window._notifiedCompletedOrders.has(oid)) {
+            if (o.status === 'COMPLETED') {
+              window._notifiedCompletedOrders.add(oid);
+              triggerWorkOrderNotification(
+                '✅ WorkOrder Complete!',
+                `WO #${oid} (Target: ${o.targetId}) complete ho gaya hai! Ab aap ID khol sakte hain.`
+              );
+              renderAll();
+            } else if (o.status === 'FAILED') {
+              window._notifiedCompletedOrders.add(oid);
+              const refAmt = o.orderPrice || state.settings.reachPrice || 20;
+              triggerWorkOrderNotification(
+                '❌ WorkOrder Failed (Refunded)',
+                `WO #${oid} (Target: ${o.targetId}) fail ho gaya. ₹${refAmt} Wallet me refund ho gaya hai.`
+              );
+              renderAll();
+            }
+          }
+        });
       }
     }, 3500);
+
+    function getIstTimeString() {
+      try {
+        return new Date().toLocaleTimeString('en-IN', {
+          timeZone: 'Asia/Kolkata',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        }).toUpperCase();
+      } catch (e) {
+        return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+    }
+
+    function playOrderCompleteSound() {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        [523.25, 659.25, 783.99, 1046.5].forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.15, ctx.currentTime + idx * 0.12);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.12 + 0.25);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(ctx.currentTime + idx * 0.12);
+          osc.stop(ctx.currentTime + idx * 0.12 + 0.26);
+        });
+      } catch (e) {}
+    }
+
+    function triggerWorkOrderNotification(title, bodyText) {
+      playOrderCompleteSound();
+      showToast(title + ' ' + bodyText);
+      // 1. Native Android APK Notification (via MainActivity.java AndroidSmsBridge)
+      try {
+        if (window.AndroidSmsBridge && typeof window.AndroidSmsBridge.showOrderNotification === 'function') {
+          window.AndroidSmsBridge.showOrderNotification(title, bodyText);
+        }
+      } catch (e) {}
+      // 2. Web / Browser Notification API
+      try {
+        if ('Notification' in window) {
+          if (Notification.permission === 'granted') {
+            new Notification(title, { body: bodyText });
+          } else if (Notification.permission !== 'denied') {
+            Notification.requestPermission().then(p => {
+              if (p === 'granted') new Notification(title, { body: bodyText });
+            }).catch(() => {});
+          }
+        }
+      } catch (e) {}
+    }
+
+    window._notifiedCompletedOrders = window._notifiedCompletedOrders || new Set();
+
+    function startFiveMinOrderWaitTimer(orderObj) {
+      const resBox = document.getElementById('custApkOrderLiveResult');
+      if (!resBox || !orderObj) return;
+      resBox.classList.remove('hidden');
+
+      const woId = orderObj.id;
+      const targetId = orderObj.targetId || '';
+      const startTs = Number(orderObj.createdAtTs || Date.now());
+      const endTs = startTs + (5 * 60 * 1000); // 5 Minutes (300 seconds)
+      window._activeTrackedOrderId = woId;
+
+      if (window._activeOrderCountdown) clearInterval(window._activeOrderCountdown);
+
+      function renderTick() {
+        // Check if order is already COMPLETED or FAILED in state.orders
+        const liveOrd = (state.orders || []).find(o => Number(o.id) === Number(woId));
+        if (liveOrd && liveOrd.status === 'COMPLETED') {
+          clearInterval(window._activeOrderCountdown);
+          resBox.innerHTML = `
+            <div class="p-3.5 rounded-xl bg-emerald-950/90 border-2 border-emerald-400 space-y-1.5 text-center shadow-[0_0_20px_rgba(16,185,129,0.4)]">
+              <p class="text-sm font-extrabold text-emerald-300">🎉 WorkOrder #${woId} Complete Ho Gaya!</p>
+              <p class="text-xs font-bold text-white">Target ID: <span class="font-mono text-emerald-300">${targetId}</span></p>
+              <p class="text-[11px] text-emerald-200">✅ Reach safal ho gaya hai! Ab aap apna Target ID login / open kar sakte hain.</p>
+            </div>
+          `;
+          if (!window._notifiedCompletedOrders.has(woId)) {
+            window._notifiedCompletedOrders.add(woId);
+            triggerWorkOrderNotification(
+              '✅ WorkOrder Complete!',
+              `WO #${woId} (Target: ${targetId}) complete ho gaya hai! Ab aap ID khol sakte hain.`
+            );
+          }
+          return;
+        }
+
+        if (liveOrd && liveOrd.status === 'FAILED') {
+          clearInterval(window._activeOrderCountdown);
+          const refAmt = liveOrd.orderPrice || state.settings.reachPrice || 20;
+          resBox.innerHTML = `
+            <div class="p-3.5 rounded-xl bg-rose-950/90 border-2 border-rose-500 space-y-1.5 text-center">
+              <p class="text-sm font-extrabold text-rose-300">❌ WorkOrder #${woId} Failed!</p>
+              <p class="text-xs text-white">💸 ₹${refAmt} aapke Wallet me wapas Refund kar diya gaya hai.</p>
+            </div>
+          `;
+          if (!window._notifiedCompletedOrders.has(woId)) {
+            window._notifiedCompletedOrders.add(woId);
+            triggerWorkOrderNotification(
+              '❌ WorkOrder Failed (Refunded)',
+              `WO #${woId} (Target: ${targetId}) fail ho gaya. ₹${refAmt} Wallet me refund kar diya gaya hai.`
+            );
+          }
+          return;
+        }
+
+        const remSec = Math.max(0, Math.ceil((endTs - Date.now()) / 1000));
+        const mm = String(Math.floor(remSec / 60)).padStart(2, '0');
+        const ss = String(remSec % 60).padStart(2, '0');
+
+        resBox.innerHTML = `
+          <div class="p-3.5 rounded-xl bg-[#101c30] border-2 border-amber-400/80 space-y-2 text-center shadow-[0_0_20px_rgba(251,191,36,0.2)]">
+            <div class="flex items-center justify-between border-b border-slate-700/80 pb-1.5">
+              <span class="text-[11px] font-extrabold text-amber-300">⏳ WO #${woId} Processing...</span>
+              <span class="px-2.5 py-0.5 rounded-full bg-amber-400 text-slate-950 font-extrabold text-xs font-mono">⏱️ ${mm}:${ss}</span>
+            </div>
+            <p class="text-xs font-extrabold text-rose-300 leading-snug">
+              ⚠️ Dhyan Dein: 5 minute tak apna Target ID (${targetId}) bilkul mat kholein!
+            </p>
+            <p class="text-[11px] text-slate-300 leading-relaxed">
+              Aapka Reach order chal raha hai. Kripya 5 minute tak ID mat kholein! <strong>Order complete hote hi aapko Notification mil jayega!</strong>
+            </p>
+          </div>
+        `;
+
+        if (remSec <= 0) {
+          clearInterval(window._activeOrderCountdown);
+        }
+      }
+
+      renderTick();
+      window._activeOrderCountdown = setInterval(renderTick, 1000);
+    }
 
     // Customer APK: Submit 1 Reach Order (Deducts ₹20 & Automatically uses Backend Node with >= 1.00 Coin!)
     document.getElementById('custApkSubmitOrderBtn').addEventListener('click', async () => {
       const cust = state.loggedInCustomer;
       if (!cust) return;
-      if (Number(cust.balance || 0) < 20) {
-        showToast('⚠️ Balance ₹0! Please pay ₹20 below to unlock Reach Order.');
+        const reqPrice = Math.max(1, Number(state.settings.reachPrice || 20));
+        if (Number(cust.balance || 0) < reqPrice) {
+          showToast(`⚠️ Insufficient Balance! 1 Reach costs ₹${reqPrice}. Niche Pay karein.`);
         document.getElementById('custApkUtrInput').focus();
         return;
       }
@@ -3750,7 +4102,7 @@
 
       submitBtn.classList.add('api-busy');
       resBox.classList.remove('hidden');
-      resBox.innerHTML = `<p class="text-amber-300 font-bold">⏳ Processing your Reach Order via Backend Service Node...</p>`;
+      resBox.innerHTML = `<p class="text-amber-300 font-bold">⏳ Reach order chal raha hai...</p>`;
 
       // 1. Try server /api/customer/order first
       const orig = window.location && window.location.origin ? window.location.origin : '';
@@ -3766,12 +4118,18 @@
             state.loggedInCustomer = data.customer;
             const existing = (state.customers || []).find(c => String(c.techId) === String(cust.techId));
             if (existing) Object.assign(existing, data.customer);
-            if (data.order) state.orders.unshift(data.order);
-            resBox.innerHTML = `<p class="text-emerald-400 font-bold">${data.message}</p>`;
+            if (data.order) {
+              if (!data.order.createdAtTs) data.order.createdAtTs = Date.now();
+              state.orders.unshift(data.order);
+              startFiveMinOrderWaitTimer(data.order);
+            } else {
+              resBox.innerHTML = `<p class="text-emerald-400 font-bold">${data.message}</p>`;
+            }
             document.getElementById('custApkTargetIdInput').value = '';
             document.getElementById('custApkTargetPassInput').value = '';
+            saveState();
             renderAll();
-            showToast('🚀 Reach Order Completed!');
+            showToast('⏳ Reach Order Started! 5 min tak ID mat kholein.');
             submitBtn.classList.remove('api-busy');
             return;
           } else if (data && !data.ok) {
@@ -3796,20 +4154,23 @@
           cust.totalOrders = Number(cust.totalOrders || 0) + 1;
           nodeProf.jpwCoins = Math.max(0, Number(nodeProf.jpwCoins || 0) - 1.0);
           const woId = Math.floor(7100000000 + Math.random() * 899999999);
-          state.orders.unshift({
+          const newOrdObj = {
             id: woId,
             profileId: nodeProf.id,
             customerTechId: cust.techId,
+            orderPrice: reqPrice,
             targetId,
             notes: `APK User: ${cust.techId} | ${srvMsg}`,
             status: 'PROCESSING',
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          });
-          resBox.innerHTML = `<p class="text-emerald-400 font-bold">✅ Order #${woId} Placed! (${srvMsg})</p>`;
+            time: getIstTimeString(),
+            createdAtTs: Date.now()
+          };
+          state.orders.unshift(newOrdObj);
+          startFiveMinOrderWaitTimer(newOrdObj);
           window._initialServerPullDone = true;
           saveState();
           renderAll();
-          showToast('🚀 Reach Order Placed!');
+          showToast('⏳ Reach Order Started! 5 min tak ID mat kholein.');
         } else {
           resBox.innerHTML = `<p class="text-rose-400 font-bold">⚠️ ${srvMsg} (Your ₹${cust.balance} is safe)</p>`;
           showToast(`⚠️ ${srvMsg}`);
@@ -4046,7 +4407,10 @@
         await syncCustomerMeWithServer();
         drw.classList.remove('hidden');
         title.textContent = '📊 My Reach Order Status';
-        const myOrders = state.orders.filter(o => String(o.customerTechId || '') === String(cust.techId));
+        const myOrders = state.orders
+          .filter(o => String(o.customerTechId || '') === String(cust.techId))
+          .slice()
+          .sort((a, b) => Number(b.createdAtTs || 0) - Number(a.createdAtTs || 0));
         list.innerHTML = myOrders.length === 0
           ? `<p class="text-center text-slate-400 py-2">No orders placed yet from ${cust.techId}.</p>`
           : myOrders.map(o => `
@@ -4061,20 +4425,57 @@
       });
     }
 
-    // 💬 Support Button
+    // Helper to build clean WhatsApp & Telegram URLs from Admin settings
+    function getFormattedSupportLinks() {
+      const cust = state.loggedInCustomer;
+      const tid = cust && cust.techId ? cust.techId : 'Guest';
+      const rawWa = String(state.settings.supportWhatsapp || 'https://wa.me/919876543210').trim();
+      const rawTg = String(state.settings.supportTelegram || 'https://t.me/jpw_support').trim();
+
+      let waUrl = rawWa;
+      if (!rawWa.startsWith('http://') && !rawWa.startsWith('https://') && !rawWa.startsWith('whatsapp://')) {
+        const digits = rawWa.replace(/[^0-9]/g, '');
+        const phone = digits.length === 10 ? ('91' + digits) : (digits || '919876543210');
+        waUrl = `https://wa.me/${phone}?text=${encodeURIComponent('Hello Admin, my Engineer ID is ' + tid)}`;
+      }
+
+      let tgUrl = rawTg;
+      if (!rawTg.startsWith('http://') && !rawTg.startsWith('https://') && !rawTg.startsWith('tg://')) {
+        const cleanUser = rawTg.replace(/^@+/, '').trim() || 'jpw_support';
+        tgUrl = `https://t.me/${cleanUser}`;
+      }
+
+      return { waUrl, tgUrl };
+    }
+
+    // 💬 Support Button (Shows Live WhatsApp & Telegram Support Buttons configured by Admin!)
     const tabSupportBtn = document.getElementById('custApkTabSupportBtn');
     if (tabSupportBtn) {
-      tabSupportBtn.addEventListener('click', () => {
+      tabSupportBtn.addEventListener('click', async () => {
+        await syncCustomerMeWithServer();
         const drw = document.getElementById('custApkInfoDrawer');
         const title = document.getElementById('custApkDrawerTitle');
         const list = document.getElementById('custApkOrdersList');
+        const { waUrl, tgUrl } = getFormattedSupportLinks();
         drw.classList.remove('hidden');
         title.textContent = '💬 Engineer Support';
         list.innerHTML = `
-          <div class="p-3 rounded-xl bg-[#0b111e] border border-[#1e293b] space-y-1.5">
-            <p class="text-white font-bold">24×7 Instant Support Portal</p>
-            <p class="text-[11px] text-slate-400">Service Hours: 09:30 AM – 10:15 PM (IST)</p>
-            <p class="text-[11px] text-[#2dd4bf]">Coins are auto-credited immediately after UPI payment.</p>
+          <div class="p-3.5 rounded-xl bg-[#0b111e] border border-[#1e293b] space-y-3">
+            <div>
+              <p class="text-white font-extrabold text-xs">24×7 Instant Engineer Support</p>
+              <p class="text-[11px] text-slate-400 mt-0.5">Service Hours: 09:30 AM – 10:15 PM (IST)</p>
+              <p class="text-[11px] text-[#2dd4bf] mt-0.5">Wallet balance is auto-credited immediately after UPI payment.</p>
+            </div>
+            <div class="grid grid-cols-2 gap-2.5 pt-1">
+              <a href="${waUrl}" target="_blank" rel="noopener noreferrer"
+                class="py-3 px-3 rounded-xl bg-gradient-to-r from-[#16a34a] to-[#22c55e] hover:brightness-110 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-[0_0_16px_rgba(34,197,94,0.4)] transition">
+                <span>🟢</span> <span>WhatsApp</span>
+              </a>
+              <a href="${tgUrl}" target="_blank" rel="noopener noreferrer"
+                class="py-3 px-3 rounded-xl bg-gradient-to-r from-[#0284c7] to-[#38bdf8] hover:brightness-110 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-[0_0_16px_rgba(56,189,248,0.4)] transition">
+                <span>✈️</span> <span>Telegram</span>
+              </a>
+            </div>
           </div>
         `;
       });
@@ -4086,14 +4487,14 @@
       custDailyBtn.addEventListener('click', () => {
         const cust = state.loggedInCustomer;
         if (!cust) return;
-        showToast('🎁 Daily Bonus is active on backend nodes! Add coins below for instant Reach.');
+        showToast('⚡ Add balance below for instant Reach.');
       });
     }
 
     function openHostedGatewayModal(sess, fallbackAmt) {
       const modal = document.getElementById('custGatewayCheckoutModal');
       if (!modal) return;
-      const amtStr = sess && sess.uniqueAmount ? Number(sess.uniqueAmount).toFixed(2) : (String(fallbackAmt || 20) + '.01');
+      const amtStr = sess && sess.baseAmount ? Number(sess.baseAmount).toFixed(2) : Number(fallbackAmt || 20).toFixed(2);
       const ordId = (sess && sess.sessionId) || ('JPW_' + Date.now());
       const upiUri = (sess && sess.upiUri) || `upi://pay?pa=${encodeURIComponent(state.settings.upiId || 'jpwportal@freecharge')}&pn=${encodeURIComponent(state.settings.appTitle || 'JPW REACH')}&am=${amtStr}&cu=INR`;
 
@@ -4196,13 +4597,11 @@
           showToast('⚠️ Please login with your Engineer ID first');
           return;
         }
+        const rCnt = Number(link.getAttribute('data-pkg-reaches') || 1);
         const pkgAmt = Number(link.getAttribute('data-direct-pay-amt') || 20);
         state.customerPayAmt = pkgAmt;
 
-        let sess = window._pkgSessions && window._pkgSessions[pkgAmt];
-        if (!sess) {
-          sess = await preflightPackageSessionForAmt(pkgAmt);
-        }
+        const sess = await preflightPackageSessionForAmt(pkgAmt, rCnt);
         if (sess) {
           startPollingForSession(sess);
           openHostedGatewayModal(sess, pkgAmt);
