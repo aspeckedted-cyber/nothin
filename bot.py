@@ -85,6 +85,10 @@ DEFAULT_STATE = {
         "registerApiUrl": CASHTREE_REGISTER_API,
         "gmailUser": os.environ.get("GMAIL_USER", ""),
         "gmailAppPassword": os.environ.get("GMAIL_APP_PASSWORD", ""),
+        "reachPrice": 20,
+        "pkgPrices": {"1": 20, "3": 60, "5": 100, "10": 200, "20": 400},
+        "supportWhatsapp": os.environ.get("SUPPORT_WHATSAPP", "https://wa.me/919876543210"),
+        "supportTelegram": os.environ.get("SUPPORT_TELEGRAM", "https://t.me/jpw_support"),
     },
     "stats": {
         "collected": 60,
@@ -152,6 +156,10 @@ STATE["customers"] = [c for c in STATE["customers"] if str(c.get("techId")) != "
 STATE.setdefault("used_utrs", [])
 STATE.setdefault("verified_bank_utrs", {})  # { "12_digit_utr": amount_float } received from Bank SMS Webhook or BharatPe API
 STATE.setdefault("pending_payments", [])
+STATE["settings"].setdefault("supportWhatsapp", os.environ.get("SUPPORT_WHATSAPP", "https://wa.me/919876543210"))
+STATE["settings"].setdefault("supportTelegram", os.environ.get("SUPPORT_TELEGRAM", "https://t.me/jpw_support"))
+STATE["settings"].setdefault("reachPrice", 20)
+STATE["settings"].setdefault("pkgPrices", {"1": 20, "3": 60, "5": 100, "10": 200, "20": 400})
 STATE["settings"].setdefault("gmailUser", os.environ.get("GMAIL_USER", ""))
 STATE["settings"].setdefault("gmailAppPassword", os.environ.get("GMAIL_APP_PASSWORD", ""))
 STATE["settings"].setdefault("freechargeCookie", os.environ.get("FREECHARGE_COOKIE", ""))
@@ -449,15 +457,16 @@ def reconcile_failed_order_refunds() -> int:
         if st in ("FAILED", "REJECTED", "CANCELLED") and tid and not ord_obj.get("refunded"):
             cust = next((c for c in customers if str(c.get("techId")) == tid), None)
             if cust:
+                ref_amt = int(ord_obj.get("orderPrice") or STATE["settings"].get("reachPrice") or 20)
                 ord_obj["refunded"] = True
-                cust["balance"] = int(cust.get("balance", 0)) + 20
-                if "₹20 Refunded" not in str(ord_obj.get("notes", "")):
-                    ord_obj["notes"] = f"{ord_obj.get('notes', '')} • 💸 ₹20 Refunded".strip(" •")
+                cust["balance"] = int(cust.get("balance", 0)) + ref_amt
+                if "Refunded" not in str(ord_obj.get("notes", "")):
+                    ord_obj["notes"] = f"{ord_obj.get('notes', '')} • 💸 ₹{ref_amt} Refunded".strip(" •")
                 log_user_activity(
                     tid,
                     "ORDER",
                     "FAILED",
-                    f"Order #{ord_obj.get('id')} FAILED -> Auto-Refunded +₹20 (New Bal: ₹{cust['balance']})",
+                    f"Order #{ord_obj.get('id')} FAILED -> Auto-Refunded +₹{ref_amt} (New Bal: ₹{cust['balance']})",
                 )
                 refunded_count += 1
     if refunded_count > 0:
@@ -500,7 +509,7 @@ def send_backup_document(chat_id: int, caption_note: str = "💾 Full Accounts &
     total_coins = sum(float(p.get("jpwCoins", 0.0)) for p in STATE.get("profiles", []))
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
     json_bytes = json.dumps(STATE, indent=2, ensure_ascii=False).encode("utf-8")
-    stamp = datetime.now().strftime("%Y%m%d_%H%M")
+    stamp = datetime.utcfromtimestamp(time.time() + 19800).strftime("%Y%m%d_%H%M")
     filename = f"jpw_backup_{total_profs}ids_{stamp}.json"
     caption = (
         f"💾 <b>{caption_note}</b>\n"
@@ -850,7 +859,7 @@ def handle_message(msg: dict) -> None:
                 prof["rupees"] = max(0, prof.get("rupees", 0) - 20)
 
             wo_id = random.randint(7100000000, 7999999999)
-            now_str = datetime.now().strftime("%I:%M %p")
+            now_str = datetime.utcfromtimestamp(time.time() + 19800).strftime("%I:%M %p")
             ct_ord = srv_data.get("order") or srv_data.get("data") or {}
             ct_oid = str(ct_ord.get("_id") or ct_ord.get("id") or "") if isinstance(ct_ord, dict) else ""
             init_status = map_cashtree_order_status(ct_ord) if isinstance(ct_ord, dict) and ct_ord else "PROCESSING"
@@ -862,6 +871,7 @@ def handle_message(msg: dict) -> None:
                 "notes": f"Pass: {target_pass} | {srv_msg}",
                 "status": init_status,
                 "time": now_str,
+                "createdAtTs": int(time.time() * 1000),
             }
             STATE["orders"].insert(0, order_obj)
             save_state(STATE)
@@ -928,7 +938,7 @@ def handle_message(msg: dict) -> None:
                 "name": f"Tech_{tid[-4:]}",
                 "balance": max(0, amt),
                 "totalOrders": 0,
-                "createdAt": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                "createdAt": datetime.utcfromtimestamp(time.time() + 19800).strftime("%Y-%m-%d %H:%M"),
             }
             STATE.setdefault("customers", []).insert(0, cust)
         else:
@@ -1312,9 +1322,15 @@ async def api_state_post(request: web.Request) -> web.Response:
                     eo_st = str(eo.get("status", "")).upper()
                     io_st = str(io.get("status", "")).upper()
                     was_refunded = bool(eo.get("refunded"))
+                    orig_time = eo.get("time")
+                    orig_ts = eo.get("createdAtTs")
                     eo.update(io)
                     if was_refunded:
                         eo["refunded"] = True
+                    if orig_time:
+                        eo["time"] = orig_time
+                    if orig_ts:
+                        eo["createdAtTs"] = orig_ts
                     # Preserve terminal COMPLETED / FAILED status over PROCESSING
                     if eo_st in ("COMPLETED", "FAILED") and io_st in ("PROCESSING", "IN PROGRESS", "PENDING"):
                         eo["status"] = eo_st
@@ -1330,19 +1346,24 @@ async def api_state_post(request: web.Request) -> web.Response:
 
         incoming_settings = body.get("settings")
         if isinstance(incoming_settings, dict):
-            # Only overwrite server settings if Admin explicitly clicked 'Save Settings' (saveSettings=True)
-            # or if incoming settings have a newer updatedAt timestamp than server settings!
             inc_ts = int(incoming_settings.get("updatedAt") or 0)
             srv_ts = int(STATE["settings"].get("updatedAt") or 0)
-            if body.get("saveSettings") is True or inc_ts > srv_ts:
+            # Restore settings if Admin clicked Save, or incoming is newer, or server just restarted (srv_ts == 0)!
+            if body.get("saveSettings") is True or inc_ts > srv_ts or srv_ts == 0:
                 for k, v in incoming_settings.items():
-                    # Never overwrite saved secrets with empty strings or masked '****************' placeholders
                     if k in ("gmailAppPassword", "freechargeCookie", "bharatpeToken", "razorpayKeySecret"):
                         if not v or str(v).strip() == "****************":
                             continue
-                    STATE["settings"][k] = v
+                    if v is not None and v != "":
+                        STATE["settings"][k] = v
                 if body.get("saveSettings") is True and inc_ts <= srv_ts:
                     STATE["settings"]["updatedAt"] = int(time.time() * 1000)
+            else:
+                # Even if srv_ts > 0, self-heal any missing secret (like gmailUser / gmailAppPassword) from Admin's device!
+                for k in ("gmailUser", "gmailAppPassword", "freechargeCookie", "bharatpeMid", "bharatpeToken"):
+                    v = incoming_settings.get(k)
+                    if v and str(v).strip() != "****************" and not STATE["settings"].get(k):
+                        STATE["settings"][k] = v
 
         incoming_customers = body.get("customers")
         if isinstance(incoming_customers, list):
@@ -1389,8 +1410,20 @@ async def api_customer_me(request: web.Request) -> web.Response:
     tech_id = str(request.query.get("techId") or "").strip()
     upi_id = STATE["settings"].get("upiId", "jpwportal@freecharge")
     app_title = STATE["settings"].get("appTitle", "JPW REACH")
+    reach_price = int(STATE["settings"].get("reachPrice") or 20)
+    pkg_prices = STATE["settings"].get("pkgPrices") or {"1": 20, "3": 60, "5": 100, "10": 200, "20": 400}
+    sup_wa = STATE["settings"].get("supportWhatsapp") or "https://wa.me/919876543210"
+    sup_tg = STATE["settings"].get("supportTelegram") or "https://t.me/jpw_support"
     if not tech_id:
-        return web.json_response({"ok": True, "upiId": upi_id, "appTitle": app_title})
+        return web.json_response({
+            "ok": True,
+            "upiId": upi_id,
+            "appTitle": app_title,
+            "reachPrice": reach_price,
+            "pkgPrices": pkg_prices,
+            "supportWhatsapp": sup_wa,
+            "supportTelegram": sup_tg,
+        })
 
     cust = next((c for c in STATE.get("customers", []) if str(c.get("techId")) == tech_id), None)
     if not cust:
@@ -1408,6 +1441,10 @@ async def api_customer_me(request: web.Request) -> web.Response:
         "orders": my_orders[:20],
         "upiId": upi_id,
         "appTitle": app_title,
+        "reachPrice": reach_price,
+        "pkgPrices": pkg_prices,
+        "supportWhatsapp": sup_wa,
+        "supportTelegram": sup_tg,
     })
 
 
@@ -1437,7 +1474,7 @@ async def api_customer_auth(request: web.Request) -> web.Response:
                 "name": str(body.get("name") or f"Tech_{tech_id[-4:]}"),
                 "balance": restored_bal,
                 "totalOrders": restored_ords,
-                "createdAt": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                "createdAt": datetime.utcfromtimestamp(time.time() + 19800).strftime("%Y-%m-%d %H:%M"),
             }
             customers.insert(0, cust)
             # Also restore any local orders of this customer if server restarted
@@ -1717,15 +1754,18 @@ def _parse_fc_amount(tx: dict) -> float:
 
 # ================= GMAIL IMAP 24x7 PAYMENT GATEWAY ENGINE (PORTED FROM server.js) =================
 GMAIL_IMAP_LOCK = threading.Lock()
-GMAIL_MAIL_CACHE: dict[str, dict] = {}  # "folder:uid" -> {"low": str, "norm": str, "msg_ts": float, "uid_key": str, "subject": str}
+GMAIL_MAIL_CACHE: dict[str, dict] = {}  # "folder:uid" -> {"low": str, "norm": str, "msg_ts": float, "uid_key": str, "subject": str, "sender": str}
 LAST_GMAIL_VERIFY_AT = 0.0
+LAST_EMPTY_CREDS_WARN_AT = 0.0
 
 
 def _html_to_text(h: str) -> str:
-    """Ported from server.js htmlToText(): strips <style>/<script>/tags and normalizes entities."""
+    """Ported from server.js htmlToText(): strips <style>/<script>/tags and normalizes entities without breaking split numbers."""
     if not h:
         return ""
     s = re.sub(r"<(style|script)[\s\S]*?</\1>", " ", str(h), flags=re.IGNORECASE)
+    # Remove inline formatting tags without adding spaces so <span>20</span><span>.01</span> stays 20.01
+    s = re.sub(r"</?(?:span|b|strong|i|em|font|small|sup|sub)\b[^>]*>", "", s, flags=re.IGNORECASE)
     s = re.sub(r"<[^>]+>", " ", s)
     s = s.replace("&nbsp;", " ").replace("&amp;", "&").replace("&#8377;", "₹").replace("&rupee;", "₹")
     s = re.sub(r"\s+", " ", s)
@@ -1747,9 +1787,10 @@ def _decode_mime_words(s: str) -> str:
     return "".join(out)
 
 
-def _extract_email_full_text(msg) -> tuple[str, float, str]:
-    """Extracts (combined_text, timestamp_seconds, subject) from an email.message.Message object."""
+def _extract_email_full_text(msg) -> tuple[str, float, str, str]:
+    """Extracts (combined_text, timestamp_seconds, subject, sender) from an email.message.Message object."""
     subj = _decode_mime_words(msg.get("Subject", ""))
+    sender = _decode_mime_words(msg.get("From", ""))
     date_hdr = msg.get("Date", "")
     msg_ts = 0.0
     if date_hdr:
@@ -1759,7 +1800,7 @@ def _extract_email_full_text(msg) -> tuple[str, float, str]:
         except Exception:
             msg_ts = 0.0
 
-    parts_text = [subj]
+    parts_text = [subj, sender]
     if msg.is_multipart():
         for part in msg.walk():
             ctype = part.get_content_type()
@@ -1785,20 +1826,19 @@ def _extract_email_full_text(msg) -> tuple[str, float, str]:
         except Exception:
             pass
 
-    full_txt = " \n ".join(p for p in parts_text if p)[:30000]
-    return full_txt, msg_ts, subj
+    full_txt = " \n ".join(p for p in parts_text if p)[:40000]
+    return full_txt, msg_ts, subj, sender
 
 
 def _amount_matches_server_js(text: str, amount: float) -> bool:
     """
-    Ported from server.js amountMatches(text, amount):
-    True only if the exact amount appears (e.g. 20.01 or 20.00 or 20, without matching 200 or 120).
+    True if the exact amount appears (e.g. 20.01 or ₹ 20.01 or 20 .01, without matching 200 or 120).
     """
     forms = {f"{amount:.2f}", str(round(amount, 2))}
     if round(amount, 2) == int(amount):
         forms.add(str(int(amount)))
     for f_str in forms:
-        esc = re.escape(f_str)
+        esc = re.escape(f_str).replace(r"\.", r"\s*\.\s*")
         pattern = rf"(?<!\d)(?<!\d[.,]){esc}(?!\d)(?![.,]\d)"
         if re.search(pattern, text):
             return True
@@ -1812,26 +1852,30 @@ def scan_gmail_imap_for_payments(
     force_scan: bool = False,
 ) -> tuple[bool, int, str]:
     """
-    Ported from private-payment-gateway/server.js (`runVerify` & `loadFolderMails`):
-    - Connects to `imap.gmail.com:993` using `gmailUser` + `gmailAppPassword`.
-    - Scans `INBOX` (and `[Gmail]/Spam`) with `readonly=True` (`markSeen: false` — keeps emails Unread!).
-    - Caches parsed emails by UID in `GMAIL_MAIL_CACHE` for instant speed.
-    - Matches payment emails by:
-      1) `orderId` (`session_id`) + exact `amount` (just like `server.js`), OR
-      2) Exact unique decimal amount (`20.01`, `20.02`, `60.01`) received after `session_created_at`!
+    Connects to `imap.gmail.com:993` using `gmailUser` + `gmailAppPassword`,
+    scans `INBOX` and `[Gmail]/Spam`, logs every step in `fc_logs` (`Admin Live Logs`),
+    and matches Paytm Business / Freecharge / Bank emails by Order ID (`JPW...`) or Unique Paise (`20.01`)!
     """
-    global LAST_GMAIL_VERIFY_AT
+    global LAST_GMAIL_VERIFY_AT, LAST_EMPTY_CREDS_WARN_AT
     gmail_user = (STATE["settings"].get("gmailUser") or os.environ.get("GMAIL_USER") or "").strip()
     gmail_pass = (STATE["settings"].get("gmailAppPassword") or os.environ.get("GMAIL_APP_PASSWORD") or "").replace(" ", "").strip()
+    if gmail_pass == "****************":
+        gmail_pass = ""
+
     if not gmail_user or not gmail_pass:
-        if force_scan:
-            append_fc_log("⚠️ Gmail User or 16-digit App Password is empty! Enter in Admin tab.")
+        now_w = time.time()
+        if force_scan or (now_w - LAST_EMPTY_CREDS_WARN_AT) > 15.0:
+            LAST_EMPTY_CREDS_WARN_AT = now_w
+            append_fc_log(
+                f"❌ [IMAP] Gmail credentials missing on server (User={'SET' if gmail_user else 'EMPTY'}, Pass={'SET' if gmail_pass else 'EMPTY'})! "
+                f"Go to Admin tab -> Enter Gmail & 16-digit App Password -> Click Test & Save IMAP!"
+            )
         return False, 0, ""
 
     now_ts = time.time()
-    # Space IMAP connections at least 4 seconds apart unless force_scan=True (just like server.js)
-    if not force_scan and (now_ts - LAST_GMAIL_VERIFY_AT) < 4.0 and GMAIL_MAIL_CACHE:
-        return _match_cached_gmail_messages(expected_unique_amt, session_id, session_created_at)
+    # Space live network IMAP fetches at least 3.5 seconds apart unless force_scan=True
+    if not force_scan and (now_ts - LAST_GMAIL_VERIFY_AT) < 3.5 and GMAIL_MAIL_CACHE:
+        return _match_cached_gmail_messages(expected_unique_amt, session_id, session_created_at, log_miss=False)
 
     with GMAIL_IMAP_LOCK:
         LAST_GMAIL_VERIFY_AT = time.time()
@@ -1841,24 +1885,25 @@ def scan_gmail_imap_for_payments(
             conn.login(gmail_user, gmail_pass)
 
             since_date_str = (datetime.utcnow() - timedelta(days=2)).strftime("%d-%b-%Y")
-            folders_to_check = ["INBOX", "[Gmail]/Spam"]
+            folders_to_check = ["INBOX", '"[Gmail]/Spam"']
             total_checked = 0
+            new_fetched = 0
 
             for folder in folders_to_check:
                 try:
-                    st, _ = conn.select(f'"{folder}"', readonly=True)  # readonly=True -> markSeen: false
+                    st, _ = conn.select(folder, readonly=True)
                     if st != "OK":
                         continue
                     st, data = conn.uid("search", None, f'(SINCE "{since_date_str}")')
                     if st != "OK" or not data or not data[0]:
                         continue
                     all_uids = [u.decode("utf-8") for u in data[0].split() if u]
-                    newest_uids = list(reversed(all_uids))[:35]  # Newest 35 emails per folder
+                    newest_uids = all_uids[-35:]  # Last 35 UIDs in ascending order for IMAP fetch compatibility
                     total_checked += len(newest_uids)
 
                     fresh_uids = [u for u in newest_uids if f"{folder}:{u}" not in GMAIL_MAIL_CACHE]
                     if fresh_uids:
-                        uid_set_str = ",".join(fresh_uids[:25])
+                        uid_set_str = ",".join(fresh_uids[-25:])
                         st_f, msg_data = conn.uid("fetch", uid_set_str, "(BODY.PEEK[])")
                         if st_f == "OK" and msg_data:
                             for item in msg_data:
@@ -1869,31 +1914,40 @@ def scan_gmail_imap_for_payments(
                                     raw_bytes = item[1]
                                     if isinstance(raw_bytes, bytes):
                                         msg_obj = email.message_from_bytes(raw_bytes)
-                                        full_txt, m_ts, subj = _extract_email_full_text(msg_obj)
+                                        full_txt, m_ts, subj, sender = _extract_email_full_text(msg_obj)
                                         low = full_txt.lower()
                                         norm = re.sub(r"[^a-z0-9]", "", low)
+                                        # Extract any JPW Order ID inside the email for instant diagnostic logging!
+                                        jpw_ids = re.findall(r"jpw[a-z0-9]{8,28}", low)
                                         GMAIL_MAIL_CACHE[f"{folder}:{uid_val}"] = {
                                             "low": low,
                                             "norm": norm,
                                             "msg_ts": m_ts,
                                             "uid_key": f"GMAIL_{folder}_{uid_val}",
                                             "subject": subj[:80],
+                                            "sender": sender[:50],
+                                            "jpw_ids": jpw_ids,
                                         }
-                except Exception:
-                    pass
+                                        new_fetched += 1
+                except Exception as folder_exc:
+                    append_fc_log(f"⚠️ [IMAP Folder {folder}] {folder_exc}")
 
             if len(GMAIL_MAIL_CACHE) > 600:
                 keys_to_drop = list(GMAIL_MAIL_CACHE.keys())[:-400]
                 for k in keys_to_drop:
                     GMAIL_MAIL_CACHE.pop(k, None)
 
-            if force_scan:
-                sample_subjs = [v.get("subject", "") for v in list(GMAIL_MAIL_CACHE.values())[-3:] if v.get("subject")]
+            if force_scan or new_fetched > 0:
+                latest_entries = list(GMAIL_MAIL_CACHE.values())[-3:]
+                sample_info = [
+                    f"{v.get('subject', 'NoSubj')[:32]}" + (f" [ID:{v['jpw_ids'][0].upper()}]" if v.get("jpw_ids") else "")
+                    for v in latest_entries
+                ]
                 append_fc_log(
-                    f"✅ Gmail IMAP Connected ({gmail_user}) | Scanned {total_checked} recent mails | Latest: {' | '.join(sample_subjs) if sample_subjs else 'OK'}"
+                    f"✅ [IMAP OK] ({gmail_user}) | Checked {total_checked} mails ({new_fetched} new) | Latest: {' || '.join(sample_info) if sample_info else 'Empty'}"
                 )
         except Exception as exc:
-            append_fc_log(f"❌ Gmail IMAP Error ({gmail_user}): {exc}")
+            append_fc_log(f"❌ [IMAP LOGIN/FETCH ERROR] ({gmail_user}): {exc}")
             return False, 0, ""
         finally:
             if conn:
@@ -1902,15 +1956,16 @@ def scan_gmail_imap_for_payments(
                 except Exception:
                     pass
 
-    return _match_cached_gmail_messages(expected_unique_amt, session_id, session_created_at)
+    return _match_cached_gmail_messages(expected_unique_amt, session_id, session_created_at, log_miss=True)
 
 
 def _match_cached_gmail_messages(
     expected_unique_amt: float | None,
     session_id: str | None,
     session_created_at: float = 0.0,
+    log_miss: bool = False,
 ) -> tuple[bool, int, str]:
-    """Matches cached Gmail messages against active payment session (by Order ID or Unique Decimal Amount)."""
+    """Matches cached Gmail messages against active payment session (by Order ID JPW... or Unique Decimal Amount 20.01)."""
     if expected_unique_amt is None and not session_id:
         return False, 0, ""
 
@@ -1925,11 +1980,6 @@ def _match_cached_gmail_messages(
         if uid_key in used_utrs:
             continue
 
-        # If email has a valid Date header, ensure it was sent after session_created_at (minus 90s clock-skew buffer)
-        msg_ts = float(m.get("msg_ts") or 0.0)
-        if session_created_at > 0 and msg_ts > 0 and msg_ts < (session_created_at - 90):
-            continue
-
         low = m.get("low") or ""
         norm = m.get("norm") or ""
 
@@ -1939,27 +1989,38 @@ def _match_cached_gmail_messages(
         if ref_id in used_utrs or uid_key in used_utrs:
             continue
 
-        # Match 1 (Exact `server.js` rule): Email contains `session_id` (`orderId`) + amount!
-        if sid_low and (sid_low in low or (len(sid_norm) >= 8 and sid_norm in norm)):
-            text_without_id = low.replace(sid_low, " ")
-            if expected_unique_amt is None or _amount_matches_server_js(text_without_id, float(expected_unique_amt)) or _amount_matches_server_js(text_without_id, float(base_int_amt)):
-                append_fc_log(f"🎉 Gmail IMAP Matched OrderID {session_id}! (Ref: {ref_id} | Subj: {m.get('subject','')[:45]})")
-                if uid_key != ref_id and uid_key not in used_utrs:
-                    used_utrs.append(uid_key)
-                return True, base_int_amt, ref_id
+        # Match 1 (Exact Order ID `JPW...` inside email — e.g. Paytm 'Order ID: JPW1794829743129' in 1000585364.jpg!):
+        # Note: Because `JPW...` is a unique 16-char session ID, if the email contains `sid_low`, it belongs to this exact session!
+        if sid_low and len(sid_low) >= 10 and (sid_low in low or sid_norm in norm):
+            append_fc_log(
+                f"🎉 [IMAP MATCHED ORDER ID] {session_id} in email '{m.get('subject','')[:40]}'! Crediting +₹{base_int_amt}"
+            )
+            if uid_key != ref_id and uid_key not in used_utrs:
+                used_utrs.append(uid_key)
+            return True, base_int_amt, ref_id
 
-        # Match 2 (Unique Decimal Paise rule, e.g. ₹20.01, ₹20.02 in Paytm/Freecharge/Bank email):
+        # For amount-only matching (without Order ID), verify the email arrived recently (within 10 mins before/after session creation)
+        msg_ts = float(m.get("msg_ts") or 0.0)
+        if session_created_at > 0 and msg_ts > 0 and msg_ts < (session_created_at - 300):
+            continue
+
+        # Match 2 (Unique Decimal Paise rule, e.g. ₹ 20.01 in Paytm/Freecharge/Bank email):
         if expected_unique_amt is not None:
             exact_str = f"{float(expected_unique_amt):.2f}"
-            has_pay_word = any(w in low for w in ("received", "credited", "paid", "payment", "success", "upi", "rs.", "inr", "₹"))
+            has_pay_word = any(w in low for w in ("received", "credited", "paid", "payment", "success", "upi", "rs", "inr", "₹", "paytm"))
             if has_pay_word and _amount_matches_server_js(low, float(expected_unique_amt)):
-                # If expected_unique_amt has non-zero paise (like 20.01) OR email mentions upi/payment
                 if not exact_str.endswith(".00") or ("upi" in low and ("received" in low or "credited" in low)):
-                    append_fc_log(f"🎉 Gmail IMAP Matched ₹{exact_str}! (Ref: {ref_id} | Subj: {m.get('subject','')[:45]})")
+                    append_fc_log(
+                        f"🎉 [IMAP MATCHED AMOUNT] ₹{exact_str} in email '{m.get('subject','')[:40]}'! Crediting +₹{base_int_amt}"
+                    )
                     if uid_key != ref_id and uid_key not in used_utrs:
                         used_utrs.append(uid_key)
                     return True, base_int_amt, ref_id
 
+    if log_miss and session_id:
+        append_fc_log(
+            f"⏳ [IMAP CHECK] Waiting for Order {session_id} / ₹{float(expected_unique_amt or 20):.2f} (Cached mails: {len(GMAIL_MAIL_CACHE)})"
+        )
     return False, 0, ""
 
 
@@ -2181,16 +2242,18 @@ def complete_payment_session_atomically(sess: dict, cust: dict, ref_id: str, sou
 
         sess["status"] = "COMPLETED"
         sess["credited"] = True
-        amount = int(sess.get("baseAmount", 20))
-        cust["balance"] = int(cust.get("balance", 0)) + amount
+        paid_amount = int(sess.get("baseAmount", 20))
+        credit_amount = int(sess.get("walletCredit") or paid_amount)
+        reaches_n = int(sess.get("reaches") or max(1, credit_amount // max(1, int(STATE["settings"].get("reachPrice") or 20))))
+        cust["balance"] = int(cust.get("balance", 0)) + credit_amount
         log_user_activity(
             str(cust.get("techId", "")),
             "PAYMENT",
             "SUCCESS",
-            f"+₹{amount} Credited via {source_label} (Ref: {ref_id}) • New Bal: ₹{cust['balance']}",
+            f"+₹{credit_amount} Credited (Paid ₹{paid_amount}) via {source_label} (Ref: {ref_id}) • New Bal: ₹{cust['balance']}",
         )
-        STATE["stats"]["collected"] = int(STATE["stats"].get("collected", 0)) + amount
-        STATE["stats"]["cost"] = int(STATE["stats"].get("cost", 0)) + (amount // 20) * 13
+        STATE["stats"]["collected"] = int(STATE["stats"].get("collected", 0)) + paid_amount
+        STATE["stats"]["cost"] = int(STATE["stats"].get("cost", 0)) + reaches_n * 13
         STATE["stats"]["profit"] = STATE["stats"]["collected"] - STATE["stats"]["cost"]
         STATE["pending_payments"] = [p for p in STATE.get("pending_payments", []) if p.get("utr") not in all_keys]
         save_state(STATE)
@@ -2199,35 +2262,14 @@ def complete_payment_session_atomically(sess: dict, cust: dict, ref_id: str, sou
 
 def allocate_unique_amount(base_amount: int) -> float:
     """
-    When 2, 3, or 20 users click 'Pay ₹20' at the exact same time, assigns each active session
-    a unique paise tag (e.g. ₹20.01, ₹20.02, ₹20.03) valid for 5 minutes.
-    When the payment hits BharatPe or Bank SMS, the exact paise or Order Ref matches the exact user
-    with ZERO collision and ZERO UTR typing!
+    Returns exact round amount (e.g. ₹20.00, ₹60.00, ₹100.00, ₹200.00, ₹400.00).
+    Each payment session is uniquely identified by its Order ID (`tr=JPW...`) in the Paytm/Bank confirmation email!
     """
     now_ts = time.time()
     sessions = STATE.setdefault("payment_sessions", {})
-    # Expire sessions older than 6 minutes
-    expired = [k for k, v in sessions.items() if now_ts - float(v.get("createdAt", 0)) > 360 and v.get("status") == "PENDING"]
-    for k in expired:
-        exp_s = sessions.pop(k, None)
-        if exp_s and exp_s.get("techId"):
-            log_user_activity(
-                str(exp_s["techId"]),
-                "PAYMENT",
-                "FAILED",
-                f"Session #{k[-6:]} (₹{float(exp_s.get('uniqueAmount', 20)):.2f}) expired unpaid after 6m",
-            )
-
-    used_paise = {
-        round(float(v.get("uniqueAmount", 0)) - int(float(v.get("uniqueAmount", 0))), 2)
-        for v in sessions.values()
-        if int(float(v.get("baseAmount", 20))) == base_amount
-        and (v.get("status") == "PENDING" or (now_ts - float(v.get("createdAt", 0))) < 720)
-    }
-    for p in range(1, 99):
-        frac = round(p / 100.0, 2)
-        if frac not in used_paise:
-            return round(base_amount + frac, 2)
+    old_keys = [k for k, v in sessions.items() if now_ts - float(v.get("createdAt", 0)) > 86400]
+    for k in old_keys:
+        sessions.pop(k, None)
     return float(base_amount)
 
 
@@ -2236,11 +2278,20 @@ async def api_customer_create_payment(request: web.Request) -> web.Response:
     try:
         body = await request.json()
         tech_id = str(body.get("techId") or "").strip()
-        base_amt = int(body.get("amount") or 20)
+        reach_price = max(1, int(STATE["settings"].get("reachPrice") or 20))
+        pkg_prices = STATE["settings"].get("pkgPrices") or {"1": 20, "3": 60, "5": 100, "10": 200, "20": 400}
+        reaches_cnt = int(body.get("reaches") or 0)
+        if reaches_cnt in (1, 3, 5, 10, 20) and str(reaches_cnt) in pkg_prices:
+            base_amt = max(1, int(pkg_prices[str(reaches_cnt)]))
+            wallet_credit = reaches_cnt * reach_price
+        else:
+            base_amt = max(1, int(body.get("amount") or reach_price))
+            wallet_credit = max(base_amt, int(body.get("walletCredit") or base_amt))
         if not tech_id:
             return web.json_response({"ok": False, "message": "Login required"}, status=400)
 
-        session_id = f"JPW{int(time.time())}{random.randint(100, 999)}"
+        clean_tid = re.sub(r"[^A-Za-z0-9]", "", tech_id)[:12]
+        session_id = f"JPW{clean_tid}T{int(time.time()) % 10000000}{random.randint(10, 99)}"
         unique_amt = allocate_unique_amount(base_amt)
 
         rzp_key_id = (STATE["settings"].get("razorpayKeyId") or os.environ.get("RAZORPAY_KEY_ID") or "").strip()
@@ -2283,8 +2334,7 @@ async def api_customer_create_payment(request: web.Request) -> web.Response:
 
         # Build clean NPCI-compliant URI (include `&tr={session_id}` for Merchant VPAs like @pty/@freecharge so Gmail IMAP matches both Order ID and ₹20.01!)
         mc_part = f"&mc={quote(mc_code)}" if mc_code else ""
-        is_merchant_vpa = any(tag in upi_id.lower() for tag in ("@pty", "@freecharge", "paytm", "bharatpe", "merchant")) or upi_id.startswith("Q")
-        tr_part = f"&tr={quote(session_id)}" if is_merchant_vpa else ""
+        tr_part = f"&tr={quote(session_id)}"
         upi_uri = (
             f"upi://pay?pa={quote(upi_id)}&pn={quote(app_title)}"
             f"{mc_part}&am={unique_amt:.2f}{tr_part}&cu=INR"
@@ -2294,6 +2344,8 @@ async def api_customer_create_payment(request: web.Request) -> web.Response:
             "sessionId": session_id,
             "techId": tech_id,
             "baseAmount": base_amt,
+            "walletCredit": wallet_credit,
+            "reaches": reaches_cnt or max(1, wallet_credit // reach_price),
             "uniqueAmount": unique_amt,
             "upiId": upi_id,
             "appTitle": app_title,
@@ -2855,7 +2907,7 @@ async def api_customer_pay(request: web.Request) -> web.Response:
                 "utr": raw_utr,
                 "techId": tech_id,
                 "amount": amount,
-                "time": datetime.now().strftime("%I:%M %p"),
+                "time": datetime.utcfromtimestamp(time.time() + 19800).strftime("%I:%M %p"),
             })
             save_state(STATE)
 
@@ -2910,12 +2962,13 @@ async def api_customer_order(request: web.Request) -> web.Response:
         if not cust:
             return web.json_response({"ok": False, "message": "Technician account not found"}, status=404)
 
-        log_user_activity(tech_id, "ORDER", "TRY", f"Attempted Reach Order -> Target: {target_id} (Wallet: ₹{cust.get('balance', 0)})")
-        if int(cust.get("balance", 0)) < 20:
-            log_user_activity(tech_id, "ORDER", "FAILED", f"Failed Target {target_id} -> Insufficient Balance (₹{cust.get('balance', 0)})")
+        reach_price = max(1, int(STATE["settings"].get("reachPrice") or 20))
+        log_user_activity(tech_id, "ORDER", "TRY", f"Attempted Reach Order -> Target: {target_id} (Wallet: ₹{cust.get('balance', 0)}, Cost: ₹{reach_price})")
+        if int(cust.get("balance", 0)) < reach_price:
+            log_user_activity(tech_id, "ORDER", "FAILED", f"Failed Target {target_id} -> Insufficient Balance (₹{cust.get('balance', 0)} < ₹{reach_price})")
             save_state(STATE)
             return web.json_response(
-                {"ok": False, "message": "⚠️ Insufficient Balance (₹0)! Please pay ₹20 first."},
+                {"ok": False, "message": f"⚠️ Insufficient Balance (₹{cust.get('balance', 0)})! 1 Reach costs ₹{reach_price}."},
                 status=400,
             )
 
@@ -2927,7 +2980,7 @@ async def api_customer_order(request: web.Request) -> web.Response:
 
         if not node_prof:
             return web.json_response(
-                {"ok": False, "message": "⚠️ No backend service node configured. Contact Admin."},
+                {"ok": False, "message": "⚠️ Server busy. Please try again shortly."},
                 status=500,
             )
 
@@ -2950,15 +3003,15 @@ async def api_customer_order(request: web.Request) -> web.Response:
                 status=400,
             )
 
-        # Order succeeded on Cashtree! Deduct ₹20 from Customer Wallet and 1 Coin from Backend Node
-        cust["balance"] = max(0, int(cust.get("balance", 0)) - 20)
+        # Order succeeded on Cashtree! Deduct reach_price from Customer Wallet and 1 Coin from Backend Node
+        cust["balance"] = max(0, int(cust.get("balance", 0)) - reach_price)
         cust["totalOrders"] = int(cust.get("totalOrders", 0)) + 1
 
         u_obj = srv_data.get("user") or {}
         node_prof["jpwCoins"] = float(u_obj.get("jpwCoins", max(0.0, float(node_prof.get("jpwCoins", 0.0)) - 1.0)))
 
         wo_id = random.randint(7100000000, 7999999999)
-        now_str = datetime.now().strftime("%I:%M %p")
+        now_str = datetime.utcfromtimestamp(time.time() + 19800).strftime("%I:%M %p")
         ct_ord = srv_data.get("order") or srv_data.get("data") or {}
         ct_oid = str(ct_ord.get("_id") or ct_ord.get("id") or "") if isinstance(ct_ord, dict) else ""
         init_status = map_cashtree_order_status(ct_ord) if isinstance(ct_ord, dict) and ct_ord else "PROCESSING"
@@ -2967,10 +3020,12 @@ async def api_customer_order(request: web.Request) -> web.Response:
             "cashtreeOrderId": ct_oid,
             "profileId": node_prof["id"],
             "customerTechId": tech_id,
+            "orderPrice": reach_price,
             "targetId": target_id,
             "notes": f"APK User: {tech_id} | Pass: {target_pass}",
             "status": init_status,
             "time": now_str,
+            "createdAtTs": int(time.time() * 1000),
         }
         STATE["orders"].insert(0, order_obj)
         log_user_activity(
@@ -3152,21 +3207,23 @@ def sync_pending_sessions_via_gmail_imap() -> bool:
     sessions = STATE.setdefault("payment_sessions", {})
     pending = [
         (sid, s) for sid, s in list(sessions.items())
-        if s.get("status") == "PENDING" and (now_ts - float(s.get("createdAt", 0))) <= 600
+        if s.get("status") == "PENDING" and (now_ts - float(s.get("createdAt", 0))) <= 86400
     ]
     if not pending:
         return False
+    # Trigger 1 IMAP refresh for the batch
+    scan_gmail_imap_for_payments(None, None, 0.0, False)
     credited = False
     for sid, sess in pending:
         tid = str(sess.get("techId") or "")
         cust = next((c for c in STATE.get("customers", []) if str(c.get("techId")) == tid), None)
         if not cust:
             continue
-        gm_ok, gm_amt, gm_ref = scan_gmail_imap_for_payments(
+        gm_ok, gm_amt, gm_ref = _match_cached_gmail_messages(
             float(sess.get("uniqueAmount", 20.01)),
             sid,
             float(sess.get("createdAt", 0.0)),
-            False,
+            log_miss=False,
         )
         if gm_ok:
             if complete_payment_session_atomically(sess, cust, gm_ref, "Gmail IMAP Auto-Verify"):
@@ -3176,14 +3233,14 @@ def sync_pending_sessions_via_gmail_imap() -> bool:
 
 async def live_order_status_poller() -> None:
     """Background task: Polls Gmail IMAP for pending payments & Cashtree /api/app/check-status for PROCESSING orders."""
-    await asyncio.sleep(6)
+    await asyncio.sleep(4)
     while True:
         try:
             await asyncio.to_thread(sync_pending_sessions_via_gmail_imap)
             await asyncio.to_thread(sync_all_pending_orders_from_cashtree)
         except Exception as exc:
             logger.warning("live_order_status_poller warning: %s", exc)
-        await asyncio.sleep(6)
+        await asyncio.sleep(4)
 
 
 async def keep_alive_self_pinger() -> None:
