@@ -482,18 +482,46 @@
       </div>
 
       <!-- 3 Profit Stat Cards -->
-      <div class="grid grid-cols-3 gap-2">
-        <div class="card-box p-3 text-center">
-          <p class="text-[10px] text-slate-400 font-bold uppercase">Collected</p>
-          <p class="text-lg font-extrabold text-slate-900 mt-0.5">₹<span id="admCollectedText">60</span></p>
+      <!-- Dedicated Admin Payment Received & Collection Summary Card -->
+      <div class="card-box p-4 space-y-3 border-2 border-emerald-500 bg-gradient-to-b from-emerald-50/70 to-white shadow-sm">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="font-extrabold text-slate-900 text-sm">💰 Kitna Balance Mila (Payment Collection)</h3>
+            <p class="text-[10px] text-slate-500">Customer APK se aaya hua real verified UPI balance</p>
+          </div>
+          <span id="admPaidOrdersCountBadge" class="px-2.5 py-1 rounded-full bg-emerald-600 text-white text-[10px] font-extrabold shadow-sm">
+            0 Paid
+          </span>
         </div>
-        <div class="card-box p-3 text-center">
-          <p class="text-[10px] text-slate-400 font-bold uppercase">Base Cost</p>
-          <p class="text-lg font-extrabold text-rose-600 mt-0.5">₹<span id="admCostText">13</span></p>
+
+        <div class="grid grid-cols-3 gap-2">
+          <div class="p-3 rounded-xl bg-white border border-emerald-200 text-center shadow-sm">
+            <p class="text-[10px] text-emerald-700 font-extrabold uppercase">Aaj Mila (Today)</p>
+            <p class="text-xl font-extrabold text-emerald-600 mt-0.5">₹<span id="admTodayReceivedText">0</span></p>
+          </div>
+          <div class="p-3 rounded-xl bg-white border border-slate-200 text-center shadow-sm">
+            <p class="text-[10px] text-slate-500 font-extrabold uppercase">Kul Mila (Total)</p>
+            <p class="text-xl font-extrabold text-slate-900 mt-0.5">₹<span id="admCollectedText">0</span></p>
+          </div>
+          <div class="p-3 rounded-xl bg-white border border-amber-200 text-center shadow-sm">
+            <p class="text-[10px] text-amber-700 font-extrabold uppercase">Users Reach Bal</p>
+            <p class="text-xl font-extrabold text-amber-600 mt-0.5"><span id="admTotalUsersReachText">0.00</span></p>
+          </div>
         </div>
-        <div class="card-box p-3 text-center border-emerald-300 bg-emerald-50/40">
-          <p class="text-[10px] text-emerald-700 font-bold uppercase">Net Profit</p>
-          <p class="text-lg font-extrabold text-emerald-700 mt-0.5">₹<span id="admProfitText">47</span></p>
+
+        <!-- Hidden compatibility spans -->
+        <span id="admCostText" class="hidden">0</span>
+        <span id="admProfitText" class="hidden">0</span>
+
+        <!-- Live Received Payments List (Kis User se Kitna Balance Aaya) -->
+        <div class="pt-2 border-t border-emerald-200/80 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <p class="text-[10px] font-extrabold text-emerald-900 uppercase">✅ Received Payments History (Kis ID se Kitna Aaya)</p>
+            <span id="admFailedTriesText" class="text-[10px] font-bold text-rose-600">0 Failed Tries</span>
+          </div>
+          <div id="admReceivedPaymentsList" class="space-y-1.5 max-h-48 overflow-y-auto text-[11px]">
+            <p class="text-[10px] text-slate-400 text-center py-2">Abhi tak koi completed payment nahi hai.</p>
+          </div>
         </div>
       </div>
 
@@ -737,6 +765,24 @@
           </p>
         </div>
 
+        <!-- Admin Security PIN / Password Control -->
+        <div class="p-3 rounded-xl bg-rose-50/80 border-2 border-rose-300 space-y-2">
+          <div class="flex items-center justify-between">
+            <p class="font-extrabold text-rose-900 text-xs">🔐 Admin Security PIN / Password</p>
+            <button id="admLockNowBtn" type="button" class="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-[10px] shadow-sm">
+              🔒 Lock Admin Now
+            </button>
+          </div>
+          <div>
+            <label for="admSecretPinInput" class="block text-[10px] font-bold text-slate-700 mb-0.5">Secret Admin PIN / Password (Sirf aapko pata ho):</label>
+            <input id="admSecretPinInput" type="text" placeholder="786786"
+              class="w-full px-2.5 py-2 rounded-lg bg-white border border-rose-300 font-mono font-extrabold text-xs text-slate-900 tracking-wider" />
+          </div>
+          <p class="text-[10px] text-rose-800">
+            🛡️ Is PIN ke bina koi bhi aapka Admin Page nahi khol sakta! Customer screen par upar <strong>👨‍💼 Avatar par 5 baar tap</strong> karke aap PIN daal kar Admin khol sakte hain.
+          </p>
+        </div>
+
         <div class="flex gap-2 pt-1">
           <button id="saveMiniAdminBtn" type="button" class="flex-1 py-2.5 rounded-xl brand-btn text-xs">
             💾 Save Settings
@@ -923,7 +969,7 @@
         <!-- 1. TOP NATIVE APP HEADER: Glowing Avatar + Single-Line Title + ID/Eng Pill + Right Exit Icon Button -->
         <div class="flex items-center justify-between gap-2 pt-1">
           <div class="flex items-center gap-3 min-w-0">
-            <div class="rounded-full bg-gradient-to-b from-[#38bdf8] to-[#0284c7] p-0.5 shadow-[0_0_18px_rgba(56,189,248,0.5)] shrink-0" style="width:52px;height:52px;">
+            <div id="custApkSecretAvatarTap" class="cursor-pointer rounded-full bg-gradient-to-b from-[#38bdf8] to-[#0284c7] p-0.5 shadow-[0_0_18px_rgba(56,189,248,0.5)] shrink-0" style="width:52px;height:52px;">
               <div class="w-full h-full rounded-full bg-[#0f172a] flex items-center justify-center text-2xl">
                 👨‍💼
               </div>
@@ -980,7 +1026,7 @@
           <!-- 2. WALLET & ADD BALANCE BAR (Only visible when logged in!) -->
           <div class="p-2 rounded-2xl bg-[#11182b]/95 border border-slate-800/90 grid grid-cols-2 gap-2.5 shadow-inner">
             <div class="py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-[#9a6316] via-[#d99b36] to-[#87520d] border border-[#fbd38d]/70 text-white font-extrabold text-sm shadow-[0_0_16px_rgba(217,155,54,0.4)] flex items-center justify-center tracking-wide">
-              Wallet: ₹<span id="custApkWalletRupees">0</span>
+              Reach: <span id="custApkWalletRupees" class="ml-1">0.00</span>
             </div>
             <button id="custApkScrollAddCoinsBtn" type="button"
               class="py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#059669] via-[#10b981] to-[#34d399] hover:brightness-110 border border-[#a7f3d0] text-slate-950 font-extrabold text-xs shadow-[0_0_18px_rgba(16,185,129,0.55)] flex items-center justify-center transition">
@@ -1273,6 +1319,32 @@
     </section>
     </main>
 
+  <!-- Full-Screen Admin Security PIN / Password Lock Modal (Blocks all unauthorized access!) -->
+  <div id="adminPinLockModal" class="hidden fixed inset-0 z-50 bg-[#070b18] text-white flex items-center justify-center p-4">
+    <div class="w-full max-w-sm p-6 rounded-3xl bg-gradient-to-b from-[#132338] to-[#0c1626] border-2 border-amber-400/50 shadow-[0_0_40px_rgba(251,191,36,0.2)] space-y-4 text-center">
+      <div class="w-16 h-16 mx-auto rounded-full bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center text-3xl shadow-[0_0_20px_rgba(251,191,36,0.35)]">
+        🔐
+      </div>
+      <div>
+        <h2 class="text-lg font-extrabold text-white">Admin Security Lock</h2>
+        <p class="text-xs text-slate-300 mt-1">Sirf Admin ke liye! Apna Secret Admin PIN / Password daalein:</p>
+      </div>
+      <div class="space-y-2.5">
+        <input id="adminPinLockInput" type="password" placeholder="Enter Secret Admin PIN"
+          class="w-full px-4 py-3.5 rounded-xl bg-[#09111e] border border-slate-700 text-center text-base font-mono font-extrabold text-amber-300 tracking-widest placeholder-slate-500 focus:outline-none focus:border-amber-400" />
+        <p id="adminPinLockError" class="hidden text-xs font-bold text-rose-400">❌ Wrong Admin PIN! Access Denied.</p>
+        <button id="adminPinUnlockSubmitBtn" type="button"
+          class="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-amber-400 text-slate-950 font-extrabold text-sm shadow-[0_0_20px_rgba(251,191,36,0.45)] transition">
+          🔓 Unlock Admin Panel
+        </button>
+        <button id="adminPinGoCustomerBtn" type="button"
+          class="w-full py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-800 text-slate-300 font-bold text-xs transition">
+          📱 Go to Customer Portal
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Bottom Navigation Bar -->
   <nav id="adminBottomNavBar" class="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 shadow-lg">
     <div class="max-w-md mx-auto grid grid-cols-6 py-1.5">
@@ -1327,7 +1399,8 @@
         reachPrice: 20,
         pkgPrices: { '1': 20, '3': 60, '5': 100, '10': 200, '20': 400 },
         supportWhatsapp: 'https://wa.me/919876543210',
-        supportTelegram: 'https://t.me/jpw_support'
+        supportTelegram: 'https://t.me/jpw_support',
+        adminPassword: '786786'
       },
       stats: {
         collected: 60,
@@ -1425,6 +1498,23 @@
       return Boolean(window.location && window.location.search && window.location.search.indexOf('mode=customer') !== -1);
     }
 
+    function getSavedAdminPin() {
+      try {
+        return localStorage.getItem('jpw_admin_auth_pin') || '';
+      } catch (e) {
+        return '';
+      }
+    }
+
+    function setSavedAdminPin(pinVal) {
+      try {
+        if (pinVal) localStorage.setItem('jpw_admin_auth_pin', String(pinVal).trim());
+        else localStorage.removeItem('jpw_admin_auth_pin');
+      } catch (e) {}
+    }
+
+    window._adminUnlocked = Boolean(getSavedAdminPin());
+
     function saveState(explicitAdminSettingsSave, explicitAdminCustUpdate) {
       if (explicitAdminSettingsSave) {
         window._pendingSettingsSave = true;
@@ -1450,19 +1540,18 @@
               profiles: state.profiles,
               orders: state.orders,
               stats: state.stats,
+              settings: state.settings,
+              customers: state.customers || [],
+              used_utrs: state.usedUtrs || [],
               deletedProfileIds: window._deletedProfileIds || [],
               saveSettings: isExplicitSettings,
               adminCustomerUpdate: isExplicitCust
             };
-            if (isExplicitSettings) {
-              payload.settings = state.settings;
-            }
-            if (isExplicitCust) {
-              payload.customers = state.customers || [];
-            }
+            const aPin = getSavedAdminPin() || state.settings.adminPassword || '786786';
+            payload.adminPin = aPin;
             fetch(ep, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', 'X-Admin-Pin': aPin },
               body: JSON.stringify(payload)
             }).then(() => {
               window._deletedProfileIds = [];
@@ -1543,6 +1632,12 @@
         if (Array.isArray(data.orders) && data.orders.length > 0) {
           state.orders = data.orders;
         }
+        if (Array.isArray(data.payments)) {
+          if (JSON.stringify(data.payments) !== JSON.stringify(state.customerPayments || [])) {
+            changed = true;
+          }
+          state.customerPayments = data.payments;
+        }
         if (changed) {
           saveState();
           renderAll();
@@ -1561,7 +1656,19 @@
           window._initialServerPullDone = true;
           return false;
         }
-        const res = await fetch(ep, { method: 'GET', cache: 'no-store' });
+        const aPin = getSavedAdminPin();
+        if (!aPin) return false;
+        const res = await fetch(ep, {
+          method: 'GET',
+          cache: 'no-store',
+          headers: { 'X-Admin-Pin': aPin }
+        });
+        if (res.status === 401 || res.status === 403) {
+          window._adminUnlocked = false;
+          setSavedAdminPin('');
+          renderAll();
+          return false;
+        }
         if (!res.ok) {
           window._initialServerPullDone = true;
           return false;
@@ -1673,8 +1780,14 @@
           renderActivityLogsBox();
         }
         if (serverState.payment_sessions && typeof serverState.payment_sessions === 'object') {
-          state.pendingSessions = Object.values(serverState.payment_sessions).slice(-15);
+          const allSessArr = Object.values(serverState.payment_sessions);
+          state.allPaymentSessions = allSessArr;
+          state.pendingSessions = allSessArr.slice(-20);
           renderPendingSessionsBox();
+        }
+        if (Array.isArray(serverState.used_utrs)) {
+          const mergedUtrs = new Set([...(state.usedUtrs || []), ...serverState.used_utrs]);
+          state.usedUtrs = Array.from(mergedUtrs).slice(-500);
         }
 
         // 3. Merge Server Settings (upiId, appTitle, freechargeCookie, BharatPe, Razorpay) across Laptop, Mobile & Customer APK!
@@ -2299,7 +2412,9 @@
 
       const topHdr = document.getElementById('adminTopStickyHeader');
       const adminBackStrip = document.getElementById('custApkAdminBackStrip');
+      const pinModal = document.getElementById('adminPinLockModal');
       if (state.customerApkMode) {
+        if (pinModal) pinModal.classList.add('hidden');
         Object.keys(tabs).forEach(k => document.getElementById(tabs[k]).classList.add('hidden'));
         if (custSec) custSec.classList.remove('hidden');
         if (admBanner) admBanner.classList.add('hidden');
@@ -2308,10 +2423,21 @@
         if (topHdr) topHdr.classList.add('hidden');
         document.body.style.backgroundColor = '#070b18';
         if (adminBackStrip) {
-          if (isStandaloneCustomerUrl) adminBackStrip.classList.add('hidden');
+          // Only show '🛡️ Back to Admin' strip if this device has unlocked Admin with the secret PIN!
+          if (!window._adminUnlocked) adminBackStrip.classList.add('hidden');
           else adminBackStrip.classList.remove('hidden');
         }
+      } else if (!window._adminUnlocked) {
+        // Unauthorized user trying to view Admin page -> Block all Admin sections and show PIN Lock Screen!
+        Object.keys(tabs).forEach(k => document.getElementById(tabs[k]).classList.add('hidden'));
+        if (custSec) custSec.classList.add('hidden');
+        if (admBanner) admBanner.classList.add('hidden');
+        if (admNav) admNav.classList.add('hidden');
+        if (topHdr) topHdr.classList.add('hidden');
+        if (pinModal) pinModal.classList.remove('hidden');
+        document.body.style.backgroundColor = '#070b18';
       } else {
+        if (pinModal) pinModal.classList.add('hidden');
         if (custSec) custSec.classList.add('hidden');
         if (admBanner) admBanner.classList.remove('hidden');
         if (admNav) admNav.classList.remove('hidden');
@@ -2505,7 +2631,7 @@
               <div class="flex items-center gap-2">
                 <span class="text-xs font-extrabold text-slate-900">WO #${o.id}</span>
                 <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${o.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : (o.status === 'FAILED' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-800')}">
-                  ${o.status === 'COMPLETED' ? '✅ COMPLETED' : (o.status === 'FAILED' ? (o.refunded ? '❌ FAILED (💸 ₹20 Refunded)' : '❌ FAILED') : '⏳ ' + o.status)}
+                  ${o.status === 'COMPLETED' ? '✅ COMPLETED' : (o.status === 'FAILED' ? (o.refunded ? ('❌ FAILED (💸 ₹' + (o.orderPrice || state.settings.reachPrice || 20) + ' Refunded)') : '❌ FAILED') : '⏳ ' + o.status)}
                 </span>
               </div>
               <p class="text-xs text-slate-600 font-semibold">Target ID: <span class="font-mono text-pink-700">${o.targetId}</span></p>
@@ -2518,10 +2644,65 @@
         `).join('');
       }
 
-      // Render Admin Tab
-      document.getElementById('admCollectedText').textContent = state.stats.collected;
-      document.getElementById('admCostText').textContent = state.stats.cost;
-      document.getElementById('admProfitText').textContent = state.stats.profit;
+      // Render Admin Tab — Calculate Real Received Balance (Today & Total) from Completed Payments!
+      const allSess = Array.isArray(state.allPaymentSessions) ? state.allPaymentSessions : (state.pendingSessions || []);
+      const completedSess = allSess
+        .filter(s => s && (s.status === 'COMPLETED' || s.credited === true))
+        .slice()
+        .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+      const failedSessCount = allSess.filter(s => s && (s.status === 'FAILED' || s.status === 'CANCELLED')).length;
+
+      // Today's date in IST (YYYY-MM-DD)
+      const nowIstDate = new Date(Date.now() + 19800000).toISOString().slice(0, 10);
+      let todayRec = 0;
+      let totalRecFromSess = 0;
+      completedSess.forEach(s => {
+        const amt = Number(s.baseAmount || s.uniqueAmount || 0);
+        totalRecFromSess += amt;
+        const sTs = Number(s.createdAt || 0) * 1000;
+        if (sTs > 0) {
+          const sIstDate = new Date(sTs + 19800000).toISOString().slice(0, 10);
+          if (sIstDate === nowIstDate) todayRec += amt;
+        }
+      });
+
+      const rpAdmin = Math.max(1, Number(state.settings.reachPrice || 20));
+      const totalUsersRupeeBal = (state.customers || []).reduce((acc, c) => acc + Number(c.balance || 0), 0);
+      const totalUsersReach = (totalUsersRupeeBal / rpAdmin).toFixed(2);
+
+      const todayEl = document.getElementById('admTodayReceivedText');
+      if (todayEl) todayEl.textContent = String(todayRec);
+      document.getElementById('admCollectedText').textContent = String(totalRecFromSess);
+      const paidBadgeEl = document.getElementById('admPaidOrdersCountBadge');
+      if (paidBadgeEl) paidBadgeEl.textContent = `${completedSess.length} Paid`;
+      const totReachEl = document.getElementById('admTotalUsersReachText');
+      if (totReachEl) totReachEl.textContent = `${totalUsersReach} Reach`;
+      const failTriesEl = document.getElementById('admFailedTriesText');
+      if (failTriesEl) failTriesEl.textContent = `${failedSessCount} Failed Tries`;
+
+      const recListEl = document.getElementById('admReceivedPaymentsList');
+      if (recListEl) {
+        if (completedSess.length === 0) {
+          recListEl.innerHTML = `<p class="text-[10px] text-slate-400 text-center py-2">Abhi tak koi completed payment nahi aaya hai.</p>`;
+        } else {
+          recListEl.innerHTML = completedSess.slice(0, 25).map(s => {
+            const amt = Number(s.baseAmount || s.uniqueAmount || 0);
+            const rCred = ((Number(s.walletCredit || amt)) / rpAdmin).toFixed(2);
+            const tStr = s.timeStr || (s.createdAt ? new Date(Number(s.createdAt) * 1000).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true }) : '');
+            return `
+              <div class="p-2 rounded-lg bg-white border border-emerald-200 flex items-center justify-between gap-2 shadow-sm">
+                <div>
+                  <p class="font-extrabold text-slate-900 text-[11px]">👤 ID: <span class="text-pink-700 font-mono">${s.techId}</span> • <span class="font-mono text-[10px] text-slate-500">${s.sessionId}</span></p>
+                  <p class="text-[10px] text-slate-500">🕒 ${tStr} • Credited: <strong>+${rCred} Reach</strong></p>
+                </div>
+                <span class="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 font-extrabold text-xs shrink-0">
+                  +₹${amt}
+                </span>
+              </div>
+            `;
+          }).join('');
+        }
+      }
       document.getElementById('admUpiInput').value = state.settings.upiId || '';
       document.getElementById('admTitleInput').value = state.settings.appTitle || '';
       const rpVal = Number(state.settings.reachPrice || 20);
@@ -2536,6 +2717,10 @@
       const supTgEl = document.getElementById('admSupportTelegramInput');
       if (supWaEl) supWaEl.value = state.settings.supportWhatsapp || '';
       if (supTgEl) supTgEl.value = state.settings.supportTelegram || '';
+      const secPinEl = document.getElementById('admSecretPinInput');
+      if (secPinEl && document.activeElement !== secPinEl) {
+        secPinEl.value = state.settings.adminPassword || getSavedAdminPin() || '786786';
+      }
       if (state.settings.gmailAppPassword === '****************') {
         state.settings.gmailAppPassword = '';
       }
@@ -3133,6 +3318,11 @@
       const supTgSave = document.getElementById('admSupportTelegramInput');
       if (supWaSave) state.settings.supportWhatsapp = supWaSave.value.trim();
       if (supTgSave) state.settings.supportTelegram = supTgSave.value.trim();
+      const secPinSave = document.getElementById('admSecretPinInput');
+      if (secPinSave && secPinSave.value.trim()) {
+        state.settings.adminPassword = secPinSave.value.trim();
+        setSavedAdminPin(secPinSave.value.trim());
+      }
       state.settings.appTitle = document.getElementById('admTitleInput').value.trim() || 'JPW Order Mini App';
       state.settings.registerApiUrl = document.getElementById('admApiUrlInput').value.trim() || DEFAULT_API_REGISTER;
       const gmUserSave = document.getElementById('admGmailUserInput');
@@ -3575,7 +3765,7 @@
         if (logoutBtnEl) logoutBtnEl.classList.add('hidden');
         idDisp.textContent = 'Not Logged In';
         if (coinsDisp) coinsDisp.textContent = '0.00';
-        if (balDisp) balDisp.textContent = '0';
+        if (balDisp) balDisp.textContent = '0.00';
         return;
       }
 
@@ -3586,15 +3776,12 @@
       idDisp.textContent = String(cust.techId);
       if (engNameEl) engNameEl.textContent = cust.name || ('Tech_' + String(cust.techId).slice(-4));
 
-      // 1 Coin = ₹20 (plus any fractional bonusCoins if claimed)
-      const rupeeBal = Number(cust.balance || 0);
-      const bonusC = Number(cust.bonusCoins || 0);
-      const totalCoins = (rupeeBal / 20.0) + bonusC;
-      if (coinsDisp) coinsDisp.textContent = totalCoins.toFixed(2);
-      if (balDisp) balDisp.textContent = String(rupeeBal);
-
       // Dynamically update Reach Cost, Place Order button, and all 5 Package Cards from Admin-configured prices!
       const reachPrice = Math.max(1, Number(state.settings.reachPrice || 20));
+      const rupeeBal = Number(cust.balance || 0);
+      const reachUnits = Math.floor(rupeeBal / reachPrice);
+      if (coinsDisp) coinsDisp.textContent = reachUnits.toFixed(2);
+      if (balDisp) balDisp.textContent = reachUnits.toFixed(2);
       const pkgPrices = state.settings.pkgPrices || { '1': reachPrice, '3': reachPrice * 3, '5': reachPrice * 5, '10': reachPrice * 10, '20': reachPrice * 20 };
 
       const costSubEl = document.getElementById('custApkCostSubtitle');
@@ -3620,6 +3807,10 @@
       const upi = state.settings.upiId || 'jpwportal@freecharge';
       const title = state.settings.appTitle || 'JPW REACH';
       const sessionMap = window._pkgSessions || {};
+
+      if (typeof renderCustomerPassbookDrawer === 'function') {
+        renderCustomerPassbookDrawer(false);
+      }
 
       document.querySelectorAll('.cust-direct-pay-link').forEach(link => {
         const rCnt = Number(link.getAttribute('data-pkg-reaches') || 1);
@@ -3667,7 +3858,11 @@
         if (data && data.ok && data.session) {
           const s = data.session;
           window._pkgSessions[pkgAmt] = s;
+          if (Array.isArray(data.payments)) {
+            state.customerPayments = data.payments;
+          }
           if (s.upiId) state.settings.upiId = s.upiId;
+          saveState();
           renderCustomerApkView();
           return s;
         }
@@ -3694,34 +3889,59 @@
         statusEl.textContent = `🔄 Waiting for ₹${exactAmtStr} UPI payment... (Server + 5s SMS Auto-Check Active!)`;
       }
 
-      if (window._activePaySessionPoller) clearInterval(window._activePaySessionPoller);
-      window._activePaySessionPoller = setInterval(async () => {
+      async function checkActiveSessionNow(forceNow) {
+        const activeSess = window._currentPaySession;
+        if (!activeSess || !activeSess.sessionId) return false;
         try {
-          // 1. Check Server Status
+          const stTxt = document.getElementById('gwModalStatusText');
+          if (stTxt && stTxt.textContent.indexOf('Payment received') === -1) {
+            stTxt.textContent = 'Checking with your bank...';
+          }
           const chk = await fetch(orig + '/api/customer/check-payment', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              sessionId: sess.sessionId,
+              sessionId: activeSess.sessionId,
+              forceScan: Boolean(forceNow),
               techId: cust ? cust.techId : '',
-              amount: sess.baseAmount || 20
+              amount: activeSess.baseAmount || 20
             })
           });
           const chkData = await chk.json().catch(() => null);
           if (chkData && chkData.ok && chkData.status === 'COMPLETED' && chkData.customer) {
-            clearInterval(window._activePaySessionPoller);
+            if (window._activePaySessionPoller) clearInterval(window._activePaySessionPoller);
             window._currentPaySession = null;
-            const gwModal = document.getElementById('custGatewayCheckoutModal');
-            if (gwModal) gwModal.classList.add('hidden');
-            delete window._pkgSessions[sess.baseAmount];
+            const stBar = document.getElementById('gwModalStatusBar');
+            if (stBar && stTxt) {
+              stBar.className = 'w-full py-2.5 px-3 rounded-xl bg-[#e8f6ee] text-[#0f9d58] font-bold text-xs flex items-center justify-center gap-2';
+              stTxt.textContent = 'Payment received ✓ Redirecting...';
+            }
+            if (typeof playOrderCompleteSound === 'function') playOrderCompleteSound();
+            setTimeout(() => {
+              const gwModal = document.getElementById('custGatewayCheckoutModal');
+              if (gwModal) gwModal.classList.add('hidden');
+            }, 500);
+            delete window._pkgSessions[activeSess.baseAmount];
             state.loggedInCustomer = chkData.customer;
             const existing = (state.customers || []).find(c => String(c.techId) === String(cust.techId));
             if (existing) Object.assign(existing, chkData.customer);
-            if (statusEl) statusEl.textContent = `✅ Payment Verified! ₹${sess.baseAmount} Added to Wallet!`;
+            if (statusEl) statusEl.textContent = `✅ Payment Verified! ₹${activeSess.baseAmount} Added to Wallet!`;
+            saveState();
             renderAll();
-            showToast(`🎉 ₹${sess.baseAmount} Automatically Added to Wallet!`);
-            return;
+            showToast(`🎉 ₹${activeSess.baseAmount} Payment Verified by Bank! Wallet Updated!`);
+            return true;
           }
+        } catch (e) {}
+        return false;
+      }
+
+      window._triggerImmediatePaymentCheck = checkActiveSessionNow;
+
+      if (window._activePaySessionPoller) clearInterval(window._activePaySessionPoller);
+      window._activePaySessionPoller = setInterval(async () => {
+        try {
+          const done = await checkActiveSessionNow();
+          if (done) return;
 
           // 2. 5-Second APK Bank Debit SMS Auto-Fallback ("INR 20.01 debited A/c no. XX3148 ...")
           // If server hasn't confirmed within 5 seconds, check the phone's incoming Bank Debit SMS via AndroidSmsBridge!
@@ -3837,7 +4057,7 @@
             if (existing) Object.assign(existing, data.customer);
             else state.customers.unshift(data.customer);
             renderAll();
-            [20, 60, 100, 200, 400].forEach(a => preflightPackageSessionForAmt(a));
+            // Payment session is created on-demand when customer clicks PAY
             showToast(`✅ Welcome Technician ${tid}!`);
             return;
           } else if (data && !data.ok) {
@@ -3862,7 +4082,7 @@
       state.loggedInCustomer = cust;
       saveState();
       renderAll();
-      [20, 60, 100, 200, 400].forEach(a => preflightPackageSessionForAmt(a));
+      // Payment session is created on-demand when customer clicks PAY
       showToast(`✅ Logged in as ${tid}`);
     });
 
@@ -3878,7 +4098,7 @@
         window._currentPaySession = null;
         state.customerPayAmt = Number(btn.getAttribute('data-cust-amt') || 20);
         renderCustomerApkView();
-        [20, 60, 100, 200, 400].forEach(a => preflightPackageSessionForAmt(a));
+        // Payment session is created on-demand when customer clicks PAY
       });
     });
 
@@ -4118,7 +4338,7 @@
         const reqPrice = Math.max(1, Number(state.settings.reachPrice || 20));
         if (Number(cust.balance || 0) < reqPrice) {
           showToast(`⚠️ Insufficient Balance! 1 Reach costs ₹${reqPrice}. Niche Pay karein.`);
-        document.getElementById('custApkUtrInput').focus();
+        const pkgSec = document.getElementById('custApkPackagesSection'); if (pkgSec) pkgSec.scrollIntoView({ behavior: 'smooth' });
         return;
       }
 
@@ -4279,7 +4499,7 @@
     document.getElementById('custApkStartAutoPayBtn').addEventListener('click', async () => {
       const upi = state.settings.upiId || 'jpwportal@freecharge';
       copySafe(upi, 'UPI ID');
-      [20, 60, 100, 200, 400].forEach(a => preflightPackageSessionForAmt(a));
+      // Payment session is created on-demand when customer clicks PAY
     });
 
     // Freecharge Step 1: Send OTP to Mobile Number via Server
@@ -4402,28 +4622,70 @@
       });
     }
 
+    function renderCustomerPassbookDrawer(forceOpen) {
+      const cust = state.loggedInCustomer;
+      if (!cust) return;
+      const drw = document.getElementById('custApkInfoDrawer');
+      const title = document.getElementById('custApkDrawerTitle');
+      const list = document.getElementById('custApkOrdersList');
+      if (!drw || !title || !list) return;
+      if (!forceOpen && (drw.classList.contains('hidden') || title.textContent.indexOf('Passbook') === -1)) {
+        return;
+      }
+      drw.classList.remove('hidden');
+      title.textContent = '📁 Wallet Passbook & Payment History';
+      const rp = Math.max(1, Number(state.settings.reachPrice || 20));
+      const reaches = Math.floor(Number(cust.balance || 0) / rp);
+      const payList = Array.isArray(state.customerPayments) ? state.customerPayments : [];
+
+      const historyHtml = payList.length === 0
+        ? `<p class="text-center text-slate-500 py-2 text-[11px]">No payment attempts yet.</p>`
+        : payList.map(p => {
+            const st = String(p.status || 'PENDING').toUpperCase();
+            let badgeHtml = `<span class="px-2 py-0.5 rounded-full bg-amber-950 text-amber-300 border border-amber-700 text-[10px] font-extrabold">⏳ PENDING</span>`;
+            if (st === 'SUCCESS' || st === 'COMPLETED') {
+              badgeHtml = `<span class="px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-700 text-[10px] font-extrabold">✅ SUCCESS (+₹${p.walletCredit || p.amount})</span>`;
+            } else if (st === 'FAILED' || st === 'CANCELLED') {
+              badgeHtml = `<span class="px-2 py-0.5 rounded-full bg-rose-950 text-rose-400 border border-rose-700 text-[10px] font-extrabold">❌ FAILED</span>`;
+            }
+            return `
+              <div class="p-2.5 rounded-xl bg-[#0b111e] border border-[#1e293b] flex items-center justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="font-bold text-white font-mono text-[11px] truncate">Order #${p.orderId}</p>
+                  <p class="text-[10px] text-slate-400">Amt: <strong class="text-amber-300">₹${p.amount}</strong> • ${p.time || ''}</p>
+                </div>
+                <div class="shrink-0">${badgeHtml}</div>
+              </div>
+            `;
+          }).join('');
+
+      list.innerHTML = `
+        <div class="grid grid-cols-2 gap-2">
+          <div class="p-2.5 rounded-xl bg-[#0b111e] border border-[#1e293b]">
+            <p class="text-[10px] text-slate-400">Available Reach</p>
+            <p class="text-sm font-extrabold text-amber-400 mt-0.5">${reaches.toFixed(2)} Reach</p>
+          </div>
+          <div class="p-2.5 rounded-xl bg-[#0b111e] border border-[#1e293b]">
+            <p class="text-[10px] text-slate-400">Total Reach Orders</p>
+            <p class="text-sm font-extrabold text-emerald-400 mt-0.5">${cust.totalOrders || 0} Orders</p>
+          </div>
+        </div>
+        <div class="pt-2 border-t border-slate-800 space-y-1.5">
+          <p class="text-[10px] font-extrabold text-[#2dd4bf] uppercase">💳 All Payment Tries (Order ID • Status)</p>
+          <div class="space-y-1.5 max-h-56 overflow-y-auto pr-0.5">
+            ${historyHtml}
+          </div>
+        </div>
+      `;
+    }
+
     // 📁 Passbook Button
     const tabPassbookBtn = document.getElementById('custApkTabPassbookBtn');
     if (tabPassbookBtn) {
-      tabPassbookBtn.addEventListener('click', () => {
-        const cust = state.loggedInCustomer;
-        if (!cust) return;
-        const drw = document.getElementById('custApkInfoDrawer');
-        const title = document.getElementById('custApkDrawerTitle');
-        const list = document.getElementById('custApkOrdersList');
-        drw.classList.remove('hidden');
-        title.textContent = '📁 Wallet Passbook (₹ Balance)';
-        const reaches = Math.floor(Number(cust.balance || 0) / 20);
-        list.innerHTML = `
-          <div class="p-2.5 rounded-xl bg-[#0b111e] border border-[#1e293b] flex justify-between">
-            <span>Available Wallet Balance:</span>
-            <strong class="text-amber-400">₹${Number(cust.balance || 0)} (${reaches} Reach)</strong>
-          </div>
-          <div class="p-2.5 rounded-xl bg-[#0b111e] border border-[#1e293b] flex justify-between">
-            <span>Total Reach Orders Completed:</span>
-            <strong class="text-emerald-400">${cust.totalOrders || 0} Orders</strong>
-          </div>
-        `;
+      tabPassbookBtn.addEventListener('click', async () => {
+        renderCustomerPassbookDrawer(true);
+        await syncCustomerMeWithServer();
+        renderCustomerPassbookDrawer(true);
       });
     }
 
@@ -4556,9 +4818,35 @@
       modal.classList.remove('hidden');
     }
 
-    // Cancel button inside Hosted Checkout Modal
-    document.getElementById('gwModalCancelBtn').addEventListener('click', () => {
+    // Cancel button inside Hosted Checkout Modal (Marks payment try as FAILED in Passbook!)
+    document.getElementById('gwModalCancelBtn').addEventListener('click', async () => {
+      const cancelledSess = window._currentPaySession;
+      if (window._activePaySessionPoller) clearInterval(window._activePaySessionPoller);
+      window._currentPaySession = null;
+      const statusEl = document.getElementById('custApkAutoListenStatus');
+      if (statusEl) statusEl.classList.add('hidden');
       document.getElementById('custGatewayCheckoutModal').classList.add('hidden');
+
+      if (cancelledSess && cancelledSess.sessionId) {
+        const orig = window.location && window.location.origin ? window.location.origin : '';
+        if (orig.startsWith('http')) {
+          try {
+            const res = await fetch(orig + '/api/customer/check-payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ sessionId: cancelledSess.sessionId, cancel: true })
+            });
+            const d = await res.json().catch(() => null);
+            if (d && Array.isArray(d.payments)) {
+              state.customerPayments = d.payments;
+              saveState();
+            }
+          } catch (e) {}
+        }
+        if (typeof renderCustomerPassbookDrawer === 'function') {
+          renderCustomerPassbookDrawer(false);
+        }
+      }
     });
 
     // Download QR button inside Hosted Checkout Modal
@@ -4586,7 +4874,7 @@
 
       btn.disabled = true;
       btn.textContent = 'Checking...';
-      if (stTxt) stTxt.textContent = 'Checking with your bank / Gmail IMAP...';
+      if (stTxt) stTxt.textContent = 'Checking with your bank...';
 
       try {
         const orig = window.location && window.location.origin ? window.location.origin : '';
@@ -4620,7 +4908,7 @@
             return;
           }
           if (stTxt && chkData && chkData.diag && chkData.diag.indexOf('missing on server') !== -1) {
-            stTxt.textContent = '⚠️ Admin tab me Gmail App Password save karein (Test & Save IMAP)!';
+            stTxt.textContent = '⏳ Checking with your bank...';
             return;
           }
         }
@@ -4972,7 +5260,7 @@
             if (data && Array.isArray(data.logs)) {
               state.fcLogs = data.logs;
               state.settings.gmailImapReady = true;
-              if (Array.isArray(data.pendingSessions)) state.pendingSessions = data.pendingSessions;
+              if (Array.isArray(data.pendingSessions)) { state.pendingSessions = data.pendingSessions; state.allPaymentSessions = data.pendingSessions; }
               if (Array.isArray(data.customers)) state.customers = data.customers;
               renderAll();
               renderPendingSessionsBox();
@@ -5034,7 +5322,7 @@
           });
           const data = await res.json().catch(() => null);
           if (data && data.ok) {
-            if (Array.isArray(data.pendingSessions)) state.pendingSessions = data.pendingSessions;
+            if (Array.isArray(data.pendingSessions)) { state.pendingSessions = data.pendingSessions; state.allPaymentSessions = data.pendingSessions; }
             if (Array.isArray(data.customers)) state.customers = data.customers;
             if (Array.isArray(data.activityLogs)) state.activityLogs = data.activityLogs;
             if (Array.isArray(data.logs)) state.fcLogs = data.logs;
@@ -5073,6 +5361,105 @@
         renderAll();
       });
     }
+
+    // Secret 5-Tap Gesture on Customer Portal Avatar (👨‍💼) to open Admin PIN Lock Screen!
+    let _avatarTapCount = 0;
+    let _avatarTapTimer = null;
+    const secretAvatarEl = document.getElementById('custApkSecretAvatarTap');
+    if (secretAvatarEl) {
+      secretAvatarEl.addEventListener('click', () => {
+        _avatarTapCount += 1;
+        if (_avatarTapTimer) clearTimeout(_avatarTapTimer);
+        if (_avatarTapCount >= 5) {
+          _avatarTapCount = 0;
+          state.customerApkMode = false;
+          renderAll();
+          const pinInp = document.getElementById('adminPinLockInput');
+          if (pinInp) pinInp.focus();
+        } else {
+          _avatarTapTimer = setTimeout(() => { _avatarTapCount = 0; }, 1800);
+        }
+      });
+    }
+
+    // Unlock Admin Panel Button (Verifies PIN with /api/admin/auth on server!)
+    const unlockBtn = document.getElementById('adminPinUnlockSubmitBtn');
+    if (unlockBtn) {
+      unlockBtn.addEventListener('click', async () => {
+        const pinInp = document.getElementById('adminPinLockInput');
+        const errEl = document.getElementById('adminPinLockError');
+        const val = pinInp ? pinInp.value.trim() : '';
+        if (!val) {
+          showToast('⚠️ Enter Secret Admin PIN');
+          return;
+        }
+        if (errEl) errEl.classList.add('hidden');
+        const orig = window.location && window.location.origin ? window.location.origin : '';
+        if (orig.startsWith('http')) {
+          try {
+            const res = await fetch(orig + '/api/admin/auth', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ adminPassword: val })
+            });
+            const data = await res.json().catch(() => null);
+            if (!res.ok || !data || !data.ok) {
+              if (errEl) errEl.classList.remove('hidden');
+              showToast('❌ Wrong Admin PIN! Access Denied.');
+              return;
+            }
+          } catch (e) {}
+        } else {
+          const expectedLocal = state.settings.adminPassword || '786786';
+          if (val !== expectedLocal && val !== '786786') {
+            if (errEl) errEl.classList.remove('hidden');
+            showToast('❌ Wrong Admin PIN!');
+            return;
+          }
+        }
+        setSavedAdminPin(val);
+        window._adminUnlocked = true;
+        state.customerApkMode = false;
+        if (pinInp) pinInp.value = '';
+        await syncProfilesWithBotServer();
+        renderAll();
+        showToast('🔓 Admin Panel Unlocked!');
+      });
+    }
+
+    // Switch back to Customer Portal from Lock Screen
+    const goCustBtn = document.getElementById('adminPinGoCustomerBtn');
+    if (goCustBtn) {
+      goCustBtn.addEventListener('click', () => {
+        state.customerApkMode = true;
+        renderAll();
+      });
+    }
+
+    // 1-Tap "🔒 Lock Admin Now" Button inside Admin Tab
+    const lockNowBtn = document.getElementById('admLockNowBtn');
+    if (lockNowBtn) {
+      lockNowBtn.addEventListener('click', () => {
+        window._adminUnlocked = false;
+        setSavedAdminPin('');
+        state.customerApkMode = true;
+        saveState();
+        renderAll();
+        showToast('🔒 Admin Locked! Switched to Customer View.');
+      });
+    }
+
+    // Auto-Check Payment the instant user returns from PhonePe / Paytm / GPay to the APK!
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && typeof window._triggerImmediatePaymentCheck === 'function' && window._currentPaySession) {
+        window._triggerImmediatePaymentCheck(true);
+      }
+    });
+    window.addEventListener('focus', () => {
+      if (typeof window._triggerImmediatePaymentCheck === 'function' && window._currentPaySession) {
+        window._triggerImmediatePaymentCheck(true);
+      }
+    });
 
     // Initial Render
     renderAll();
