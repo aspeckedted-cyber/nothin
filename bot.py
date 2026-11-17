@@ -89,6 +89,7 @@ DEFAULT_STATE = {
         "pkgPrices": {"1": 20, "3": 60, "5": 100, "10": 200, "20": 400},
         "supportWhatsapp": os.environ.get("SUPPORT_WHATSAPP", "https://wa.me/919876543210"),
         "supportTelegram": os.environ.get("SUPPORT_TELEGRAM", "https://t.me/jpw_support"),
+        "adminPassword": os.environ.get("ADMIN_PASSWORD", "786786"),
     },
     "stats": {
         "collected": 60,
@@ -156,6 +157,7 @@ STATE["customers"] = [c for c in STATE["customers"] if str(c.get("techId")) != "
 STATE.setdefault("used_utrs", [])
 STATE.setdefault("verified_bank_utrs", {})  # { "12_digit_utr": amount_float } received from Bank SMS Webhook or BharatPe API
 STATE.setdefault("pending_payments", [])
+STATE["settings"].setdefault("adminPassword", os.environ.get("ADMIN_PASSWORD", "786786"))
 STATE["settings"].setdefault("supportWhatsapp", os.environ.get("SUPPORT_WHATSAPP", "https://wa.me/919876543210"))
 STATE["settings"].setdefault("supportTelegram", os.environ.get("SUPPORT_TELEGRAM", "https://t.me/jpw_support"))
 STATE["settings"].setdefault("reachPrice", 20)
@@ -1255,8 +1257,53 @@ async def ping_health(request: web.Request) -> web.Response:
     return web.Response(text="OK")
 
 
+def get_current_admin_password() -> str:
+    env_p = os.environ.get("ADMIN_PASSWORD", "").strip()
+    saved_p = str(STATE.get("settings", {}).get("adminPassword") or "").strip()
+    return saved_p or env_p or "786786"
+
+
+def is_valid_admin_pin(pin_str: str) -> bool:
+    cand = str(pin_str or "").strip()
+    if not cand:
+        return False
+    real_p = get_current_admin_password()
+    env_p = os.environ.get("ADMIN_PASSWORD", "").strip()
+    if cand == real_p or (env_p and cand == env_p):
+        return True
+    return False
+
+
+async def api_admin_auth(request: web.Request) -> web.Response:
+    """Verifies the Admin's Secret PIN / Password before unlocking the Admin Dashboard."""
+    try:
+        body = await request.json()
+        pin = str(body.get("adminPassword") or "").strip()
+        if is_valid_admin_pin(pin):
+            return web.json_response({"ok": True, "message": "🔓 Admin Unlocked!"})
+        return web.json_response({"ok": False, "message": "❌ Wrong Admin PIN / Password!"}, status=403)
+    except Exception as exc:
+        return web.json_response({"ok": False, "message": str(exc)}, status=400)
+
+
 async def api_state_get(request: web.Request) -> web.Response:
-    """Returns STATE with live `gmailImapReady` status and recent `payment_sessions` + `fc_logs` for the Admin Gmail Logs box!"""
+    """Returns STATE ONLY when valid X-Admin-Pin is provided; otherwise returns public settings only!"""
+    req_pin = (request.headers.get("X-Admin-Pin") or request.query.get("adminPin") or "").strip()
+    if not is_valid_admin_pin(req_pin):
+        pub_set = STATE.get("settings", {})
+        return web.json_response({
+            "ok": False,
+            "locked": True,
+            "settings": {
+                "upiId": pub_set.get("upiId", "jpwportal@freecharge"),
+                "appTitle": pub_set.get("appTitle", "JPW REACH"),
+                "reachPrice": int(pub_set.get("reachPrice") or 20),
+                "pkgPrices": pub_set.get("pkgPrices") or {"1": 20, "3": 60, "5": 100, "10": 200, "20": 400},
+                "supportWhatsapp": pub_set.get("supportWhatsapp", ""),
+                "supportTelegram": pub_set.get("supportTelegram", ""),
+            },
+        }, status=401)
+
     safe_state = dict(STATE)
     raw_settings = dict(STATE.get("settings", {}))
     real_gu = str(raw_settings.get("gmailUser") or os.environ.get("GMAIL_USER") or "").strip()
@@ -1273,6 +1320,11 @@ async def api_state_post(request: web.Request) -> web.Response:
     """Smart Two-Way Sync: safely merges profiles, deletions, orders, stats, and settings from Mini App into bot.py STATE."""
     try:
         body = await request.json()
+        req_pin = (request.headers.get("X-Admin-Pin") or str(body.get("adminPin") or "")).strip()
+        # Allow self-heal of default 786786 if server just restarted (updatedAt == 0), otherwise verify pin
+        srv_ts = int(STATE.get("settings", {}).get("updatedAt") or 0)
+        if srv_ts > 0 and not is_valid_admin_pin(req_pin):
+            return web.json_response({"ok": False, "locked": True, "message": "Unauthorized Admin PIN"}, status=403)
 
         # 1. Handle explicit profile deletions from Mini App
         deleted_ids = body.get("deletedProfileIds")
@@ -1367,6 +1419,14 @@ async def api_state_post(request: web.Request) -> web.Response:
                     if v and str(v).strip() != "****************" and not STATE["settings"].get(k):
                         STATE["settings"][k] = v
 
+        incoming_used_utrs = body.get("used_utrs")
+        if isinstance(incoming_used_utrs, list):
+            cur_utrs = set(STATE.setdefault("used_utrs", []))
+            for u in incoming_used_utrs:
+                if u and str(u) not in cur_utrs:
+                    STATE["used_utrs"].append(str(u))
+                    cur_utrs.add(str(u))
+
         incoming_customers = body.get("customers")
         if isinstance(incoming_customers, list):
             valid_inc_custs = [
@@ -1406,8 +1466,44 @@ async def api_register_proxy(request: web.Request) -> web.Response:
     return web.json_response(res["data"], status=res["status"] or 200)
 
 
+def get_customer_payment_history(tech_id: str) -> list[dict]:
+    """Returns all payment tries (SUCCESS / FAILED / PENDING) for `tech_id` with Order ID, Amount, and IST Time for Passbook."""
+    tid = str(tech_id or "").strip()
+    if not tid:
+        return []
+    now_ts = time.time()
+    sessions = STATE.setdefault("payment_sessions", {})
+    my_list = []
+    for sid, s in list(sessions.items()):
+        if str(s.get("techId") or "") != tid:
+            continue
+        st = str(s.get("status") or "PENDING").upper()
+        c_at = float(s.get("createdAt") or 0.0)
+        # If a payment try has been PENDING for more than 10 minutes (600s) without payment, mark it FAILED in Passbook
+        if st == "PENDING" and c_at > 0 and (now_ts - c_at) > 600:
+            s["status"] = "FAILED"
+            st = "FAILED"
+        disp_st = "SUCCESS" if st in ("COMPLETED", "SUCCESS") else ("FAILED" if st in ("FAILED", "CANCELLED", "SUPERSEDED") else "PENDING")
+        t_str = s.get("timeStr")
+        if not t_str:
+            ts_use = c_at if c_at > 0 else now_ts
+            t_str = datetime.utcfromtimestamp(ts_use + 19800).strftime("%d %b, %I:%M %p")
+            s["timeStr"] = t_str
+        my_list.append({
+            "orderId": str(s.get("sessionId") or sid),
+            "amount": int(float(s.get("baseAmount") or 20)),
+            "walletCredit": int(float(s.get("walletCredit") or s.get("baseAmount") or 20)),
+            "status": disp_st,
+            "time": t_str,
+            "createdAt": c_at,
+        })
+    my_list.sort(key=lambda x: float(x.get("createdAt") or 0.0), reverse=True)
+    return my_list[:35]
+
+
 async def api_customer_me(request: web.Request) -> web.Response:
     reconcile_failed_order_refunds()
+    await asyncio.to_thread(sync_pending_sessions_via_gmail_imap, False)
     """Safe read-only sync endpoint for Customer APK: returns only this customer's live balance, orders, and UPI settings."""
     tech_id = str(request.query.get("techId") or "").strip()
     upi_id = STATE["settings"].get("upiId", "jpwportal@freecharge")
@@ -1441,6 +1537,7 @@ async def api_customer_me(request: web.Request) -> web.Response:
             "totalOrders": int(cust.get("totalOrders", 0)),
         },
         "orders": my_orders[:20],
+        "payments": get_customer_payment_history(tech_id),
         "upiId": upi_id,
         "appTitle": app_title,
         "reachPrice": reach_price,
@@ -1876,7 +1973,7 @@ def scan_gmail_imap_for_payments(
 
     now_ts = time.time()
     # Space live network IMAP fetches at least 3.5 seconds apart unless force_scan=True
-    if not force_scan and (now_ts - LAST_GMAIL_VERIFY_AT) < 3.5 and GMAIL_MAIL_CACHE:
+    if not force_scan and (now_ts - LAST_GMAIL_VERIFY_AT) < 2.0 and GMAIL_MAIL_CACHE:
         return _match_cached_gmail_messages(expected_unique_amt, session_id, session_created_at, log_miss=False)
 
     with GMAIL_IMAP_LOCK:
@@ -1908,28 +2005,41 @@ def scan_gmail_imap_for_payments(
                     total_checked += len(seq_list)
 
                     for seq_num in seq_list:
+                        # Step 1: Fetch tiny Message-ID header (~80 bytes) to check cache first!
+                        st_h, hdr_data = conn.fetch(str(seq_num), "(BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)])")
+                        msg_id_hdr = f"SEQ_{seq_num}"
+                        if st_h == "OK" and hdr_data:
+                            for h_item in hdr_data:
+                                if isinstance(h_item, tuple) and len(h_item) >= 2 and isinstance(h_item[1], bytes):
+                                    hdr_msg = email.message_from_bytes(h_item[1])
+                                    raw_mid = str(hdr_msg.get("Message-ID") or "").strip()
+                                    if raw_mid:
+                                        msg_id_hdr = raw_mid
+                                    break
+                        cache_key = f"{folder}:{msg_id_hdr}"
+                        if cache_key in GMAIL_MAIL_CACHE:
+                            continue
+
+                        # Step 2: Only download full body if not already in GMAIL_MAIL_CACHE!
                         st_f, msg_data = conn.fetch(str(seq_num), "(BODY.PEEK[])")
                         if st_f == "OK" and msg_data:
                             for item in msg_data:
                                 if isinstance(item, tuple) and len(item) >= 2 and isinstance(item[1], bytes):
                                     msg_obj = email.message_from_bytes(item[1])
-                                    msg_id_hdr = str(msg_obj.get("Message-ID") or "").strip() or f"SEQ_{seq_num}"
-                                    cache_key = f"{folder}:{msg_id_hdr}"
-                                    if cache_key not in GMAIL_MAIL_CACHE:
-                                        full_txt, m_ts, subj, sender = _extract_email_full_text(msg_obj)
-                                        low = full_txt.lower()
-                                        norm = re.sub(r"[^a-z0-9]", "", low)
-                                        jpw_ids = re.findall(r"jpw[a-z0-9]{8,28}", low)
-                                        GMAIL_MAIL_CACHE[cache_key] = {
-                                            "low": low,
-                                            "norm": norm,
-                                            "msg_ts": m_ts,
-                                            "uid_key": f"GMAIL_{re.sub(r'[^A-Za-z0-9]', '', msg_id_hdr)[:36]}",
-                                            "subject": subj[:80],
-                                            "sender": sender[:50],
-                                            "jpw_ids": jpw_ids,
-                                        }
-                                        new_fetched += 1
+                                    full_txt, m_ts, subj, sender = _extract_email_full_text(msg_obj)
+                                    low = full_txt.lower()
+                                    norm = re.sub(r"[^a-z0-9]", "", low)
+                                    jpw_ids = re.findall(r"jpw[a-z0-9]{8,28}", low)
+                                    GMAIL_MAIL_CACHE[cache_key] = {
+                                        "low": low,
+                                        "norm": norm,
+                                        "msg_ts": m_ts,
+                                        "uid_key": f"GMAIL_{re.sub(r'[^A-Za-z0-9]', '', msg_id_hdr)[:36]}",
+                                        "subject": subj[:80],
+                                        "sender": sender[:50],
+                                        "jpw_ids": jpw_ids,
+                                    }
+                                    new_fetched += 1
                                     break
                 except Exception as folder_exc:
                     append_fc_log(f"⚠️ [IMAP Folder {folder}] {folder_exc}")
@@ -1991,27 +2101,32 @@ def _match_cached_gmail_messages(
         if ref_id in used_utrs or uid_key in used_utrs:
             continue
 
-        # Match 1 (Exact Order ID `JPW...` inside email — e.g. Paytm 'Order ID: JPW1794829743129' in 1000585364.jpg!):
-        # Note: Because `JPW...` is a unique 16-char session ID, if the email contains `sid_low`, it belongs to this exact session!
-        if sid_low and len(sid_low) >= 10 and (sid_low in low or sid_norm in norm):
-            append_fc_log(
-                f"🎉 [IMAP MATCHED ORDER ID] {session_id} in email '{m.get('subject','')[:40]}'! Crediting +₹{base_int_amt}"
-            )
-            if uid_key != ref_id and uid_key not in used_utrs:
-                used_utrs.append(uid_key)
-            return True, base_int_amt, ref_id
+        # Match 1 (Exact Order ID `JPW...` + exact amount inside email — e.g. Paytm 'Order ID: JPW123T484622899' & '₹ 1'):
+        if sid_low and len(sid_low) >= 8 and (sid_low in low or sid_norm in norm):
+            text_without_id = low.replace(sid_low, " ")
+            if expected_unique_amt is None or _amount_matches_server_js(text_without_id, float(expected_unique_amt)) or _amount_matches_server_js(text_without_id, float(base_int_amt)):
+                append_fc_log(
+                    f"🎉 [IMAP MATCHED ORDER ID] {session_id} (₹{base_int_amt}) in email '{m.get('subject','')[:40]}'!"
+                )
+                if uid_key != ref_id and uid_key not in used_utrs:
+                    used_utrs.append(uid_key)
+                return True, base_int_amt, ref_id
 
-        # For amount-only matching (without Order ID), verify the email arrived recently (within 10 mins before/after session creation)
-        msg_ts = float(m.get("msg_ts") or 0.0)
-        if session_created_at > 0 and msg_ts > 0 and msg_ts < (session_created_at - 300):
+        # If this email already belongs to a DIFFERENT JPW Order ID, never match it by generic amount!
+        if m.get("jpw_ids"):
             continue
 
-        # Match 2 (Unique Decimal Paise rule, e.g. ₹ 20.01 in Paytm/Freecharge/Bank email):
+        # For amount-only matching (bank emails without Order ID), email must have arrived AFTER session was created (minus 15s clock-skew buffer)
+        msg_ts = float(m.get("msg_ts") or 0.0)
+        if session_created_at > 0 and (msg_ts <= 0 or msg_ts < (session_created_at - 15)):
+            continue
+
+        # Match 2 (Fallback for Bank emails without Order ID):
         if expected_unique_amt is not None:
             exact_str = f"{float(expected_unique_amt):.2f}"
-            has_pay_word = any(w in low for w in ("received", "credited", "paid", "payment", "success", "upi", "rs", "inr", "₹", "paytm"))
+            has_pay_word = any(w in low for w in ("received", "credited", "paid", "payment", "success", "upi"))
             if has_pay_word and _amount_matches_server_js(low, float(expected_unique_amt)):
-                if not exact_str.endswith(".00") or ("upi" in low and ("received" in low or "credited" in low)):
+                if not exact_str.endswith(".00"):
                     append_fc_log(
                         f"🎉 [IMAP MATCHED AMOUNT] ₹{exact_str} in email '{m.get('subject','')[:40]}'! Crediting +₹{base_int_amt}"
                     )
@@ -2356,11 +2471,9 @@ async def api_customer_create_payment(request: web.Request) -> web.Response:
             "rzpOrderId": rzp_order_id,
             "status": "PENDING",
             "createdAt": time.time(),
+            "timeStr": datetime.utcfromtimestamp(time.time() + 19800).strftime("%d %b, %I:%M %p"),
         }
-        # Supersede any older PENDING session for this same techId so only 1 session is active per user at a time!
-        for old_sid, old_s in list(STATE.setdefault("payment_sessions", {}).items()):
-            if str(old_s.get("techId")) == tech_id and old_s.get("status") == "PENDING":
-                old_s["status"] = "SUPERSEDED"
+                # Keep older PENDING sessions active (each has its own unique Order ID JPW...)
         STATE.setdefault("payment_sessions", {})[session_id] = sess_obj
         log_user_activity(
             tech_id,
@@ -2369,7 +2482,7 @@ async def api_customer_create_payment(request: web.Request) -> web.Response:
             f"Initiated ₹{base_amt} Pack (Exact: ₹{unique_amt:.2f} • Order #{session_id[-6:]})",
         )
         save_state(STATE)
-        return web.json_response({"ok": True, "session": sess_obj})
+        return web.json_response({"ok": True, "session": sess_obj, "payments": get_customer_payment_history(tech_id)})
     except Exception as exc:
         return web.json_response({"ok": False, "message": str(exc)}, status=400)
 
@@ -2428,14 +2541,23 @@ async def api_customer_check_payment(request: web.Request) -> web.Response:
         if not sess and session_id.startswith("JPW"):
             tid_m = re.match(r"^JPW([A-Za-z0-9]+)T\d+$", session_id)
             rec_tid = str(body.get("techId") or (tid_m.group(1) if tid_m else "")).strip()
-            rec_amt = max(1, int(float(body.get("amount") or STATE["settings"].get("reachPrice") or 20)))
+            reach_p = max(1, int(STATE["settings"].get("reachPrice") or 20))
+            pkg_p = STATE["settings"].get("pkgPrices") or {}
+            rec_amt = max(1, int(float(body.get("amount") or reach_p)))
+            w_cred = rec_amt
+            r_cnt = max(1, w_cred // reach_p)
+            for rk, pv in pkg_p.items():
+                if int(pv) == rec_amt:
+                    r_cnt = int(rk)
+                    w_cred = r_cnt * reach_p
+                    break
             if rec_tid:
                 sess = {
                     "sessionId": session_id,
                     "techId": rec_tid,
                     "baseAmount": rec_amt,
-                    "walletCredit": rec_amt,
-                    "reaches": 1,
+                    "walletCredit": w_cred,
+                    "reaches": r_cnt,
                     "uniqueAmount": float(rec_amt),
                     "status": "PENDING",
                     "createdAt": time.time() - 60,
@@ -2464,6 +2586,19 @@ async def api_customer_check_payment(request: web.Request) -> web.Response:
                 "status": "COMPLETED",
                 "message": f"🎉 ₹{sess['baseAmount']} Added to Wallet!",
                 "customer": cust,
+                "payments": get_customer_payment_history(tech_id),
+            })
+
+        if body.get("cancel") is True:
+            if sess.get("status") == "PENDING":
+                sess["status"] = "FAILED"
+                log_user_activity(tech_id, "PAYMENT", "FAILED", f"Order #{session_id} (₹{sess.get('baseAmount', 20)}) Cancelled by user")
+                save_state(STATE)
+            return web.json_response({
+                "ok": True,
+                "status": "FAILED",
+                "customer": cust,
+                "payments": get_customer_payment_history(tech_id),
             })
 
         # Check 0: 24x7 Gmail IMAP Auto-Verifier (always call so missing-credential warnings are logged too!)
@@ -2492,7 +2627,7 @@ async def api_customer_check_payment(request: web.Request) -> web.Response:
                 return web.json_response({
                     "ok": True,
                     "status": "COMPLETED",
-                    "message": f"🎉 ₹{sess['baseAmount']} Payment Verified via Gmail IMAP! Wallet Updated!",
+                    "message": f"🎉 ₹{sess['baseAmount']} Payment Verified by Bank! Wallet Updated!",
                     "customer": cust,
                 })
 
@@ -3236,9 +3371,10 @@ def sync_pending_sessions_via_gmail_imap(force_scan: bool = False) -> bool:
         return False
     now_ts = time.time()
     sessions = STATE.setdefault("payment_sessions", {})
+    max_age = 86400 if force_scan else 1200  # 20 mins for auto-poll, 24h for manual Re-check
     pending = [
         (sid, s) for sid, s in list(sessions.items())
-        if s.get("status") == "PENDING" and (now_ts - float(s.get("createdAt", 0))) <= 86400
+        if s.get("status") != "COMPLETED" and not s.get("credited") and (now_ts - float(s.get("createdAt", 0))) <= max_age
     ]
     if not pending and not force_scan:
         return False
@@ -3277,7 +3413,12 @@ def sync_pending_sessions_via_gmail_imap(force_scan: bool = False) -> bool:
             if oid_up in used_utrs:
                 continue
             existing_s = sessions.get(oid_up)
-            if existing_s and existing_s.get("status") == "COMPLETED":
+            # If session already exists in memory, Step A already checked it with strict amount verification!
+            if existing_s:
+                continue
+            # Only auto-reconcile missing sessions (after a server restart) if the email arrived within the last 15 minutes!
+            msg_ts = float(m.get("msg_ts") or 0.0)
+            if msg_ts <= 0 or (now_ts - msg_ts) > 900:
                 continue
             tid_m = re.match(r"^JPW([A-Z0-9]+)T\d+$", oid_up)
             if not tid_m:
@@ -3376,6 +3517,7 @@ def create_app() -> web.Application:
     app.router.add_post("/api/admin/fc-send-otp", api_admin_fc_send_otp)
     app.router.add_post("/api/admin/fc-verify-otp", api_admin_fc_verify_otp)
     app.router.add_post("/api/admin/fc-test", api_admin_fc_test)
+    app.router.add_post("/api/admin/auth", api_admin_auth)
     app.router.add_post("/api/admin/gmail-test", api_admin_gmail_test)
     app.router.add_post("/api/admin/mark-session", api_admin_mark_session)
     app.router.add_get("/api/admin/fc-logs", api_admin_fc_logs)
