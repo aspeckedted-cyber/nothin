@@ -3364,7 +3364,7 @@ async def api_customer_order(request: web.Request) -> web.Response:
             log_user_activity(tech_id, "ORDER", "FAILED", f"Failed Target {target_id} -> Insufficient Balance (₹{cust.get('balance', 0)} < ₹{reach_price})")
             save_state(STATE)
             return web.json_response(
-                {"ok": False, "message": f"⚠️ Insufficient Balance (₹{cust.get('balance', 0)})! 1 Reach costs ₹{reach_price}."},
+                {"ok": False, "message": "⚠️ Insufficient Reach (0.00)! Niche Packages se Reach add karein."},
                 status=400,
             )
 
@@ -3394,8 +3394,9 @@ async def api_customer_order(request: web.Request) -> web.Response:
                 f"Target {target_id} Rejected by Cashtree ({srv_msg}) • Node: {node_prof['id']}",
             )
             save_state(STATE)
+            safe_reaches = int(cust.get("balance", 0)) // reach_price
             return web.json_response(
-                {"ok": False, "message": f"⚠️ {srv_msg} (Your ₹{cust['balance']} balance is safe!)"},
+                {"ok": False, "message": f"⚠️ {srv_msg} (Reach {safe_reaches} safe!)"},
                 status=400,
             )
 
