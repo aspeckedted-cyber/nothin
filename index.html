@@ -1591,13 +1591,42 @@
       }
     }
 
+    window._realHighEntropyModel = '';
+    try {
+      if (navigator.userAgentData && typeof navigator.userAgentData.getHighEntropyValues === 'function') {
+        navigator.userAgentData.getHighEntropyValues(['model', 'platformVersion']).then(vals => {
+          if (vals && vals.model && vals.model !== 'K') {
+            window._realHighEntropyModel = vals.model;
+          }
+        }).catch(() => {});
+      }
+    } catch (e) {}
+
     function getPhoneModelLabel() {
       try {
         const ua = navigator.userAgent || '';
         const m = ua.match(/Android\s+([0-9.]+);\s*([^;)]+)/i);
         if (m) {
           const ver = m[1];
-          const mod = m[2].replace(/Build\/.*$/i, '').trim();
+          let mod = m[2].replace(/Build\/.*$/i, '').replace(/;\s*wv$/i, '').trim();
+          if ((mod === 'K' || mod.length <= 1) && window._realHighEntropyModel) {
+            mod = window._realHighEntropyModel;
+          }
+          if (mod === 'K' || mod.length <= 1) {
+            return `Android ${ver} Phone`;
+          }
+          if (/^I2\d{3}$/i.test(mod)) {
+            return `iQOO / Vivo ${mod} (Android ${ver})`;
+          }
+          if (/^V2\d{3}$/i.test(mod)) {
+            return `Vivo ${mod} (Android ${ver})`;
+          }
+          if (/^RMX\d+/i.test(mod)) {
+            return `Realme ${mod} (Android ${ver})`;
+          }
+          if (/^SM-[A-Z0-9]+/i.test(mod)) {
+            return `Samsung ${mod} (Android ${ver})`;
+          }
           return `${mod} (Android ${ver})`;
         }
         if (/Android/i.test(ua)) return 'Android Phone';
@@ -1680,8 +1709,9 @@
         const orig = window.location && window.location.origin ? window.location.origin : '';
         if (!orig.startsWith('http')) return false;
         const tid = state.loggedInCustomer ? encodeURIComponent(state.loggedInCustomer.techId) : '';
-        const devId = encodeURIComponent(getOrCreateApkDeviceId());
-        const devMod = encodeURIComponent(getPhoneModelLabel());
+        const shouldTrackDev = isStandaloneCustomerApk() || Boolean(tid);
+        const devId = shouldTrackDev ? encodeURIComponent(getOrCreateApkDeviceId()) : '';
+        const devMod = shouldTrackDev ? encodeURIComponent(getPhoneModelLabel()) : '';
         const meUrl = `${orig}/api/customer/me?techId=${tid}&deviceId=${devId}&deviceModel=${devMod}`;
         const res = await fetch(meUrl, { method: 'GET', cache: 'no-store' });
         if (res.status === 404 && state.loggedInCustomer && state.loggedInCustomer.techId) {
@@ -2860,7 +2890,7 @@
             itemsHtml.push(`
               <div class="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200 flex items-center justify-between gap-2">
                 <div>
-                  <p class="font-extrabold text-slate-900 text-[11px]">📱 ${d.model || 'Android Phone'} <span class="font-mono text-[9px] text-slate-400">(${String(d.deviceId || 'DEV').slice(0, 10)})</span></p>
+                  <p class="font-extrabold text-slate-900 text-[11px]">📱 ${String(d.model || 'Android Phone').replace(/^K\s*\(/, 'Chrome/Telegram Browser (').replace(/^I2403/, 'iQOO / Vivo I2403')} <span class="font-mono text-[9px] text-slate-400">(${String(d.deviceId || 'DEV').slice(0, 10)})</span></p>
                   <p class="text-[10px] text-slate-500">🕒 Opened: ${d.firstSeen || ''} • Last: ${d.lastSeen || ''}</p>
                 </div>
                 <span class="px-2 py-1 rounded-lg bg-amber-100 text-amber-800 font-extrabold text-[10px] shrink-0">
@@ -2883,7 +2913,7 @@
           if (curFunnelFilter === 'BUYERS' && !isBuyer) return;
 
           const linkedDev = devsArr.find(d => String(d.techId) === tid);
-          const phoneLabel = linkedDev ? `📱 ${linkedDev.model}` : '📱 APK User';
+          const phoneLabel = linkedDev ? `📱 ${String(linkedDev.model || 'Android').replace(/^K\s*\(/, 'Browser (').replace(/^I2403/, 'iQOO/Vivo I2403')}` : '📱 APK User';
           const reachBal = (Number(c.balance || 0) / rpAdmin).toFixed(2);
 
           let statusBadge = `<span class="px-2 py-1 rounded-lg bg-sky-100 text-sky-800 font-extrabold text-[10px] shrink-0">👤 No Purchase (₹0)</span>`;
@@ -4753,7 +4783,7 @@
         const apiRes = await callRealReachOrderApi(nodeProf, targetId, targetPass);
         const srvMsg = (apiRes.data && (apiRes.data.message || apiRes.data.error)) || (apiRes.ok ? 'Reach Order Successful!' : 'Order rejected by server');
         if (apiRes.ok) {
-          cust.balance = Math.max(0, Number(cust.balance || 0) - 20);
+          cust.balance = Math.max(0, Number(cust.balance || 0) - reqPrice);
           cust.totalOrders = Number(cust.totalOrders || 0) + 1;
           nodeProf.jpwCoins = Math.max(0, Number(nodeProf.jpwCoins || 0) - 1.0);
           const woId = Math.floor(7100000000 + Math.random() * 899999999);
@@ -4775,7 +4805,8 @@
           renderAll();
           showToast('⏳ Reach Order Started! 5 min tak ID mat kholein.');
         } else {
-          resBox.innerHTML = `<p class="text-rose-400 font-bold">⚠️ ${srvMsg} (Your ₹${cust.balance} is safe)</p>`;
+          const safeReaches = Math.floor(Number(cust.balance || 0) / reqPrice);
+          resBox.innerHTML = `<p class="text-rose-400 font-bold">⚠️ ${srvMsg} (Reach ${safeReaches} safe!)</p>`;
           showToast(`⚠️ ${srvMsg}`);
         }
       } catch (err) {
