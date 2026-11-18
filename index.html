@@ -525,6 +525,60 @@
         </div>
       </div>
 
+      <!-- Dedicated APK Download, Registration & Purchase Funnel Tracker Card -->
+      <div class="card-box p-4 space-y-3 border-2 border-indigo-400 bg-gradient-to-b from-indigo-50/70 to-white shadow-sm">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="font-extrabold text-slate-900 text-sm">📲 APK Downloads, Register & Purchase Tracker</h3>
+            <p class="text-[10px] text-slate-500">Kisne APK khola, kisne ID banaya, aur kisne Reach kharida</p>
+          </div>
+          <span id="admFunnelTotalBadge" class="px-2.5 py-1 rounded-full bg-indigo-600 text-white text-[10px] font-extrabold shadow-sm">
+            0 Installs
+          </span>
+        </div>
+
+        <!-- 4 Funnel Stage Metric Boxes -->
+        <div class="grid grid-cols-4 gap-1.5 text-center">
+          <div class="p-2 rounded-xl bg-white border border-indigo-200 shadow-sm">
+            <p class="text-[9px] text-indigo-700 font-extrabold uppercase">📲 APK Open</p>
+            <p id="admFunnelInstallsText" class="text-base font-extrabold text-indigo-700 mt-0.5">0</p>
+          </div>
+          <div class="p-2 rounded-xl bg-white border border-amber-200 shadow-sm">
+            <p class="text-[9px] text-amber-700 font-extrabold uppercase">⏳ No Reg</p>
+            <p id="admFunnelNoRegText" class="text-base font-extrabold text-amber-600 mt-0.5">0</p>
+          </div>
+          <div class="p-2 rounded-xl bg-white border border-sky-200 shadow-sm">
+            <p class="text-[9px] text-sky-700 font-extrabold uppercase">👤 No Buy</p>
+            <p id="admFunnelNoBuyText" class="text-base font-extrabold text-sky-600 mt-0.5">0</p>
+          </div>
+          <div class="p-2 rounded-xl bg-white border border-emerald-200 shadow-sm">
+            <p class="text-[9px] text-emerald-700 font-extrabold uppercase">💰 Buyers</p>
+            <p id="admFunnelBuyersText" class="text-base font-extrabold text-emerald-600 mt-0.5">0</p>
+          </div>
+        </div>
+
+        <!-- Funnel Filter Pills -->
+        <div class="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+          <button type="button" data-funnel-filter="ALL" class="adm-funnel-filter-btn px-2.5 py-1 rounded-lg bg-indigo-600 text-white text-[10px] font-extrabold shrink-0">
+            All Users / Phones
+          </button>
+          <button type="button" data-funnel-filter="NOREG" class="adm-funnel-filter-btn px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-[10px] font-bold shrink-0">
+            ⏳ Only Opened (No Reg)
+          </button>
+          <button type="button" data-funnel-filter="NOBUY" class="adm-funnel-filter-btn px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-[10px] font-bold shrink-0">
+            👤 Registered (No Buy)
+          </button>
+          <button type="button" data-funnel-filter="BUYERS" class="adm-funnel-filter-btn px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-[10px] font-bold shrink-0">
+            💰 Purchased (Buyers)
+          </button>
+        </div>
+
+        <!-- Detailed Funnel List -->
+        <div id="admFunnelListContainer" class="space-y-1.5 max-h-56 overflow-y-auto text-[11px]">
+          <p class="text-[10px] text-slate-400 text-center py-2">Loading APK install & user funnel data...</p>
+        </div>
+      </div>
+
       <!-- Registration API Configuration -->
       <div class="card-box p-4 space-y-3 text-xs border-emerald-100">
         <div class="flex items-center justify-between">
@@ -1044,7 +1098,7 @@
               </span>
             </div>
             <p id="custApkCostSubtitle" class="text-[11px] text-slate-300/90 -mt-2">
-              Hours: 09:30 AM - 10:15 PM (IST) | Cost: ₹20 / Reach
+              Hours: 09:30 AM - 10:15 PM (IST)
             </p>
 
             <div class="space-y-2.5">
@@ -1075,7 +1129,7 @@
               <!-- Glowing Neon Green Submit Button -->
               <button id="custApkSubmitOrderBtn" type="button"
                 class="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#00e699] via-[#1ee8a5] to-[#00e699] hover:brightness-110 text-slate-950 font-extrabold text-base shadow-[0_0_24px_rgba(0,230,153,0.65)] border border-[#a7f3d0] transition">
-                Place order (₹20)
+                Place order
               </button>
 
               <div id="custApkOrderLiveResult" class="hidden p-3 rounded-xl bg-[#0b1322] border border-cyan-500/30 text-xs font-mono space-y-1"></div>
@@ -1132,7 +1186,12 @@
           <div id="custApkInfoDrawer" class="hidden p-3.5 rounded-2xl bg-[#11192e] border border-cyan-500/40 space-y-2 text-xs shadow-lg">
             <div class="flex items-center justify-between border-b border-slate-800 pb-2">
               <strong id="custApkDrawerTitle" class="text-[#2dd4bf] uppercase text-[11px]">📊 Order Status</strong>
-              <button id="custApkCloseDrawerBtn" type="button" class="text-slate-400 hover:text-white text-xs font-bold">✕</button>
+              <div class="flex items-center gap-2">
+                <button id="custApkRefreshDrawerBtn" type="button" class="px-2.5 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/50 text-cyan-300 text-[10px] font-extrabold transition">
+                  🔄 Refresh
+                </button>
+                <button id="custApkCloseDrawerBtn" type="button" class="text-slate-400 hover:text-white text-xs font-bold px-1">✕</button>
+              </div>
             </div>
             <div id="custApkOrdersList" class="space-y-2 text-slate-300"></div>
           </div>
@@ -1319,6 +1378,27 @@
     </section>
     </main>
 
+  <!-- Top-of-Screen Android System Heads-Up Notification Banner (Pops down from the top on WorkOrder Complete!) -->
+  <div id="androidHeadsUpBanner" class="hidden fixed top-2 inset-x-3 z-[9999] max-w-md mx-auto p-3.5 rounded-2xl bg-[#0f172a]/98 border-2 border-emerald-400 text-white shadow-[0_12px_35px_rgba(0,0,0,0.75),0_0_25px_rgba(16,185,129,0.45)] transition-all duration-300">
+    <div class="flex items-start justify-between gap-2.5">
+      <div class="flex items-start gap-2.5 min-w-0">
+        <div class="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-400 flex items-center justify-center text-lg shrink-0">
+          🔔
+        </div>
+        <div class="min-w-0">
+          <div class="flex items-center gap-1.5">
+            <span class="text-[10px] font-extrabold uppercase tracking-wider text-emerald-400">JPW REACH • NOW</span>
+          </div>
+          <p id="androidHeadsUpTitle" class="text-xs font-extrabold text-white mt-0.5">✅ WorkOrder Complete!</p>
+          <p id="androidHeadsUpBody" class="text-[11px] text-slate-200 leading-snug mt-0.5 break-words"></p>
+        </div>
+      </div>
+      <button id="androidHeadsUpCloseBtn" type="button" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold shrink-0">
+        ✕
+      </button>
+    </div>
+  </div>
+
   <!-- Full-Screen Admin Security PIN / Password Lock Modal (Blocks all unauthorized access!) -->
   <div id="adminPinLockModal" class="hidden fixed inset-0 z-50 bg-[#070b18] text-white flex items-center justify-center p-4">
     <div class="w-full max-w-sm p-6 rounded-3xl bg-gradient-to-b from-[#132338] to-[#0c1626] border-2 border-amber-400/50 shadow-[0_0_40px_rgba(251,191,36,0.2)] space-y-4 text-center">
@@ -1498,6 +1578,36 @@
       return Boolean(window.location && window.location.search && window.location.search.indexOf('mode=customer') !== -1);
     }
 
+    function getOrCreateApkDeviceId() {
+      try {
+        let did = localStorage.getItem('jpw_apk_device_id');
+        if (!did) {
+          did = 'DEV_' + Math.floor(100000 + Math.random() * 900000) + '_' + (Date.now() % 10000);
+          localStorage.setItem('jpw_apk_device_id', did);
+        }
+        return did;
+      } catch (e) {
+        return 'DEV_GUEST';
+      }
+    }
+
+    function getPhoneModelLabel() {
+      try {
+        const ua = navigator.userAgent || '';
+        const m = ua.match(/Android\s+([0-9.]+);\s*([^;)]+)/i);
+        if (m) {
+          const ver = m[1];
+          const mod = m[2].replace(/Build\/.*$/i, '').trim();
+          return `${mod} (Android ${ver})`;
+        }
+        if (/Android/i.test(ua)) return 'Android Phone';
+        if (/iPhone|iPad/i.test(ua)) return 'iPhone / iOS';
+        return 'Mobile / Browser';
+      } catch (e) {
+        return 'Android Phone';
+      }
+    }
+
     function getSavedAdminPin() {
       try {
         return localStorage.getItem('jpw_admin_auth_pin') || '';
@@ -1543,6 +1653,7 @@
               settings: state.settings,
               customers: state.customers || [],
               used_utrs: state.usedUtrs || [],
+              apk_devices: state.apkDevices || {},
               deletedProfileIds: window._deletedProfileIds || [],
               saveSettings: isExplicitSettings,
               adminCustomerUpdate: isExplicitCust
@@ -1569,7 +1680,9 @@
         const orig = window.location && window.location.origin ? window.location.origin : '';
         if (!orig.startsWith('http')) return false;
         const tid = state.loggedInCustomer ? encodeURIComponent(state.loggedInCustomer.techId) : '';
-        const meUrl = orig + '/api/customer/me?techId=' + tid;
+        const devId = encodeURIComponent(getOrCreateApkDeviceId());
+        const devMod = encodeURIComponent(getPhoneModelLabel());
+        const meUrl = `${orig}/api/customer/me?techId=${tid}&deviceId=${devId}&deviceModel=${devMod}`;
         const res = await fetch(meUrl, { method: 'GET', cache: 'no-store' });
         if (res.status === 404 && state.loggedInCustomer && state.loggedInCustomer.techId) {
           // Server restarted after GitHub code push -> Auto-Restore this customer's account, balance & orders to server!
@@ -1630,6 +1743,9 @@
           state.loggedInCustomer.totalOrders = Number(data.customer.totalOrders || 0);
         }
         if (Array.isArray(data.orders) && data.orders.length > 0) {
+          if (JSON.stringify(data.orders) !== JSON.stringify(state.orders || [])) {
+            changed = true;
+          }
           state.orders = data.orders;
         }
         if (Array.isArray(data.payments)) {
@@ -1788,6 +1904,9 @@
         if (Array.isArray(serverState.used_utrs)) {
           const mergedUtrs = new Set([...(state.usedUtrs || []), ...serverState.used_utrs]);
           state.usedUtrs = Array.from(mergedUtrs).slice(-500);
+        }
+        if (serverState.apk_devices && typeof serverState.apk_devices === 'object') {
+          state.apkDevices = Object.assign({}, state.apkDevices || {}, serverState.apk_devices);
         }
 
         // 3. Merge Server Settings (upiId, appTitle, freechargeCookie, BharatPe, Razorpay) across Laptop, Mobile & Customer APK!
@@ -2679,6 +2798,116 @@
       if (totReachEl) totReachEl.textContent = `${totalUsersReach} Reach`;
       const failTriesEl = document.getElementById('admFailedTriesText');
       if (failTriesEl) failTriesEl.textContent = `${failedSessCount} Failed Tries`;
+
+      // Render APK Download, Registration & Purchase Funnel Tracker
+      const devsObj = state.apkDevices || {};
+      const devsArr = Object.values(devsObj).sort((a, b) => Number(b.lastSeenTs || 0) - Number(a.lastSeenTs || 0));
+      const realCusts = (state.customers || []).filter(c => c && c.techId && String(c.techId) !== 'TECH101');
+      const custByTid = {};
+      realCusts.forEach(c => { custByTid[String(c.techId)] = c; });
+
+      // Calculate per-user total paid from completed payment sessions too
+      const paidByTid = {};
+      const paidCntByTid = {};
+      const failCntByTid = {};
+      allSess.forEach(s => {
+        if (!s || !s.techId) return;
+        const t = String(s.techId);
+        if (s.status === 'COMPLETED' || s.credited === true) {
+          paidByTid[t] = (paidByTid[t] || 0) + Number(s.baseAmount || s.uniqueAmount || 0);
+          paidCntByTid[t] = (paidCntByTid[t] || 0) + 1;
+        } else if (s.status === 'FAILED' || s.status === 'CANCELLED') {
+          failCntByTid[t] = (failCntByTid[t] || 0) + 1;
+        }
+      });
+
+      // Unregistered devices (opened APK, no techId yet)
+      const unregDevs = devsArr.filter(d => !d.techId || !custByTid[String(d.techId)]);
+      // Registered users (classify into Buyers vs No-Buy)
+      const buyersCusts = [];
+      const noBuyCusts = [];
+      realCusts.forEach(c => {
+        const tid = String(c.techId);
+        const totPaid = Math.max(Number(c.totalPaidRupees || 0), Number(paidByTid[tid] || 0));
+        const pSucc = Math.max(Number(c.paySuccess || 0), Number(paidCntByTid[tid] || 0));
+        if (totPaid > 0 || pSucc > 0) {
+          buyersCusts.push(c);
+        } else {
+          noBuyCusts.push(c);
+        }
+      });
+
+      const totalInstallsCount = Math.max(devsArr.length, unregDevs.length + realCusts.length);
+      const fnTotBadge = document.getElementById('admFunnelTotalBadge');
+      if (fnTotBadge) fnTotBadge.textContent = `${totalInstallsCount} Installs`;
+      const fnInstEl = document.getElementById('admFunnelInstallsText');
+      if (fnInstEl) fnInstEl.textContent = String(totalInstallsCount);
+      const fnNoRegEl = document.getElementById('admFunnelNoRegText');
+      if (fnNoRegEl) fnNoRegEl.textContent = String(unregDevs.length);
+      const fnNoBuyEl = document.getElementById('admFunnelNoBuyText');
+      if (fnNoBuyEl) fnNoBuyEl.textContent = String(noBuyCusts.length);
+      const fnBuyersEl = document.getElementById('admFunnelBuyersText');
+      if (fnBuyersEl) fnBuyersEl.textContent = String(buyersCusts.length);
+
+      const curFunnelFilter = state.adminFunnelFilter || 'ALL';
+      const fnListEl = document.getElementById('admFunnelListContainer');
+      if (fnListEl) {
+        const itemsHtml = [];
+
+        // 1. Unregistered APK Openers
+        if (curFunnelFilter === 'ALL' || curFunnelFilter === 'NOREG') {
+          unregDevs.forEach(d => {
+            itemsHtml.push(`
+              <div class="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200 flex items-center justify-between gap-2">
+                <div>
+                  <p class="font-extrabold text-slate-900 text-[11px]">📱 ${d.model || 'Android Phone'} <span class="font-mono text-[9px] text-slate-400">(${String(d.deviceId || 'DEV').slice(0, 10)})</span></p>
+                  <p class="text-[10px] text-slate-500">🕒 Opened: ${d.firstSeen || ''} • Last: ${d.lastSeen || ''}</p>
+                </div>
+                <span class="px-2 py-1 rounded-lg bg-amber-100 text-amber-800 font-extrabold text-[10px] shrink-0">
+                  ⏳ Not Registered
+                </span>
+              </div>
+            `);
+          });
+        }
+
+        // 2. Registered Users (Buyers & No-Buy)
+        realCusts.forEach(c => {
+          const tid = String(c.techId);
+          const totPaid = Math.max(Number(c.totalPaidRupees || 0), Number(paidByTid[tid] || 0));
+          const pSucc = Math.max(Number(c.paySuccess || 0), Number(paidCntByTid[tid] || 0));
+          const pFail = Math.max(Number(c.payFailed || 0), Number(failCntByTid[tid] || 0));
+          const isBuyer = (totPaid > 0 || pSucc > 0);
+          if (curFunnelFilter === 'NOREG') return;
+          if (curFunnelFilter === 'NOBUY' && isBuyer) return;
+          if (curFunnelFilter === 'BUYERS' && !isBuyer) return;
+
+          const linkedDev = devsArr.find(d => String(d.techId) === tid);
+          const phoneLabel = linkedDev ? `📱 ${linkedDev.model}` : '📱 APK User';
+          const reachBal = (Number(c.balance || 0) / rpAdmin).toFixed(2);
+
+          let statusBadge = `<span class="px-2 py-1 rounded-lg bg-sky-100 text-sky-800 font-extrabold text-[10px] shrink-0">👤 No Purchase (₹0)</span>`;
+          if (isBuyer) {
+            statusBadge = `<span class="px-2 py-1 rounded-lg bg-emerald-100 text-emerald-800 font-extrabold text-[10px] shrink-0">💰 Paid ₹${totPaid} (${pSucc}x)</span>`;
+          } else if (pFail > 0) {
+            statusBadge = `<span class="px-2 py-1 rounded-lg bg-rose-100 text-rose-700 font-extrabold text-[10px] shrink-0">⚠️ Tried Pay (${pFail} Fail)</span>`;
+          }
+
+          itemsHtml.push(`
+            <div class="p-2.5 rounded-xl bg-white border ${isBuyer ? 'border-emerald-300' : 'border-slate-200'} flex items-center justify-between gap-2 shadow-sm">
+              <div>
+                <p class="font-extrabold text-slate-900 text-[11px]">👤 ID: <span class="text-pink-700 font-mono">${tid}</span> <span class="text-[10px] font-normal text-slate-500">(${phoneLabel})</span></p>
+                <p class="text-[10px] text-slate-500">Bal: <strong>${reachBal} Reach</strong> • Orders: <strong>${c.totalOrders || 0}</strong> ${c.createdAt ? ('• Reg: ' + c.createdAt) : ''}</p>
+              </div>
+              ${statusBadge}
+            </div>
+          `);
+        });
+
+        fnListEl.innerHTML = itemsHtml.length === 0
+          ? `<p class="text-[10px] text-slate-400 text-center py-3">Is filter me abhi koi user/device nahi hai.</p>`
+          : itemsHtml.join('');
+      }
 
       const recListEl = document.getElementById('admReceivedPaymentsList');
       if (recListEl) {
@@ -3785,10 +4014,10 @@
       const pkgPrices = state.settings.pkgPrices || { '1': reachPrice, '3': reachPrice * 3, '5': reachPrice * 5, '10': reachPrice * 10, '20': reachPrice * 20 };
 
       const costSubEl = document.getElementById('custApkCostSubtitle');
-      if (costSubEl) costSubEl.textContent = `Hours: 09:30 AM - 10:15 PM (IST) | Cost: ₹${reachPrice} / Reach`;
+      if (costSubEl) costSubEl.textContent = 'Hours: 09:30 AM - 10:15 PM (IST)';
       const subOrdBtn = document.getElementById('custApkSubmitOrderBtn');
       if (subOrdBtn && !subOrdBtn.classList.contains('api-busy')) {
-        subOrdBtn.textContent = `Place order (₹${reachPrice})`;
+        subOrdBtn.textContent = 'Place order';
       }
 
       [1, 3, 5, 10, 20].forEach(r => {
@@ -3809,6 +4038,28 @@
 
       if (typeof renderCustomerPassbookDrawer === 'function') {
         renderCustomerPassbookDrawer(false);
+      }
+      if (typeof renderCustomerOrdersDrawer === 'function') {
+        renderCustomerOrdersDrawer(false);
+      }
+
+      // Auto-Restore 5-Minute Alert Box when reopening the APK if an order is PROCESSING (or completed within last 5 mins)!
+      const myRecentOrders = (state.orders || [])
+        .filter(o => String(o.customerTechId || '') === String(cust.techId))
+        .slice()
+        .sort((a, b) => Number(b.createdAtTs || 0) - Number(a.createdAtTs || 0));
+      if (myRecentOrders.length > 0 && typeof startFiveMinOrderWaitTimer === 'function') {
+        const newestOrd = myRecentOrders[0];
+        const ageMs = Date.now() - Number(newestOrd.createdAtTs || 0);
+        const isProc = newestOrd.status !== 'COMPLETED' && newestOrd.status !== 'FAILED';
+        const resBoxEl = document.getElementById('custApkOrderLiveResult');
+        if ((isProc && ageMs < 15 * 60 * 1000) || (!isProc && ageMs < 5 * 60 * 1000)) {
+          const stateKey = `${newestOrd.id}_${newestOrd.status}_${newestOrd.workOrderNo || ''}_${newestOrd.custName || ''}_${newestOrd.custMobile || ''}`;
+          if (window._activeTrackedOrderStateKey !== stateKey || (resBoxEl && resBoxEl.classList.contains('hidden'))) {
+            window._activeTrackedOrderStateKey = stateKey;
+            startFiveMinOrderWaitTimer(newestOrd);
+          }
+        }
       }
 
       document.querySelectorAll('.cust-direct-pay-link').forEach(link => {
@@ -4043,7 +4294,12 @@
           const res = await fetch(orig + '/api/customer/auth', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ techId: tid, password: pwd })
+            body: JSON.stringify({
+              techId: tid,
+              password: pwd,
+              deviceId: getOrCreateApkDeviceId(),
+              deviceModel: getPhoneModelLabel()
+            })
           });
           const data = await res.json().catch(() => null);
           if (data && data.ok && data.customer) {
@@ -4141,10 +4397,19 @@
       showToast('⏳ Checking UTR with Bank Server... Fake UTR is strictly blocked!');
     });
 
-    // Live Wallet & WorkOrder Completion Poller for Customer APK Mode (Every 3.5 seconds!)
+    // Live Wallet & WorkOrder Completion Poller for Customer APK Mode (Every 2 seconds when order is PROCESSING!)
     if (window._customerWalletPoller) clearInterval(window._customerWalletPoller);
     window._customerWalletPoller = setInterval(async () => {
-      if (!state.customerApkMode || !state.loggedInCustomer) return;
+      if (!state.customerApkMode || window._custPollerBusy) return;
+      window._custPollerBusy = true;
+      try {
+      if (!state.loggedInCustomer) {
+        if (!window._unregDevicePingSent) {
+          window._unregDevicePingSent = true;
+          await syncCustomerMeWithServer();
+        }
+        return;
+      }
       const myTid = String(state.loggedInCustomer.techId);
       const prevProcessingIds = new Set(
         (state.orders || [])
@@ -4161,7 +4426,7 @@
       const newBal = Number(state.loggedInCustomer.balance || 0);
       if (newBal > prevBal) {
         renderAll();
-        showToast(`🎉 Wallet Updated! New Balance: ₹${newBal}`);
+        showToast(`🎉 Reach Updated! Available Reach: ${(newBal / Math.max(1, Number(state.settings.reachPrice || 20))).toFixed(2)}`);
       }
 
       // Check if any previously PROCESSING order just turned COMPLETED or FAILED!
@@ -4171,9 +4436,11 @@
           if (prevProcessingIds.has(oid) && !window._notifiedCompletedOrders.has(oid)) {
             if (o.status === 'COMPLETED') {
               window._notifiedCompletedOrders.add(oid);
+              const dispWo = o.workOrderNo || oid;
+              const extraInfo = (o.custName || o.custMobile) ? ` | 👤 ${o.custName || ''} 📞 ${o.custMobile || ''}` : '';
               triggerWorkOrderNotification(
-                '✅ WorkOrder Complete!',
-                `WO #${oid} (Target: ${o.targetId}) complete ho gaya hai! Ab aap ID khol sakte hain.`
+                `✅ WorkOrder #${dispWo} Complete!`,
+                `Target: ${o.targetId}${extraInfo} — Ab aap ID khol sakte hain!`
               );
               renderAll();
             } else if (o.status === 'FAILED') {
@@ -4181,14 +4448,17 @@
               const refAmt = o.orderPrice || state.settings.reachPrice || 20;
               triggerWorkOrderNotification(
                 '❌ WorkOrder Failed (Refunded)',
-                `WO #${oid} (Target: ${o.targetId}) fail ho gaya. ₹${refAmt} Wallet me refund ho gaya hai.`
+                `WO #${oid} (Target: ${o.targetId}) fail ho gaya. +1.00 Reach wapas refund kar diya gaya hai.`
               );
               renderAll();
             }
           }
         });
       }
-    }, 3500);
+      } catch (e) {} finally {
+        window._custPollerBusy = false;
+      }
+    }, 2000);
 
     function getIstTimeString() {
       try {
@@ -4223,30 +4493,77 @@
       } catch (e) {}
     }
 
+    // Register /sw.js Service Worker for Android Status-Bar Notifications
+    try {
+      if ('serviceWorker' in navigator && window.location && window.location.origin.startsWith('http')) {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      }
+    } catch (e) {}
+
+    function showTopHeadsUpBanner(title, bodyText) {
+      const banner = document.getElementById('androidHeadsUpBanner');
+      const tEl = document.getElementById('androidHeadsUpTitle');
+      const bEl = document.getElementById('androidHeadsUpBody');
+      if (!banner || !tEl || !bEl) return;
+      tEl.textContent = title;
+      bEl.textContent = bodyText;
+      banner.classList.remove('hidden');
+      if (window._headsUpHideTimer) clearTimeout(window._headsUpHideTimer);
+      window._headsUpHideTimer = setTimeout(() => {
+        banner.classList.add('hidden');
+      }, 15000);
+    }
+
+    const closeHuBtn = document.getElementById('androidHeadsUpCloseBtn');
+    if (closeHuBtn) {
+      closeHuBtn.addEventListener('click', () => {
+        const banner = document.getElementById('androidHeadsUpBanner');
+        if (banner) banner.classList.add('hidden');
+      });
+    }
+
     function triggerWorkOrderNotification(title, bodyText) {
       playOrderCompleteSound();
-      showToast(title + ' ' + bodyText);
-      // 1. Native Android APK Notification (via MainActivity.java AndroidSmsBridge)
+      try {
+        if (navigator.vibrate) {
+          navigator.vibrate([350, 120, 350, 120, 500]);
+        }
+      } catch (e) {}
+
+      // 1. Show Top-of-Screen Android Heads-Up Notification Banner immediately!
+      showTopHeadsUpBanner(title, bodyText);
+
+      // 2. Native Android APK Notification (via MainActivity.java AndroidSmsBridge)
       try {
         if (window.AndroidSmsBridge && typeof window.AndroidSmsBridge.showOrderNotification === 'function') {
           window.AndroidSmsBridge.showOrderNotification(title, bodyText);
         }
       } catch (e) {}
-      // 2. Web / Browser Notification API
+
+      // 3. Service Worker System Notification (Required by Android Chrome/WebView for status-bar notifications!)
       try {
-        if ('Notification' in window) {
-          if (Notification.permission === 'granted') {
-            new Notification(title, { body: bodyText });
-          } else if (Notification.permission !== 'denied') {
-            Notification.requestPermission().then(p => {
-              if (p === 'granted') new Notification(title, { body: bodyText });
-            }).catch(() => {});
-          }
+        if ('serviceWorker' in navigator && 'Notification' in window && Notification.permission === 'granted') {
+          navigator.serviceWorker.ready.then(reg => {
+            if (reg && typeof reg.showNotification === 'function') {
+              reg.showNotification(title, {
+                body: bodyText,
+                vibrate: [350, 120, 350, 120, 500],
+                requireInteraction: true,
+                tag: 'jpw-workorder-' + Date.now()
+              });
+            }
+          }).catch(() => {});
+        } else if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification(title, { body: bodyText });
         }
       } catch (e) {}
     }
 
-    window._notifiedCompletedOrders = window._notifiedCompletedOrders || new Set();
+    window._notifiedCompletedOrders = window._notifiedCompletedOrders || new Set(
+      (state.orders || [])
+        .filter(o => o && (o.status === 'COMPLETED' || o.status === 'FAILED'))
+        .map(o => Number(o.id))
+    );
 
     function startFiveMinOrderWaitTimer(orderObj) {
       const resBox = document.getElementById('custApkOrderLiveResult');
@@ -4266,18 +4583,27 @@
         const liveOrd = (state.orders || []).find(o => Number(o.id) === Number(woId));
         if (liveOrd && liveOrd.status === 'COMPLETED') {
           clearInterval(window._activeOrderCountdown);
+          const dispWo = liveOrd.workOrderNo || woId;
+          const cName = liveOrd.custName || '';
+          const cMob = liveOrd.custMobile || '';
           resBox.innerHTML = `
-            <div class="p-3.5 rounded-xl bg-emerald-950/90 border-2 border-emerald-400 space-y-1.5 text-center shadow-[0_0_20px_rgba(16,185,129,0.4)]">
-              <p class="text-sm font-extrabold text-emerald-300">🎉 WorkOrder #${woId} Complete Ho Gaya!</p>
-              <p class="text-xs font-bold text-white">Target ID: <span class="font-mono text-emerald-300">${targetId}</span></p>
-              <p class="text-[11px] text-emerald-200">✅ Reach safal ho gaya hai! Ab aap apna Target ID login / open kar sakte hain.</p>
+            <div class="p-3.5 rounded-xl bg-emerald-950/95 border-2 border-emerald-400 space-y-2 text-left shadow-[0_0_20px_rgba(16,185,129,0.4)]">
+              <p class="text-sm font-extrabold text-emerald-300 text-center">🎉 WorkOrder Complete Ho Gaya!</p>
+              <div class="p-2.5 rounded-lg bg-[#091420] border border-emerald-500/40 space-y-1 text-xs">
+                <p class="text-white font-bold">📋 Work Order: <span class="font-mono text-amber-300">${dispWo}</span></p>
+                <p class="text-white font-bold">🎯 Target ID: <span class="font-mono text-emerald-300">${targetId}</span></p>
+                ${cName ? `<p class="text-white font-bold">👤 Name: <span class="text-cyan-300">${cName}</span></p>` : ''}
+                ${cMob ? `<p class="text-white font-bold flex items-center justify-between"><span>📞 Mobile: <span class="font-mono text-emerald-300">${cMob}</span></span> <a href="tel:${cMob}" class="px-2 py-0.5 rounded bg-emerald-500 text-slate-950 font-extrabold text-[10px]">📞 Call</a></p>` : ''}
+              </div>
+              <p class="text-[11px] text-emerald-200 text-center">✅ Reach safal ho gaya hai! Ab aap apna Target ID login / open kar sakte hain.</p>
             </div>
           `;
           if (!window._notifiedCompletedOrders.has(woId)) {
             window._notifiedCompletedOrders.add(woId);
+            const extraInfo = (cName || cMob) ? ` | 👤 ${cName} 📞 ${cMob}` : '';
             triggerWorkOrderNotification(
-              '✅ WorkOrder Complete!',
-              `WO #${woId} (Target: ${targetId}) complete ho gaya hai! Ab aap ID khol sakte hain.`
+              `✅ WorkOrder #${dispWo} Complete!`,
+              `Target: ${targetId}${extraInfo} — Ab aap ID khol sakte hain!`
             );
           }
           return;
@@ -4289,14 +4615,14 @@
           resBox.innerHTML = `
             <div class="p-3.5 rounded-xl bg-rose-950/90 border-2 border-rose-500 space-y-1.5 text-center">
               <p class="text-sm font-extrabold text-rose-300">❌ WorkOrder #${woId} Failed!</p>
-              <p class="text-xs text-white">💸 ₹${refAmt} aapke Wallet me wapas Refund kar diya gaya hai.</p>
+              <p class="text-xs text-white">💸 +1.00 Reach aapke account me wapas Refund kar diya gaya hai.</p>
             </div>
           `;
           if (!window._notifiedCompletedOrders.has(woId)) {
             window._notifiedCompletedOrders.add(woId);
             triggerWorkOrderNotification(
               '❌ WorkOrder Failed (Refunded)',
-              `WO #${woId} (Target: ${targetId}) fail ho gaya. ₹${refAmt} Wallet me refund kar diya gaya hai.`
+              `WO #${woId} (Target: ${targetId}) fail ho gaya. +1.00 Reach wapas refund kar diya gaya hai.`
             );
           }
           return;
@@ -4306,24 +4632,32 @@
         const mm = String(Math.floor(remSec / 60)).padStart(2, '0');
         const ss = String(remSec % 60).padStart(2, '0');
 
-        resBox.innerHTML = `
-          <div class="p-3.5 rounded-xl bg-[#101c30] border-2 border-amber-400/80 space-y-2 text-center shadow-[0_0_20px_rgba(251,191,36,0.2)]">
-            <div class="flex items-center justify-between border-b border-slate-700/80 pb-1.5">
-              <span class="text-[11px] font-extrabold text-amber-300">⏳ WO #${woId} Processing...</span>
-              <span class="px-2.5 py-0.5 rounded-full bg-amber-400 text-slate-950 font-extrabold text-xs font-mono">⏱️ ${mm}:${ss}</span>
+        const existingBadge = document.getElementById('activeFiveMinTimerBadge');
+        if (existingBadge && existingBadge.getAttribute('data-wo-id') === String(woId)) {
+          existingBadge.textContent = `⏱️ ${mm}:${ss}`;
+        } else {
+          resBox.innerHTML = `
+            <div class="p-3.5 rounded-xl bg-[#101c30] border-2 border-amber-400/80 space-y-2.5 text-center shadow-[0_0_20px_rgba(251,191,36,0.2)]">
+              <div class="flex items-center justify-between border-b border-slate-700/80 pb-1.5">
+                <span class="text-[11px] font-extrabold text-amber-300">⏳ WO #${woId} Processing...</span>
+                <span id="activeFiveMinTimerBadge" data-wo-id="${woId}" class="px-2.5 py-0.5 rounded-full bg-amber-400 text-slate-950 font-extrabold text-xs font-mono">⏱️ ${mm}:${ss}</span>
+              </div>
+              <p class="text-xs font-extrabold text-rose-300 leading-snug">
+                ⚠️ Dhyan Dein: 5 minute tak apna Target ID (${targetId}) bilkul mat kholein!
+              </p>
+              <p class="text-[11px] text-slate-300 leading-relaxed">
+                Aapka Reach order chal raha hai. Kripya 5 minute tak ID mat kholein! <strong>Order complete hote hi aapko Notification mil jayega!</strong>
+              </p>
+              <div class="pt-1">
+                <button type="button" data-refresh-live-order="${woId}" class="w-full py-2 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/60 text-cyan-300 font-extrabold text-xs flex items-center justify-center gap-1.5 transition">
+                  🔄 Refresh Order Status
+                </button>
+              </div>
             </div>
-            <p class="text-xs font-extrabold text-rose-300 leading-snug">
-              ⚠️ Dhyan Dein: 5 minute tak apna Target ID (${targetId}) bilkul mat kholein!
-            </p>
-            <p class="text-[11px] text-slate-300 leading-relaxed">
-              Aapka Reach order chal raha hai. Kripya 5 minute tak ID mat kholein! <strong>Order complete hote hi aapko Notification mil jayega!</strong>
-            </p>
-          </div>
-        `;
-
-        if (remSec <= 0) {
-          clearInterval(window._activeOrderCountdown);
+          `;
         }
+
+        // Keep checking liveOrd every second even after 00:00 until status becomes COMPLETED or FAILED!
       }
 
       renderTick();
@@ -4332,11 +4666,16 @@
 
     // Customer APK: Submit 1 Reach Order (Deducts ₹20 & Automatically uses Backend Node with >= 1.00 Coin!)
     document.getElementById('custApkSubmitOrderBtn').addEventListener('click', async () => {
+      try {
+        if ('Notification' in window && Notification.permission === 'default') {
+          Notification.requestPermission().catch(() => {});
+        }
+      } catch (e) {}
       const cust = state.loggedInCustomer;
       if (!cust) return;
         const reqPrice = Math.max(1, Number(state.settings.reachPrice || 20));
         if (Number(cust.balance || 0) < reqPrice) {
-          showToast(`⚠️ Insufficient Balance! 1 Reach costs ₹${reqPrice}. Niche Pay karein.`);
+          showToast('⚠️ Insufficient Reach (0.00)! Niche Packages se Reach add karein.');
         const pkgSec = document.getElementById('custApkPackagesSection'); if (pkgSec) pkgSec.scrollIntoView({ behavior: 'smooth' });
         return;
       }
@@ -4348,6 +4687,19 @@
 
       if (!targetId || !targetPass) {
         showToast('⚠️ Enter both Target ID and Target Password');
+        return;
+      }
+
+      const alreadyRunning = (state.orders || []).find(o =>
+        String(o.customerTechId || '') === String(cust.techId) &&
+        String(o.targetId || '') === targetId &&
+        o.status !== 'COMPLETED' &&
+        o.status !== 'FAILED' &&
+        (Date.now() - Number(o.createdAtTs || 0)) < 5 * 60 * 1000
+      );
+      if (alreadyRunning) {
+        showToast(`⚠️ Target ID ${targetId} ka Reach order abhi chal raha hai! Kripya complete hone ka wait karein.`);
+        startFiveMinOrderWaitTimer(alreadyRunning);
         return;
       }
 
@@ -4689,33 +5041,123 @@
       });
     }
 
+    function formatRemainingFiveMinTimer(createdAtTs) {
+      const startMs = Number(createdAtTs || Date.now());
+      const endMs = startMs + (5 * 60 * 1000);
+      const remSec = Math.max(0, Math.ceil((endMs - Date.now()) / 1000));
+      const mm = String(Math.floor(remSec / 60)).padStart(2, '0');
+      const ss = String(remSec % 60).padStart(2, '0');
+      return `${mm}:${ss}`;
+    }
+
+    function renderCustomerOrdersDrawer(forceOpen) {
+      const cust = state.loggedInCustomer;
+      if (!cust) return;
+      const drw = document.getElementById('custApkInfoDrawer');
+      const title = document.getElementById('custApkDrawerTitle');
+      const list = document.getElementById('custApkOrdersList');
+      if (!drw || !title || !list) return;
+      if (!forceOpen && (drw.classList.contains('hidden') || title.textContent.indexOf('Order Status') === -1)) {
+        return;
+      }
+      drw.classList.remove('hidden');
+      title.textContent = '📊 My Reach Order Status';
+      const myOrders = (state.orders || [])
+        .filter(o => String(o.customerTechId || '') === String(cust.techId))
+        .slice()
+        .sort((a, b) => Number(b.createdAtTs || 0) - Number(a.createdAtTs || 0));
+
+      list.innerHTML = myOrders.length === 0
+        ? `<p class="text-center text-slate-400 py-2">No orders placed yet from ${cust.techId}.</p>`
+        : myOrders.map(o => {
+            const dispWo = o.workOrderNo || o.id;
+            const isProc = o.status !== 'COMPLETED' && o.status !== 'FAILED';
+            const timerTxt = isProc ? formatRemainingFiveMinTimer(o.createdAtTs) : '';
+            return `
+              <div class="p-3 rounded-xl bg-[#0b111e] border ${isProc ? 'border-amber-400/70' : 'border-[#1e293b]'} space-y-1.5">
+                <div class="flex items-center justify-between gap-2">
+                  <div>
+                    <p class="font-bold text-white text-xs">Target: <span class="font-mono text-[#2dd4bf]">${o.targetId}</span></p>
+                    <p class="text-[11px] font-bold text-amber-300 font-mono">📋 WorkOrder: #${dispWo} <span class="text-slate-400 font-sans font-normal text-[10px]">• ${o.time || ''}</span></p>
+                  </div>
+                  <div class="flex items-center gap-1.5 shrink-0">
+                    ${isProc ? `<span data-ord-timer-ts="${o.createdAtTs || Date.now()}" class="px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 font-mono font-extrabold text-[10px]">⏱️ ${timerTxt}</span>` : ''}
+                    <span class="px-2 py-0.5 rounded-full ${o.status === 'COMPLETED' ? 'bg-emerald-950 text-emerald-400 border border-emerald-700' : (o.status === 'FAILED' ? 'bg-rose-950 text-rose-400 border border-rose-700' : 'bg-amber-950 text-amber-300 border border-amber-700')} text-[10px] font-extrabold">${o.status === 'COMPLETED' ? '✅ COMPLETED' : (o.status === 'FAILED' ? (o.refunded ? ('❌ FAILED (💸 Refunded)') : '❌ FAILED') : '⏳ ' + o.status)}</span>
+                  </div>
+                </div>
+                ${isProc ? `
+                  <div class="pt-1.5 border-t border-slate-800/80 flex items-center justify-between gap-2">
+                    <p class="text-[10px] font-bold text-rose-300">⚠️ 5m tak Target ID (${o.targetId}) mat kholein!</p>
+                    <button type="button" data-refresh-live-order="${o.id}" class="px-2.5 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/60 text-cyan-300 font-extrabold text-[10px] shrink-0">
+                      🔄 Refresh
+                    </button>
+                  </div>
+                ` : ''}
+                ${(o.custName || o.custMobile) ? `
+                  <div class="pt-1.5 border-t border-slate-800/80 flex items-center justify-between gap-2 text-[11px]">
+                    <div class="space-y-0.5">
+                      ${o.custName ? `<p class="text-slate-200 font-bold">👤 ${o.custName}</p>` : ''}
+                      ${o.custMobile ? `<p class="text-emerald-300 font-mono font-bold">📞 ${o.custMobile}</p>` : ''}
+                    </div>
+                    ${o.custMobile ? `<a href="tel:${o.custMobile}" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-[10px] shrink-0">📞 Call</a>` : ''}
+                  </div>
+                ` : ''}
+              </div>
+            `;
+          }).join('');
+    }
+
+    // 1-second live countdown ticker for any open `[data-ord-timer-ts]` badges inside Order Status drawer
+    if (window._drawerOrderTimerInterval) clearInterval(window._drawerOrderTimerInterval);
+    window._drawerOrderTimerInterval = setInterval(() => {
+      document.querySelectorAll('[data-ord-timer-ts]').forEach(el => {
+        const ts = Number(el.getAttribute('data-ord-timer-ts') || 0);
+        if (ts > 0) {
+          el.textContent = '⏱️ ' + formatRemainingFiveMinTimer(ts);
+        }
+      });
+    }, 1000);
+
+    async function manualRefreshCustomerOrdersNow(btnEl) {
+      if (btnEl) {
+        btnEl.classList.add('api-busy');
+        btnEl.textContent = '⏳ Checking...';
+      }
+      showToast('🔄 Checking live WorkOrder status...');
+      try {
+        await pollLiveCashtreeOrderStatus(false);
+        await syncCustomerMeWithServer();
+        renderAll();
+        renderCustomerOrdersDrawer(false);
+      } catch (e) {}
+      if (btnEl) {
+        btnEl.classList.remove('api-busy');
+        btnEl.textContent = '🔄 Refresh';
+      }
+    }
+
+    // Wire `🔄 Refresh` button in `#custApkInfoDrawer` header and any `[data-refresh-live-order]` buttons!
+    const refDrwBtn = document.getElementById('custApkRefreshDrawerBtn');
+    if (refDrwBtn) {
+      refDrwBtn.addEventListener('click', () => {
+        manualRefreshCustomerOrdersNow(refDrwBtn);
+      });
+    }
+    document.getElementById('tabSectionCustomerApk').addEventListener('click', (e) => {
+      const rBtn = e.target.closest('[data-refresh-live-order]');
+      if (rBtn) {
+        manualRefreshCustomerOrdersNow(rBtn);
+      }
+    });
+
     // 📊 Order Status Button
     const tabOrdersBtn = document.getElementById('custApkTabOrdersBtn');
     if (tabOrdersBtn) {
       tabOrdersBtn.addEventListener('click', async () => {
-        const cust = state.loggedInCustomer;
-        if (!cust) return;
-        const drw = document.getElementById('custApkInfoDrawer');
-        const title = document.getElementById('custApkDrawerTitle');
-        const list = document.getElementById('custApkOrdersList');
+        renderCustomerOrdersDrawer(true);
+        await pollLiveCashtreeOrderStatus(false);
         await syncCustomerMeWithServer();
-        drw.classList.remove('hidden');
-        title.textContent = '📊 My Reach Order Status';
-        const myOrders = state.orders
-          .filter(o => String(o.customerTechId || '') === String(cust.techId))
-          .slice()
-          .sort((a, b) => Number(b.createdAtTs || 0) - Number(a.createdAtTs || 0));
-        list.innerHTML = myOrders.length === 0
-          ? `<p class="text-center text-slate-400 py-2">No orders placed yet from ${cust.techId}.</p>`
-          : myOrders.map(o => `
-            <div class="p-2.5 rounded-xl bg-[#0b111e] border border-[#1e293b] flex items-center justify-between">
-              <div>
-                <p class="font-bold text-white">Target: <span class="font-mono text-[#2dd4bf]">${o.targetId}</span></p>
-                <p class="text-[10px] text-slate-400">WO #${o.id} • ${o.time}</p>
-              </div>
-              <span class="px-2 py-0.5 rounded-full ${o.status === 'COMPLETED' ? 'bg-emerald-950 text-emerald-400 border border-emerald-700' : (o.status === 'FAILED' ? 'bg-rose-950 text-rose-400 border border-rose-700' : 'bg-amber-950 text-amber-300 border border-amber-700')} text-[10px] font-extrabold">${o.status === 'COMPLETED' ? '✅ COMPLETED' : (o.status === 'FAILED' ? (o.refunded ? '❌ FAILED (💸 ₹20 Refunded)' : '❌ FAILED') : '⏳ ' + o.status)}</span>
-            </div>
-          `).join('');
+        renderCustomerOrdersDrawer(true);
       });
     }
 
@@ -5147,10 +5589,15 @@
             const srvMap = new Map(sData.orders.map(so => [Number(so.id), so]));
             state.orders.forEach(lo => {
               const so = srvMap.get(Number(lo.id));
-              if (so && so.status && so.status !== lo.status) {
-                lo.status = so.status;
-                if (so.notes) lo.notes = so.notes;
-                changedAny = true;
+              if (so) {
+                if (so.workOrderNo && so.workOrderNo !== lo.workOrderNo) { lo.workOrderNo = so.workOrderNo; changedAny = true; }
+                if (so.custName && so.custName !== lo.custName) { lo.custName = so.custName; changedAny = true; }
+                if (so.custMobile && so.custMobile !== lo.custMobile) { lo.custMobile = so.custMobile; changedAny = true; }
+                if (so.status && so.status !== lo.status) {
+                  lo.status = so.status;
+                  if (so.notes) lo.notes = so.notes;
+                  changedAny = true;
+                }
               }
             });
           }
@@ -5186,6 +5633,19 @@
                   return (ord.cashtreeOrderId && coId === String(ord.cashtreeOrderId)) || (ord.targetId && coTarget === String(ord.targetId));
                 });
                 if (matched) {
+                  const rawDump = JSON.stringify(matched);
+                  const woM = rawDump.match(/Work\s*Order\s*[:\-#]*\s*(\d{7,15})/i) || rawDump.match(/1\.\s*(\d{7,15})\s*[—\-]/);
+                  if (woM && !ord.workOrderNo) { ord.workOrderNo = woM[1]; changedAny = true; }
+                  const mobM = rawDump.match(/📞\s*(\+?\d[\d\s\-]{8,14}\d)/) || rawDump.match(/(\+91[6-9]\d{9})/);
+                  if (mobM && !ord.custMobile) { ord.custMobile = mobM[1].trim(); changedAny = true; }
+                  const nmMatches = rawDump.match(/👤\s*([^\n\r"📞📍📋📊{}]+)/g) || [];
+                  for (const nmRaw of nmMatches) {
+                    const cleanNm = nmRaw.replace(/^👤\s*/, '').trim();
+                    if (cleanNm && !/^tech id/i.test(cleanNm) && !/^0\d{8,10}$/.test(cleanNm)) {
+                      if (!ord.custName) { ord.custName = cleanNm; changedAny = true; }
+                      break;
+                    }
+                  }
                   const newSt = mapCashtreeOrderStatusJs(matched);
                   if (newSt !== ord.status) {
                     ord.status = newSt;
@@ -5435,6 +5895,21 @@
         renderAll();
       });
     }
+
+    // Wire APK Funnel Filter Buttons (All / No Reg / No Buy / Buyers)
+    document.querySelectorAll('.adm-funnel-filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.adminFunnelFilter = btn.getAttribute('data-funnel-filter') || 'ALL';
+        document.querySelectorAll('.adm-funnel-filter-btn').forEach(b => {
+          if (b === btn) {
+            b.className = 'adm-funnel-filter-btn px-2.5 py-1 rounded-lg bg-indigo-600 text-white text-[10px] font-extrabold shrink-0';
+          } else {
+            b.className = 'adm-funnel-filter-btn px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 text-[10px] font-bold shrink-0';
+          }
+        });
+        renderAll();
+      });
+    });
 
     // 1-Tap "🔒 Lock Admin Now" Button inside Admin Tab
     const lockNowBtn = document.getElementById('admLockNowBtn');
