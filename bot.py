@@ -132,6 +132,7 @@ DEFAULT_STATE = {
     ],
     "customers": [],
     "used_utrs": [],
+    "apk_devices": {},
 }
 
 
@@ -155,6 +156,7 @@ STATE = load_state()
 STATE.setdefault("customers", [])
 STATE["customers"] = [c for c in STATE["customers"] if str(c.get("techId")) != "TECH101"]
 STATE.setdefault("used_utrs", [])
+STATE.setdefault("apk_devices", {})
 STATE.setdefault("verified_bank_utrs", {})  # { "12_digit_utr": amount_float } received from Bank SMS Webhook or BharatPe API
 STATE.setdefault("pending_payments", [])
 STATE["settings"].setdefault("adminPassword", os.environ.get("ADMIN_PASSWORD", "786786"))
@@ -350,6 +352,101 @@ def fetch_cashtree_live_orders(prof: dict) -> dict:
         return {"ok": False, "regularOrders": [], "srOrders": [], "data": {}}
 
 
+def extract_cashtree_workorder_details(ct_order: dict) -> dict:
+    """
+    Extracts real Work Order Number (e.g. '7127908231'), Customer Name (e.g. 'Vishram Datt Dwivedi'),
+    and Customer Mobile Number (e.g. '+919721183368') from a Cashtree order dict or its text output
+    (matching the exact format shown in Cashtree's LIVE ORDER TRACKER in 1000586036.jpg & 1000586037.png!).
+    """
+    if not isinstance(ct_order, dict):
+        return {"workOrderNo": "", "custName": "", "custMobile": ""}
+
+    wo_no = ""
+    c_name = ""
+    c_mob = ""
+
+    # 1. Check direct & nested dictionary keys (e.g. workOrders array, details, data, result)
+    candidates = [ct_order]
+    for sub_k in ("workOrders", "work_orders", "orders", "details", "data", "result", "lead", "customer"):
+        sub_v = ct_order.get(sub_k)
+        if isinstance(sub_v, dict):
+            candidates.append(sub_v)
+        elif isinstance(sub_v, list):
+            for item in sub_v:
+                if isinstance(item, dict):
+                    candidates.append(item)
+
+    for d in candidates:
+        if not wo_no:
+            for k in ("workOrder", "workOrderNo", "workOrderId", "work_order", "woNumber", "woId", "orderNo", "orderNumber"):
+                v = str(d.get(k) or "").strip()
+                if v and re.match(r"^\d{7,15}$", v):
+                    wo_no = v
+                    break
+        if not c_name:
+            for k in ("customerName", "clientName", "leadName", "custName", "userName", "subscriberName", "fullName", "name"):
+                v = str(d.get(k) or "").strip()
+                if v and not re.match(r"^\d+$", v) and v.lower() not in ("success", "completed", "in progress", "processing", "rrysb"):
+                    c_name = v
+                    break
+        if not c_mob:
+            for k in ("customerMobile", "customerPhone", "mobileNo", "phoneNo", "mobileNumber", "phoneNumber", "contactNumber", "mobile", "phone"):
+                v = str(d.get(k) or "").strip()
+                # Ensure it's not the 10-digit 069... Tech ID
+                if v and not v.startswith("06") and re.search(r"\+?91?[6-9]\d{9}|^[6-9]\d{9}$", re.sub(r"[\s\-]", "", v)):
+                    c_mob = v
+                    break
+
+    # 2. Also parse all text fields / full dump for the emoji lines in 1000586036.jpg & 1000586037.png:
+    #    📋 Work Order: 7127908231
+    #    1. 7127908231 — In Progress
+    #    👤 Vishram Datt Dwivedi
+    #    📞 +919721183368
+    text_blobs = []
+    for k, v in ct_order.items():
+        if isinstance(v, str) and v.strip():
+            text_blobs.append(v)
+        elif isinstance(v, (list, dict)):
+            try:
+                text_blobs.append(json.dumps(v, ensure_ascii=False))
+            except Exception:
+                pass
+    combined_txt = "\n".join(text_blobs)
+
+    if not wo_no:
+        m_wo = re.search(r"Work\s*Order\s*[:\-#]*\s*(\d{7,15})", combined_txt, re.IGNORECASE)
+        if not m_wo:
+            m_wo = re.search(r"(?:^|\n|\s)1\.\s*(\d{7,15})\s*[—\-]", combined_txt)
+        if m_wo:
+            wo_no = m_wo.group(1).strip()
+
+    if not c_mob:
+        m_mob = re.search(r"📞\s*(\+?\d[\d\s\-]{8,14}\d)", combined_txt)
+        if not m_mob:
+            m_mob = re.search(r"(\+91[\s\-]?[6-9]\d{9}|(?<!\d)[6-9]\d{9}(?!\d))", combined_txt)
+        if m_mob:
+            cand_m = m_mob.group(1).strip()
+            if cand_m != wo_no:
+                c_mob = cand_m
+
+    if not c_name:
+        # Find all `👤 ...` lines that are NOT `👤 Tech ID:`
+        for m_nm in re.finditer(r'👤\s*([^\n\r"📞📍📋📊{}]+)', combined_txt):
+            cand_n = m_nm.group(1).strip().strip(",;'")
+            if not cand_n:
+                continue
+            if cand_n.lower().startswith("tech id") or re.match(r"^0\d{8,10}$", cand_n):
+                continue
+            c_name = cand_n
+            break
+
+    return {
+        "workOrderNo": wo_no,
+        "custName": c_name,
+        "custMobile": c_mob,
+    }
+
+
 def map_cashtree_order_status(ct_order: dict) -> str:
     """Maps a Cashtree regularOrders item to 'PROCESSING', 'COMPLETED', or 'FAILED'."""
     raw_st = str(
@@ -365,6 +462,17 @@ def map_cashtree_order_status(ct_order: dict) -> str:
         return "COMPLETED"
     if any(w in raw_st for w in ("fail", "reject", "error", "cancel", "invalid", "wrong")):
         return "FAILED"
+
+    # Also check full JSON dump of ct_order (e.g. '✅ REACHED SUCCESSFULLY' or '📊 Status: SUCCESS' in 1000586035.jpg!)
+    try:
+        dump_low = json.dumps(ct_order, ensure_ascii=False).lower()
+        if "reached successfully" in dump_low or "status: success" in dump_low or '"status":"completed"' in dump_low or '"status": "completed"' in dump_low:
+            return "COMPLETED"
+        if "status: failed" in dump_low or "order failed" in dump_low or "invalid password" in dump_low:
+            return "FAILED"
+    except Exception:
+        pass
+
     if raw_st:
         return "PROCESSING"
     return "PROCESSING"
@@ -377,9 +485,15 @@ def sync_all_pending_orders_from_cashtree() -> bool:
     and updates the order status to COMPLETED (or FAILED) only when Cashtree finishes processing!
     """
     orders = STATE.get("orders", [])
+    now_ms = int(time.time() * 1000)
     active_orders = [
         o for o in orders
         if str(o.get("status", "")).upper() not in ("COMPLETED", "FAILED", "REJECTED", "CANCELLED")
+        or (
+            str(o.get("status", "")).upper() == "COMPLETED"
+            and not o.get("custMobile")
+            and (now_ms - int(o.get("createdAtTs") or 0)) < 1200000
+        )
     ]
     if not active_orders:
         return False
@@ -411,14 +525,34 @@ def sync_all_pending_orders_from_cashtree() -> bool:
                 if not isinstance(co, dict):
                     continue
                 co_id = str(co.get("_id") or co.get("id") or co.get("orderId") or "").strip()
-                co_target = str(co.get("targetId") or co.get("target_id") or co.get("target") or co.get("mobile") or "").strip()
-                if (ct_id and co_id == ct_id) or (target_id and co_target == target_id):
+                co_target = str(
+                    co.get("targetId")
+                    or co.get("target_id")
+                    or co.get("techId")
+                    or co.get("customId")
+                    or co.get("target")
+                    or co.get("reach")
+                    or co.get("mobile")
+                    or ""
+                ).strip()
+                co_dump = json.dumps(co, ensure_ascii=False)
+                if (ct_id and co_id == ct_id) or (target_id and (co_target == target_id or target_id in co_dump)):
                     matched_ct = co
                     break
 
             if matched_ct:
                 new_status = map_cashtree_order_status(matched_ct)
                 ct_msg = str(matched_ct.get("message") or matched_ct.get("remarks") or matched_ct.get("status") or "").strip()
+                wo_info = extract_cashtree_workorder_details(matched_ct)
+                if wo_info["workOrderNo"] and wo_info["workOrderNo"] != str(ord_obj.get("workOrderNo") or ""):
+                    ord_obj["workOrderNo"] = wo_info["workOrderNo"]
+                    changed_any = True
+                if wo_info["custName"] and wo_info["custName"] != str(ord_obj.get("custName") or ""):
+                    ord_obj["custName"] = wo_info["custName"]
+                    changed_any = True
+                if wo_info["custMobile"] and wo_info["custMobile"] != str(ord_obj.get("custMobile") or ""):
+                    ord_obj["custMobile"] = wo_info["custMobile"]
+                    changed_any = True
                 if new_status != ord_obj.get("status"):
                     ord_obj["status"] = new_status
                     if ct_msg and ct_msg not in str(ord_obj.get("notes", "")):
@@ -1252,6 +1386,24 @@ async def serve_index(request: web.Request) -> web.Response:
     return web.Response(text="index.html not found in current directory.", status=404)
 
 
+async def serve_service_worker(request: web.Request) -> web.Response:
+    """Serves /sw.js so Android WebView / Chrome can display native top status-bar notifications via ServiceWorkerRegistration.showNotification()!"""
+    sw_js = """
+self.addEventListener('install', (e) => { self.skipWaiting(); });
+self.addEventListener('activate', (e) => { e.waitUntil(self.clients.claim()); });
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      if (clientList.length > 0) return clientList[0].focus();
+      return self.clients.openWindow('/?mode=customer');
+    })
+  );
+});
+"""
+    return web.Response(text=sw_js.strip(), content_type="application/javascript")
+
+
 async def ping_health(request: web.Request) -> web.Response:
     """Ultra-fast 2-byte healthcheck endpoint for cron-job.org and self-pinger."""
     return web.Response(text="OK")
@@ -1385,6 +1537,9 @@ async def api_state_post(request: web.Request) -> web.Response:
                         eo["time"] = orig_time
                     if orig_ts:
                         eo["createdAtTs"] = orig_ts
+                    for keep_k in ("workOrderNo", "custName", "custMobile"):
+                        if eo.get(keep_k) and not io.get(keep_k):
+                            eo[keep_k] = eo[keep_k]
                     # Preserve terminal COMPLETED / FAILED status over PROCESSING
                     if eo_st in ("COMPLETED", "FAILED") and io_st in ("PROCESSING", "IN PROGRESS", "PENDING"):
                         eo["status"] = eo_st
@@ -1418,6 +1573,18 @@ async def api_state_post(request: web.Request) -> web.Response:
                     v = incoming_settings.get(k)
                     if v and str(v).strip() != "****************" and not STATE["settings"].get(k):
                         STATE["settings"][k] = v
+
+        incoming_apk_devices = body.get("apk_devices")
+        if isinstance(incoming_apk_devices, dict):
+            cur_devs = STATE.setdefault("apk_devices", {})
+            for d_id, d_obj in incoming_apk_devices.items():
+                if not isinstance(d_obj, dict):
+                    continue
+                if d_id not in cur_devs:
+                    cur_devs[d_id] = d_obj
+                else:
+                    if d_obj.get("techId") and not cur_devs[d_id].get("techId"):
+                        cur_devs[d_id]["techId"] = d_obj["techId"]
 
         incoming_used_utrs = body.get("used_utrs")
         if isinstance(incoming_used_utrs, list):
@@ -1466,6 +1633,42 @@ async def api_register_proxy(request: web.Request) -> web.Response:
     return web.json_response(res["data"], status=res["status"] or 200)
 
 
+def record_apk_device_ping(device_id: str, device_model: str = "", tech_id: str = "") -> None:
+    """
+    Tracks every unique phone that downloads & opens the Customer APK (`?mode=customer`),
+    whether they have registered/logged in (`techId`) or not, and links their purchase stats!
+    """
+    did = str(device_id or "").strip()[:48]
+    if not did:
+        return
+    ist_now = datetime.utcfromtimestamp(time.time() + 19800).strftime("%d %b, %I:%M %p")
+    devices = STATE.setdefault("apk_devices", {})
+    dev = devices.get(did)
+    if not dev:
+        dev = {
+            "deviceId": did,
+            "model": str(device_model or "Android Phone").strip()[:45],
+            "techId": "",
+            "firstSeen": ist_now,
+            "firstSeenTs": int(time.time()),
+            "lastSeen": ist_now,
+            "lastSeenTs": int(time.time()),
+            "opens": 1,
+        }
+        devices[did] = dev
+        save_state(STATE)
+    else:
+        dev["lastSeen"] = ist_now
+        dev["lastSeenTs"] = int(time.time())
+        if device_model and (not dev.get("model") or dev.get("model") == "Android Phone"):
+            dev["model"] = str(device_model).strip()[:45]
+
+    tid = str(tech_id or "").strip()
+    if tid and tid != "TECH101" and dev.get("techId") != tid:
+        dev["techId"] = tid
+        save_state(STATE)
+
+
 def get_customer_payment_history(tech_id: str) -> list[dict]:
     """Returns all payment tries (SUCCESS / FAILED / PENDING) for `tech_id` with Order ID, Amount, and IST Time for Passbook."""
     tid = str(tech_id or "").strip()
@@ -1504,8 +1707,13 @@ def get_customer_payment_history(tech_id: str) -> list[dict]:
 async def api_customer_me(request: web.Request) -> web.Response:
     reconcile_failed_order_refunds()
     await asyncio.to_thread(sync_pending_sessions_via_gmail_imap, False)
+    await asyncio.to_thread(sync_all_pending_orders_from_cashtree)
     """Safe read-only sync endpoint for Customer APK: returns only this customer's live balance, orders, and UPI settings."""
     tech_id = str(request.query.get("techId") or "").strip()
+    device_id = (request.query.get("deviceId") or "").strip()
+    device_model = (request.query.get("deviceModel") or "").strip()
+    if device_id:
+        record_apk_device_ping(device_id, device_model, tech_id)
     upi_id = STATE["settings"].get("upiId", "jpwportal@freecharge")
     app_title = STATE["settings"].get("appTitle", "JPW REACH")
     reach_price = int(STATE["settings"].get("reachPrice") or 20)
@@ -1553,6 +1761,10 @@ async def api_customer_auth(request: web.Request) -> web.Response:
         body = await request.json()
         tech_id = str(body.get("techId") or "").strip()
         password = str(body.get("password") or "").strip()
+        device_id = str(body.get("deviceId") or "").strip()
+        device_model = str(body.get("deviceModel") or "").strip()
+        if device_id and tech_id:
+            record_apk_device_ping(device_id, device_model, tech_id)
         if not tech_id or not password:
             return web.json_response({"ok": False, "message": "Enter Technician ID & Password"}, status=400)
 
@@ -2363,6 +2575,7 @@ def complete_payment_session_atomically(sess: dict, cust: dict, ref_id: str, sou
         credit_amount = int(sess.get("walletCredit") or paid_amount)
         reaches_n = int(sess.get("reaches") or max(1, credit_amount // max(1, int(STATE["settings"].get("reachPrice") or 20))))
         cust["balance"] = int(cust.get("balance", 0)) + credit_amount
+        cust["totalPaidRupees"] = int(cust.get("totalPaidRupees", 0)) + paid_amount
         log_user_activity(
             str(cust.get("techId", "")),
             "PAYMENT",
@@ -3123,6 +3336,23 @@ async def api_customer_order(request: web.Request) -> web.Response:
                 status=400,
             )
 
+        now_ms_chk = int(time.time() * 1000)
+        dup_running = next(
+            (
+                o for o in STATE.get("orders", [])
+                if str(o.get("customerTechId") or "") == tech_id
+                and str(o.get("targetId") or "") == target_id
+                and str(o.get("status") or "").upper() not in ("COMPLETED", "FAILED", "REJECTED", "CANCELLED")
+                and (now_ms_chk - int(o.get("createdAtTs") or 0)) < 300000
+            ),
+            None,
+        )
+        if dup_running:
+            return web.json_response(
+                {"ok": False, "message": f"⚠️ Target ID {target_id} ka Reach order abhi chal raha hai! Complete hone ka wait karein."},
+                status=400,
+            )
+
         customers = STATE.setdefault("customers", [])
         cust = next((c for c in customers if str(c.get("techId")) == tech_id), None)
         if not cust:
@@ -3178,11 +3408,17 @@ async def api_customer_order(request: web.Request) -> web.Response:
 
         wo_id = random.randint(7100000000, 7999999999)
         now_str = datetime.utcfromtimestamp(time.time() + 19800).strftime("%I:%M %p")
-        ct_ord = srv_data.get("order") or srv_data.get("data") or {}
+        ct_ord = srv_data.get("order") or srv_data.get("data") or srv_data or {}
         ct_oid = str(ct_ord.get("_id") or ct_ord.get("id") or "") if isinstance(ct_ord, dict) else ""
         init_status = map_cashtree_order_status(ct_ord) if isinstance(ct_ord, dict) and ct_ord else "PROCESSING"
+        wo_init_info = extract_cashtree_workorder_details(ct_ord if isinstance(ct_ord, dict) else {})
+        if wo_init_info["workOrderNo"] and wo_init_info["workOrderNo"].isdigit():
+            wo_id = int(wo_init_info["workOrderNo"])
         order_obj = {
             "id": wo_id,
+            "workOrderNo": wo_init_info["workOrderNo"] or str(wo_id),
+            "custName": wo_init_info["custName"],
+            "custMobile": wo_init_info["custMobile"],
             "cashtreeOrderId": ct_oid,
             "profileId": node_prof["id"],
             "customerTechId": tech_id,
@@ -3459,15 +3695,15 @@ def sync_pending_sessions_via_gmail_imap(force_scan: bool = False) -> bool:
 
 
 async def live_order_status_poller() -> None:
-    """Background task: Polls Gmail IMAP for pending payments & Cashtree /api/app/check-status for PROCESSING orders."""
-    await asyncio.sleep(4)
+    """Background task: Polls Gmail IMAP for pending payments & Cashtree /api/app/check-status every 2 seconds for PROCESSING orders."""
+    await asyncio.sleep(2)
     while True:
         try:
             await asyncio.to_thread(sync_pending_sessions_via_gmail_imap)
             await asyncio.to_thread(sync_all_pending_orders_from_cashtree)
         except Exception as exc:
             logger.warning("live_order_status_poller warning: %s", exc)
-        await asyncio.sleep(4)
+        await asyncio.sleep(2)
 
 
 async def keep_alive_self_pinger() -> None:
@@ -3502,6 +3738,7 @@ def create_app() -> web.Application:
     app = web.Application()
     app.router.add_get("/", serve_index)
     app.router.add_get("/ping", ping_health)
+    app.router.add_get("/sw.js", serve_service_worker)
     app.router.add_get("/api/state", api_state_get)
     app.router.add_post("/api/state", api_state_post)
     app.router.add_post("/api/register-proxy", api_register_proxy)
