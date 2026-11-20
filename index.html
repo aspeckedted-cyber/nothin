@@ -525,6 +525,108 @@
         </div>
       </div>
 
+      <!-- 📢 Swiggy/Zomato Style Push Notification + Live Notice Banner Sender -->
+      <div class="card-box p-4 space-y-3 border-2 border-amber-400 bg-gradient-to-b from-amber-50/80 to-white shadow-sm">
+        <div class="flex items-center justify-between gap-2">
+          <div>
+            <h3 class="font-extrabold text-slate-900 text-sm">📢 Push Notification &amp; Live Offer Banner</h3>
+            <p class="text-[10px] text-slate-500">Swiggy/Zomato jaisa notification bar alert + app ke andar live banner bhejein</p>
+          </div>
+          <span id="admBroadcastLiveBadge" class="px-2.5 py-1 rounded-full bg-slate-200 text-slate-600 text-[10px] font-extrabold shrink-0">
+            OFF
+          </span>
+        </div>
+
+        <div class="space-y-2">
+          <input id="admBroadcastTitle" type="text" maxlength="120" placeholder="Title (e.g. 🔥 Aaj Ka Dhamaka Offer!)"
+            class="w-full px-3 py-2 rounded-xl border border-amber-300 bg-white text-xs font-bold text-slate-900 focus:outline-none focus:border-amber-500" />
+          <textarea id="admBroadcastMsg" rows="2" maxlength="400" placeholder="Message (e.g. 3 Reach sirf ₹39 mein! Abhi recharge karein aur order lagayein.)"
+            class="w-full px-3 py-2 rounded-xl border border-amber-300 bg-white text-xs text-slate-800 focus:outline-none focus:border-amber-500 resize-none"></textarea>
+          <div class="grid grid-cols-3 gap-2 items-center">
+            <select id="admBroadcastStyle" class="px-2.5 py-2 rounded-xl border border-slate-300 bg-white text-[11px] font-bold text-slate-700">
+              <option value="promo">🎁 Offer / Promo</option>
+              <option value="alert">⚠️ Urgent Alert</option>
+              <option value="info">ℹ️ General Info</option>
+            </select>
+            <button id="admSendBroadcastBtn" type="button"
+              class="col-span-2 py-2 px-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-105 text-white font-extrabold text-xs shadow-sm transition">
+              📢 Send Push + Banner
+            </button>
+          </div>
+        </div>
+
+        <div id="admCurrentBroadcastBox" class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-500 flex items-center justify-between gap-2">
+          <span>Abhi koi live banner active nahi hai.</span>
+        </div>
+      </div>
+
+      <!-- 🎁 Refer & Earn (5-Milestone Tiered Control Card) -->
+      <div class="card-box p-4 space-y-3 border-2 border-emerald-400 bg-gradient-to-b from-emerald-50/70 to-white shadow-sm">
+        <div class="flex items-center justify-between gap-2">
+          <div>
+            <h3 class="font-extrabold text-slate-900 text-sm">🎁 Refer &amp; Earn (5-Milestone Rewards)</h3>
+            <p class="text-[10px] text-slate-500">Register, 1st, 3rd, 6th (×3) aur 10th recharge bonus control karein</p>
+          </div>
+          <label class="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-emerald-800 cursor-pointer shrink-0">
+            <input id="admRefEnabledChk" type="checkbox" checked class="w-4 h-4 accent-emerald-600 rounded" />
+            <span>ON</span>
+          </label>
+        </div>
+
+        <div class="grid grid-cols-5 gap-1.5 text-center">
+          <div class="p-1.5 rounded-xl bg-white border border-emerald-200">
+            <label class="block text-[9px] font-extrabold text-slate-600">Register</label>
+            <input id="admRefRegInput" type="number" step="0.05" min="0" value="1.00"
+              class="w-full mt-0.5 px-1 py-1 text-center rounded-lg border border-slate-300 text-xs font-extrabold text-slate-900" />
+          </div>
+          <div class="p-1.5 rounded-xl bg-white border border-emerald-200">
+            <label class="block text-[9px] font-extrabold text-slate-600">1st Rech.</label>
+            <input id="admRefR1Input" type="number" step="0.05" min="0" value="0.50"
+              class="w-full mt-0.5 px-1 py-1 text-center rounded-lg border border-slate-300 text-xs font-extrabold text-slate-900" />
+          </div>
+          <div class="p-1.5 rounded-xl bg-white border border-emerald-200">
+            <label class="block text-[9px] font-extrabold text-slate-600">3rd Rech.</label>
+            <input id="admRefR3Input" type="number" step="0.05" min="0" value="1.00"
+              class="w-full mt-0.5 px-1 py-1 text-center rounded-lg border border-slate-300 text-xs font-extrabold text-slate-900" />
+          </div>
+          <div class="p-1.5 rounded-xl bg-amber-50 border border-amber-300">
+            <label class="block text-[9px] font-extrabold text-amber-800">6th (×3)</label>
+            <input id="admRefR6Input" type="number" step="0.05" min="0" value="3.00"
+              class="w-full mt-0.5 px-1 py-1 text-center rounded-lg border border-amber-400 text-xs font-extrabold text-amber-900" />
+          </div>
+          <div class="p-1.5 rounded-xl bg-purple-50 border border-purple-300">
+            <label class="block text-[9px] font-extrabold text-purple-800">10th Mega</label>
+            <input id="admRefR10Input" type="number" step="0.05" min="0" value="5.00"
+              class="w-full mt-0.5 px-1 py-1 text-center rounded-lg border border-purple-400 text-xs font-extrabold text-purple-900" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="block text-[10px] font-bold text-slate-600 mb-0.5">Min Recharge (₹)</label>
+            <input id="admRefMinRechInput" type="number" min="1" value="20"
+              class="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 bg-white text-xs font-bold text-slate-900" />
+          </div>
+          <div class="col-span-2">
+            <label class="block text-[10px] font-bold text-slate-600 mb-0.5">APK Download / Share Link</label>
+            <input id="admRefShareUrlInput" type="text" value="https://nothin-7d7i.onrender.com/?mode=customer"
+              class="w-full px-2.5 py-1.5 rounded-xl border border-slate-300 bg-white text-[11px] font-mono text-slate-800" />
+          </div>
+        </div>
+
+        <button id="admSaveRefSettingsBtn" type="button"
+          class="w-full py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:brightness-105 text-white font-extrabold text-xs shadow-sm transition">
+          💾 Save Refer &amp; Earn Settings
+        </button>
+
+        <div class="pt-2 border-t border-emerald-200/80 space-y-1">
+          <p class="text-[10px] font-extrabold text-emerald-900 uppercase">🏆 Recent Referral Bonuses Credited</p>
+          <div id="admRefLogsList" class="space-y-1 max-h-36 overflow-y-auto text-[11px]">
+            <p class="text-[10px] text-slate-400 text-center py-1">Abhi tak koi referral bonus nahi mila hai.</p>
+          </div>
+        </div>
+      </div>
+
       <!-- Dedicated APK Download, Registration & Purchase Funnel Tracker Card -->
       <div class="card-box p-4 space-y-3 border-2 border-indigo-400 bg-gradient-to-b from-indigo-50/70 to-white shadow-sm">
         <div class="flex items-center justify-between">
@@ -1067,6 +1169,8 @@
               class="w-full px-4 py-3.5 rounded-xl bg-[#09111e] border border-slate-700/80 text-sm font-mono font-bold text-white placeholder-slate-400 focus:outline-none focus:border-[#00e699]" />
             <input id="custApkLoginPassInput" type="password" placeholder="Password" value=""
               class="w-full px-4 py-3.5 rounded-xl bg-[#09111e] border border-slate-700/80 text-sm font-mono text-white placeholder-slate-400 focus:outline-none focus:border-[#00e699]" />
+            <input id="custApkLoginRefInput" type="text" placeholder="Referral Code (Optional, e.g. RS001)" value=""
+              class="w-full px-4 py-3 rounded-xl bg-[#09111e] border border-amber-500/40 text-xs font-mono uppercase text-amber-200 placeholder-slate-400 focus:outline-none focus:border-amber-400" />
             <button id="custApkLoginSubmitBtn" type="button"
               class="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#00e699] via-[#10b981] to-[#00e699] text-slate-950 font-extrabold text-sm shadow-[0_0_20px_rgba(0,230,153,0.55)] border border-[#a7f3d0] transition">
               Login to Engineer Portal
@@ -1087,6 +1191,22 @@
               + Add balance (₹)
             </button>
             <span id="custApkWalletCoinsText" class="hidden">0</span>
+          </div>
+
+          <!-- LIVE OFFER / NOTICE BANNER (Controlled by Admin Push Broadcast) -->
+          <div id="custLiveNoticeBanner" class="hidden relative p-3.5 rounded-2xl border shadow-lg transition-all">
+            <div class="flex items-start gap-2.5 pr-6">
+              <span id="custLiveNoticeIcon" class="text-lg leading-none shrink-0 mt-0.5">🎁</span>
+              <div class="min-w-0 flex-1">
+                <p id="custLiveNoticeTitle" class="text-xs font-extrabold text-white leading-snug"></p>
+                <p id="custLiveNoticeMsg" class="text-[11px] text-slate-200/95 leading-snug mt-0.5 break-words"></p>
+                <p id="custLiveNoticeTime" class="text-[9px] text-slate-300/80 mt-1 font-mono"></p>
+              </div>
+            </div>
+            <button id="custLiveNoticeDismissBtn" type="button" aria-label="Dismiss notice"
+              class="absolute top-2.5 right-2.5 w-6 h-6 rounded-full bg-black/30 hover:bg-black/50 text-white/80 text-xs font-bold flex items-center justify-center">
+              ✕
+            </button>
           </div>
 
           <!-- 3. PLACE AN ORDER CARD (Glowing Cyan/Teal Circuit Glass Card from 1000584050.png) -->
@@ -1180,6 +1300,95 @@
               </div>
               <span class="sr-only">💬 </span><span class="text-xs font-extrabold text-white tracking-wide">Support</span>
             </button>
+          </div>
+
+          <!-- 🎁 REFER & EARN BAR + 5-MILESTONE DRAWER -->
+          <div id="custApkReferSection" class="space-y-2.5">
+            <button id="custApkOpenReferBtn" type="button"
+              class="w-full p-3.5 rounded-2xl bg-gradient-to-r from-[#064e3b]/95 via-[#0f3d3e]/95 to-[#452708]/95 hover:brightness-110 border border-amber-400/60 shadow-[0_0_22px_rgba(245,158,11,0.22)] flex items-center justify-between gap-2 transition">
+              <div class="flex items-center gap-2.5 text-left">
+                <span class="text-2xl leading-none">🎁</span>
+                <div>
+                  <p class="text-xs font-extrabold text-white tracking-wide">Refer &amp; Earn Free Reach</p>
+                  <p class="text-[10px] text-amber-200/95">Register + 1st, 3rd, 6th (×3) &amp; 10th Recharge Bonus!</p>
+                </div>
+              </div>
+              <span class="px-2.5 py-1 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black shrink-0">
+                OPEN ▾
+              </span>
+            </button>
+
+            <div id="custApkReferDrawer" class="hidden p-4 rounded-2xl bg-[#0d1629]/95 border border-amber-400/50 space-y-3.5 text-xs shadow-xl">
+              <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                <strong class="text-amber-300 uppercase text-[11px] tracking-wide">🎁 Refer &amp; Earn Dashboard</strong>
+                <button id="custApkCloseReferBtn" type="button" class="text-slate-400 hover:text-white text-xs font-bold px-1">✕</button>
+              </div>
+
+              <!-- Referral Code + Copy + WhatsApp Share -->
+              <div class="p-3 rounded-xl bg-[#09101f] border border-emerald-500/40 space-y-2">
+                <div class="flex items-center justify-between gap-2">
+                  <div>
+                    <p class="text-[10px] text-slate-400">Your Referral Code</p>
+                    <p id="custRefCodeText" class="text-lg font-black font-mono text-emerald-300 tracking-wider">RS---</p>
+                  </div>
+                  <button id="custRefCopyBtn" type="button"
+                    class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white text-[11px] font-extrabold transition">
+                    📋 Copy
+                  </button>
+                </div>
+                <a id="custRefWhatsappBtn" href="#" target="_blank" rel="noopener"
+                  class="block w-full py-2.5 rounded-xl bg-gradient-to-r from-[#16a34a] to-[#22c55e] hover:brightness-110 text-slate-950 font-extrabold text-xs text-center shadow-md transition">
+                  📲 Share on WhatsApp &amp; Earn Free Reach
+                </a>
+              </div>
+
+              <!-- Live Stats -->
+              <div class="grid grid-cols-2 gap-2 text-center">
+                <div class="p-2.5 rounded-xl bg-[#111b30] border border-slate-700/70">
+                  <p class="text-[10px] text-slate-400 font-bold">Invited Friends</p>
+                  <p id="custRefInvitedCount" class="text-lg font-black text-cyan-300">0</p>
+                </div>
+                <div class="p-2.5 rounded-xl bg-[#111b30] border border-amber-500/40">
+                  <p class="text-[10px] text-amber-300 font-bold">Free Reach Earned</p>
+                  <p id="custRefEarnedReach" class="text-lg font-black text-amber-400">0.00</p>
+                </div>
+              </div>
+
+              <!-- 5-Milestone Reward Ladder -->
+              <div class="space-y-1.5">
+                <p class="text-[10px] font-extrabold text-slate-300 uppercase tracking-wide">🏆 5-Step Reward Milestones</p>
+                <div class="grid grid-cols-1 gap-1.5 text-[11px]">
+                  <div class="px-3 py-2 rounded-xl bg-[#111b30] border border-slate-700/70 flex items-center justify-between">
+                    <span class="text-slate-200 font-bold">👤 1. Friend Register (New Phone)</span>
+                    <span id="custRefMReg" class="font-black text-emerald-300">+1.00 Reach</span>
+                  </div>
+                  <div class="px-3 py-2 rounded-xl bg-[#111b30] border border-slate-700/70 flex items-center justify-between">
+                    <span class="text-slate-200 font-bold">💳 2. Friend's 1st Recharge</span>
+                    <span id="custRefMR1" class="font-black text-emerald-300">+0.50 Reach</span>
+                  </div>
+                  <div class="px-3 py-2 rounded-xl bg-[#111b30] border border-slate-700/70 flex items-center justify-between">
+                    <span class="text-slate-200 font-bold">🥉 3. Friend's 3rd Recharge</span>
+                    <span id="custRefMR3" class="font-black text-cyan-300">+1.00 Reach</span>
+                  </div>
+                  <div class="px-3 py-2 rounded-xl bg-gradient-to-r from-[#3a2206]/90 to-[#2b1a06]/90 border border-amber-400/60 flex items-center justify-between">
+                    <span class="text-amber-200 font-extrabold">🔥 4. Friend's 6th Recharge (×3 Bonus!)</span>
+                    <span id="custRefMR6" class="font-black text-amber-300">+3.00 Reach</span>
+                  </div>
+                  <div class="px-3 py-2 rounded-xl bg-gradient-to-r from-[#2c124a]/90 to-[#1c0f38]/90 border border-purple-400/60 flex items-center justify-between">
+                    <span class="text-purple-200 font-extrabold">🏆 5. Friend's 10th Recharge (Mega!)</span>
+                    <span id="custRefMR10" class="font-black text-purple-300">+5.00 Reach</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Invited Friends Progress -->
+              <div class="space-y-1.5 pt-1 border-t border-slate-800">
+                <p class="text-[10px] font-extrabold text-slate-300 uppercase">👥 Your Invited Friends Progress</p>
+                <div id="custRefFriendsList" class="space-y-1.5 max-h-40 overflow-y-auto text-[11px] text-slate-400">
+                  <p class="text-center py-2 text-[10px]">Abhi tak kisi dost ne aapke code se join nahi kiya hai.</p>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Dynamic Expandable Drawer for Passbook / Order Status / Support -->
@@ -1580,6 +1789,12 @@
 
     function getOrCreateApkDeviceId() {
       try {
+        if (window.AndroidSmsBridge && typeof window.AndroidSmsBridge.getHardwareDeviceId === 'function') {
+          const hw = String(window.AndroidSmsBridge.getHardwareDeviceId() || '').trim();
+          if (hw && hw.length >= 6) return hw;
+        }
+      } catch (e) {}
+      try {
         let did = localStorage.getItem('jpw_apk_device_id');
         if (!did) {
           did = 'DEV_' + Math.floor(100000 + Math.random() * 900000) + '_' + (Date.now() % 10000);
@@ -1728,6 +1943,8 @@
               restoreFromApk: true,
               restoredBalance: Number(lc.balance || 0),
               restoredTotalOrders: Number(lc.totalOrders || 0),
+              restoredReferralCode: lc.referralCode || (state.customerReferral && state.customerReferral.myCode) || '',
+              restoreSig: lc.restoreSig || '',
               restoredOrders: myLocalOrders
             })
           }).catch(() => {});
@@ -1764,6 +1981,19 @@
           state.settings.supportTelegram = data.supportTelegram;
           changed = true;
         }
+        if (data.broadcast && typeof data.broadcast === 'object') {
+          state.settings.broadcast = data.broadcast;
+          if (typeof applyCustomerBroadcast === 'function') {
+            applyCustomerBroadcast(data.broadcast);
+          }
+        }
+        if (data.referral && typeof data.referral === 'object') {
+          state.customerReferral = data.referral;
+          if (state.loggedInCustomer && data.referral.myCode) state.loggedInCustomer.referralCode = data.referral.myCode;
+          if (typeof renderCustomerReferralUI === 'function') {
+            renderCustomerReferralUI(data.referral);
+          }
+        }
         if (data.customer && state.loggedInCustomer) {
           if (Number(data.customer.balance) !== Number(state.loggedInCustomer.balance) ||
               Number(data.customer.totalOrders) !== Number(state.loggedInCustomer.totalOrders)) {
@@ -1771,6 +2001,8 @@
           }
           state.loggedInCustomer.balance = Number(data.customer.balance || 0);
           state.loggedInCustomer.totalOrders = Number(data.customer.totalOrders || 0);
+          if (data.customer.restoreSig) state.loggedInCustomer.restoreSig = data.customer.restoreSig;
+          if (data.customer.referralCode) state.loggedInCustomer.referralCode = data.customer.referralCode;
         }
         if (Array.isArray(data.orders) && data.orders.length > 0) {
           if (JSON.stringify(data.orders) !== JSON.stringify(state.orders || [])) {
@@ -4328,16 +4560,22 @@
               techId: tid,
               password: pwd,
               deviceId: getOrCreateApkDeviceId(),
-              deviceModel: getPhoneModelLabel()
+              deviceModel: getPhoneModelLabel(),
+              referralCode: (document.getElementById('custApkLoginRefInput') ? document.getElementById('custApkLoginRefInput').value.trim() : '')
             })
           });
           const data = await res.json().catch(() => null);
           if (data && data.ok && data.customer) {
             data.customer.password = pwd;
+            if (data.restoreSig) data.customer.restoreSig = data.restoreSig;
             state.loggedInCustomer = data.customer;
             saveState();
             if (data.upiId) state.settings.upiId = data.upiId;
             if (data.appTitle) state.settings.appTitle = data.appTitle;
+            if (data.referral && typeof data.referral === 'object') {
+              state.customerReferral = data.referral;
+              if (typeof renderCustomerReferralUI === 'function') renderCustomerReferralUI(data.referral);
+            }
             const existing = (state.customers || []).find(c => String(c.techId) === tid);
             if (existing) Object.assign(existing, data.customer);
             else state.customers.unshift(data.customer);
@@ -5026,7 +5264,7 @@
             const st = String(p.status || 'PENDING').toUpperCase();
             let badgeHtml = `<span class="px-2 py-0.5 rounded-full bg-amber-950 text-amber-300 border border-amber-700 text-[10px] font-extrabold">⏳ PENDING</span>`;
             if (st === 'SUCCESS' || st === 'COMPLETED') {
-              const rAdded = Math.max(1, Math.round(Number(p.walletCredit || p.amount || rp) / rp));
+              const _rawR = Number(p.walletCredit || p.amount || rp) / rp; const rAdded = Number.isInteger(_rawR) ? _rawR : Number(_rawR.toFixed(2));
               badgeHtml = `<span class="px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-700 text-[10px] font-extrabold">✅ SUCCESS (+${rAdded} Reach)</span>`;
             } else if (st === 'FAILED' || st === 'CANCELLED') {
               badgeHtml = `<span class="px-2 py-0.5 rounded-full bg-rose-950 text-rose-400 border border-rose-700 text-[10px] font-extrabold">❌ FAILED</span>`;
@@ -6006,6 +6244,424 @@
       }
       if (changed) renderAll();
     })();
+
+    // =========================================================================
+    // 📢 SWIGGY/ZOMATO-STYLE PUSH NOTIFICATION & LIVE OFFER BANNER SYSTEM
+    // =========================================================================
+    function escBroadcastHtml(str) {
+      return String(str == null ? '' : str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function renderAdminBroadcastStatus() {
+      const box = document.getElementById('admCurrentBroadcastBox');
+      const badge = document.getElementById('admBroadcastLiveBadge');
+      if (!box || !badge) return;
+      const b = (state.settings && state.settings.broadcast) ? state.settings.broadcast : null;
+      if (b && b.active && (b.title || b.message)) {
+        badge.textContent = 'LIVE';
+        badge.className = 'px-2.5 py-1 rounded-full bg-emerald-600 text-white text-[10px] font-extrabold shrink-0';
+        box.className = 'p-2.5 rounded-xl bg-emerald-50 border border-emerald-300 text-[11px] text-emerald-900 flex items-center justify-between gap-2';
+        box.innerHTML = `
+          <div class="min-w-0 flex-1">
+            <p class="font-extrabold text-emerald-950 truncate">${escBroadcastHtml(b.title || '📢 Offer')}</p>
+            <p class="text-[10px] text-emerald-800 break-words">${escBroadcastHtml(b.message || '')}</p>
+            <p class="text-[9px] text-emerald-600 mt-0.5">Sent: ${escBroadcastHtml(b.sentAt || 'Just now')}</p>
+          </div>
+          <button id="admClearBroadcastBtn" type="button"
+            class="px-2.5 py-1.5 rounded-lg bg-rose-600 text-white text-[10px] font-extrabold shrink-0 shadow-sm">
+            🗑️ Hide
+          </button>
+        `;
+        const clrBtn = document.getElementById('admClearBroadcastBtn');
+        if (clrBtn) {
+          clrBtn.addEventListener('click', clearAdminBroadcast);
+        }
+      } else {
+        badge.textContent = 'OFF';
+        badge.className = 'px-2.5 py-1 rounded-full bg-slate-200 text-slate-600 text-[10px] font-extrabold shrink-0';
+        box.className = 'p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-500 flex items-center justify-between gap-2';
+        box.innerHTML = '<span>Abhi koi live banner active nahi hai.</span>';
+      }
+    }
+
+    async function clearAdminBroadcast() {
+      const orig = window.location && window.location.origin ? window.location.origin : '';
+      const aPin = (typeof getSavedAdminPin === 'function') ? getSavedAdminPin() : (localStorage.getItem('jpw_admin_pin') || '');
+      try {
+        const res = await fetch(orig + '/api/admin/broadcast', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Admin-Pin': aPin },
+          body: JSON.stringify({ action: 'clear', adminPin: aPin })
+        });
+        const data = await res.json().catch(() => null);
+        if (data && data.ok) {
+          state.settings.broadcast = data.broadcast || { id: '', title: '', message: '', active: false, style: 'promo', sentAt: '' };
+          saveState(false);
+          renderAdminBroadcastStatus();
+          showToast('🗑️ Live notice banner hide ho gaya!');
+        } else {
+          showToast((data && data.message) || '⚠️ Banner hide karne mein error aaya.');
+        }
+      } catch (e) {
+        showToast('⚠️ Network error while hiding banner.');
+      }
+    }
+
+    const sendBcastBtn = document.getElementById('admSendBroadcastBtn');
+    if (sendBcastBtn) {
+      sendBcastBtn.addEventListener('click', async () => {
+        const titleEl = document.getElementById('admBroadcastTitle');
+        const msgEl = document.getElementById('admBroadcastMsg');
+        const styleEl = document.getElementById('admBroadcastStyle');
+        const title = titleEl ? titleEl.value.trim() : '';
+        const message = msgEl ? msgEl.value.trim() : '';
+        const style = styleEl ? styleEl.value : 'promo';
+        if (!title && !message) {
+          showToast('⚠️ Title ya Message zaroor likhein!');
+          return;
+        }
+        sendBcastBtn.disabled = true;
+        sendBcastBtn.textContent = '⏳ Sending...';
+        const orig = window.location && window.location.origin ? window.location.origin : '';
+        const aPin = (typeof getSavedAdminPin === 'function') ? getSavedAdminPin() : (localStorage.getItem('jpw_admin_pin') || '');
+        try {
+          const res = await fetch(orig + '/api/admin/broadcast', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Admin-Pin': aPin },
+            body: JSON.stringify({ action: 'send', title, message, style, adminPin: aPin })
+          });
+          const data = await res.json().catch(() => null);
+          if (data && data.ok && data.broadcast) {
+            state.settings.broadcast = data.broadcast;
+            saveState(false);
+            renderAdminBroadcastStatus();
+            if (titleEl) titleEl.value = '';
+            if (msgEl) msgEl.value = '';
+            showToast('📢 Push Notification & Live Banner sabhi users ko bhej diya gaya!');
+          } else {
+            showToast((data && data.message) || '⚠️ Send fail ho gaya. Admin PIN check karein.');
+          }
+        } catch (e) {
+          showToast('⚠️ Server se connect nahi ho paya.');
+        } finally {
+          sendBcastBtn.disabled = false;
+          sendBcastBtn.textContent = '📢 Send Push + Banner';
+        }
+      });
+    }
+
+    function applyCustomerBroadcast(bcast) {
+      if (!bcast || typeof bcast !== 'object') return;
+      const bannerEl = document.getElementById('custLiveNoticeBanner');
+      const iconEl = document.getElementById('custLiveNoticeIcon');
+      const titleEl = document.getElementById('custLiveNoticeTitle');
+      const msgEl = document.getElementById('custLiveNoticeMsg');
+      const timeEl = document.getElementById('custLiveNoticeTime');
+      const bId = String(bcast.id || '');
+      const dismissedId = localStorage.getItem('jpw_dismissed_broadcast_id') || '';
+
+      if (bannerEl) {
+        if (bcast.active && (bcast.title || bcast.message) && bId !== dismissedId) {
+          const st = String(bcast.style || 'promo');
+          if (st === 'alert') {
+            bannerEl.className = 'relative p-3.5 rounded-2xl border border-rose-400/60 bg-gradient-to-r from-[#3b0d1b]/95 via-[#4c1d24]/95 to-[#2a1215]/95 shadow-[0_0_22px_rgba(244,63,94,0.28)] transition-all';
+            if (iconEl) iconEl.textContent = '⚠️';
+          } else if (st === 'info') {
+            bannerEl.className = 'relative p-3.5 rounded-2xl border border-cyan-400/60 bg-gradient-to-r from-[#0c2742]/95 via-[#0f3454]/95 to-[#0b1e33]/95 shadow-[0_0_22px_rgba(34,211,238,0.25)] transition-all';
+            if (iconEl) iconEl.textContent = 'ℹ️';
+          } else {
+            bannerEl.className = 'relative p-3.5 rounded-2xl border border-amber-400/70 bg-gradient-to-r from-[#3a2206]/95 via-[#4a2e08]/95 to-[#0b2e22]/95 shadow-[0_0_24px_rgba(245,158,11,0.3)] transition-all';
+            if (iconEl) iconEl.textContent = '🎁';
+          }
+          if (titleEl) titleEl.textContent = bcast.title || '📢 JPW Reach Offer';
+          if (msgEl) msgEl.textContent = bcast.message || '';
+          if (timeEl) timeEl.textContent = bcast.sentAt ? ('🕒 ' + bcast.sentAt + ' IST') : '';
+          bannerEl.dataset.broadcastId = bId;
+          bannerEl.classList.remove('hidden');
+        } else {
+          bannerEl.classList.add('hidden');
+        }
+      }
+
+      // Trigger Swiggy/Zomato-style Notification Bar Alert ONCE per unique broadcast ID!
+      if (state.customerApkMode && bcast.active && bId) {
+        const lastNotified = localStorage.getItem('jpw_last_broadcast_notified_id') || '';
+        if (lastNotified !== bId) {
+          localStorage.setItem('jpw_last_broadcast_notified_id', bId);
+          const nTitle = bcast.title || '📢 JPW Reach Offer';
+          const nBody = bcast.message || 'Naya offer ya notice aaya hai — app mein dekhein!';
+
+          try {
+            if (window.AndroidSmsBridge && typeof window.AndroidSmsBridge.markBroadcastSeen === 'function') {
+              window.AndroidSmsBridge.markBroadcastSeen(bId);
+            }
+          } catch (e) {}
+
+          try {
+            if (typeof playOrderCompleteSound === 'function') playOrderCompleteSound();
+            if (navigator.vibrate) navigator.vibrate([250, 100, 250]);
+            if (typeof showTopHeadsUpBanner === 'function') showTopHeadsUpBanner(nTitle, nBody);
+          } catch (e) {}
+
+          try {
+            if (window.AndroidSmsBridge && typeof window.AndroidSmsBridge.showBroadcastNotification === 'function') {
+              window.AndroidSmsBridge.showBroadcastNotification(nTitle, nBody, bId);
+            } else if (window.AndroidSmsBridge && typeof window.AndroidSmsBridge.showOrderNotification === 'function') {
+              window.AndroidSmsBridge.showOrderNotification(nTitle, nBody);
+            }
+          } catch (e) {}
+
+          try {
+            if ('serviceWorker' in navigator && 'Notification' in window && Notification.permission === 'granted') {
+              navigator.serviceWorker.ready.then(reg => {
+                if (reg && typeof reg.showNotification === 'function') {
+                  reg.showNotification(nTitle, {
+                    body: nBody,
+                    vibrate: [250, 100, 250],
+                    tag: 'jpw-bcast-' + bId
+                  });
+                }
+              }).catch(() => {});
+            }
+          } catch (e) {}
+        }
+      }
+    }
+
+    const dismissNoticeBtn = document.getElementById('custLiveNoticeDismissBtn');
+    if (dismissNoticeBtn) {
+      dismissNoticeBtn.addEventListener('click', () => {
+        const bannerEl = document.getElementById('custLiveNoticeBanner');
+        if (bannerEl) {
+          const bId = bannerEl.dataset.broadcastId || '';
+          if (bId) localStorage.setItem('jpw_dismissed_broadcast_id', bId);
+          bannerEl.classList.add('hidden');
+        }
+      });
+    }
+
+    async function pollLatestBroadcastNow() {
+      try {
+        const orig = window.location && window.location.origin ? window.location.origin : '';
+        if (!orig.startsWith('http')) return;
+        const res = await fetch(orig + '/api/broadcast/latest', { method: 'GET', cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json().catch(() => null);
+        if (data && data.ok) {
+          state.settings.broadcast = data;
+          applyCustomerBroadcast(data);
+          renderAdminBroadcastStatus();
+        }
+      } catch (e) {}
+    }
+
+    if (window._jpwBroadcastPoller) clearInterval(window._jpwBroadcastPoller);
+    window._jpwBroadcastPoller = setInterval(() => {
+      if (state.customerApkMode) pollLatestBroadcastNow();
+    }, 15000);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && state.customerApkMode) {
+        pollLatestBroadcastNow();
+      }
+    });
+    setTimeout(() => {
+      renderAdminBroadcastStatus();
+      pollLatestBroadcastNow();
+    }, 1200);
+
+
+    // =========================================================================
+    // 🎁 REFER & EARN (5-MILESTONE TIERED REWARDS: REG, 1st, 3rd, 6th ×3, 10th)
+    // =========================================================================
+    function renderAdminReferralSettingsUI() {
+      const cfg = (state.settings && state.settings.referral) ? state.settings.referral : {};
+      const chk = document.getElementById('admRefEnabledChk');
+      const setVal = (id, val) => { const el = document.getElementById(id); if (el && document.activeElement !== el) el.value = val; };
+      if (chk) chk.checked = cfg.enabled !== false;
+      setVal('admRefRegInput', cfg.regBonusReach ?? 1.00);
+      setVal('admRefR1Input', cfg.r1BonusReach ?? 0.50);
+      setVal('admRefR3Input', cfg.r3BonusReach ?? 1.00);
+      setVal('admRefR6Input', cfg.r6BonusReach ?? 3.00);
+      setVal('admRefR10Input', cfg.r10BonusReach ?? 5.00);
+      setVal('admRefMinRechInput', cfg.minRecharge ?? 20);
+      setVal('admRefShareUrlInput', cfg.apkShareUrl || 'https://nothin-7d7i.onrender.com/?mode=customer');
+
+      const logsBox = document.getElementById('admRefLogsList');
+      if (logsBox) {
+        const logs = Array.isArray(state.referral_logs) ? state.referral_logs : [];
+        if (!logs.length) {
+          logsBox.innerHTML = '<p class="text-[10px] text-slate-400 text-center py-1">Abhi tak koi referral bonus nahi mila hai.</p>';
+        } else {
+          logsBox.innerHTML = logs.slice(0, 20).map(l => `
+            <div class="p-2 rounded-lg bg-white border border-emerald-200 flex items-center justify-between gap-2">
+              <div class="min-w-0">
+                <p class="font-extrabold text-slate-800 truncate">👤 ${escBroadcastHtml(l.referrerId)} ← Friend ${escBroadcastHtml(l.friendId)}</p>
+                <p class="text-[10px] text-emerald-700">${escBroadcastHtml(l.milestoneLabel || l.milestone)} • ${escBroadcastHtml(l.timeStr || '')}</p>
+              </div>
+              <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-black text-[10px] shrink-0">+${Number(l.bonusReach || 0).toFixed(2)} Reach</span>
+            </div>
+          `).join('');
+        }
+      }
+    }
+
+    const saveRefBtn = document.getElementById('admSaveRefSettingsBtn');
+    if (saveRefBtn) {
+      saveRefBtn.addEventListener('click', async () => {
+        const payload = {
+          enabled: document.getElementById('admRefEnabledChk') ? document.getElementById('admRefEnabledChk').checked : true,
+          regBonusReach: parseFloat(document.getElementById('admRefRegInput')?.value || '1.00'),
+          r1BonusReach: parseFloat(document.getElementById('admRefR1Input')?.value || '0.50'),
+          r3BonusReach: parseFloat(document.getElementById('admRefR3Input')?.value || '1.00'),
+          r6BonusReach: parseFloat(document.getElementById('admRefR6Input')?.value || '3.00'),
+          r10BonusReach: parseFloat(document.getElementById('admRefR10Input')?.value || '5.00'),
+          minRecharge: parseInt(document.getElementById('admRefMinRechInput')?.value || '20', 10),
+          apkShareUrl: (document.getElementById('admRefShareUrlInput')?.value || '').trim()
+        };
+        saveRefBtn.disabled = true;
+        saveRefBtn.textContent = '⏳ Saving...';
+        const orig = window.location && window.location.origin ? window.location.origin : '';
+        const aPin = (typeof getSavedAdminPin === 'function') ? getSavedAdminPin() : '';
+        try {
+          const res = await fetch(orig + '/api/admin/referral-settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Admin-Pin': aPin },
+            body: JSON.stringify(Object.assign({ adminPin: aPin }, payload))
+          });
+          const data = await res.json().catch(() => null);
+          if (data && data.ok && data.referral) {
+            state.settings.referral = data.referral;
+            saveState(false);
+            renderAdminReferralSettingsUI();
+            showToast('🎁 Refer & Earn 5-milestone settings saved!');
+          } else {
+            showToast((data && data.message) || '⚠️ Save fail ho gaya.');
+          }
+        } catch (e) {
+          showToast('⚠️ Server se connect nahi ho paya.');
+        } finally {
+          saveRefBtn.disabled = false;
+          saveRefBtn.textContent = '💾 Save Refer & Earn Settings';
+        }
+      });
+    }
+
+    function renderCustomerReferralUI(refData) {
+      const sec = document.getElementById('custApkReferSection');
+      if (!sec) return;
+      if (!refData || refData.enabled === false) {
+        sec.classList.add('hidden');
+        return;
+      }
+      sec.classList.remove('hidden');
+
+      const code = refData.myCode || (state.loggedInCustomer && state.loggedInCustomer.referralCode ? state.loggedInCustomer.referralCode : 'RS---');
+      const codeEl = document.getElementById('custRefCodeText');
+      if (codeEl) codeEl.textContent = code;
+
+      const invEl = document.getElementById('custRefInvitedCount');
+      if (invEl) invEl.textContent = String(refData.invitedCount || 0);
+      const earnEl = document.getElementById('custRefEarnedReach');
+      if (earnEl) earnEl.textContent = Number(refData.earnedReach || 0).toFixed(2);
+
+      const m = refData.milestones || {};
+      const fmtR = (v) => '+' + Number(v || 0).toFixed(2) + ' Reach';
+      const setTxt = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+      setTxt('custRefMReg', fmtR(m.reg ?? 1.00));
+      setTxt('custRefMR1', fmtR(m.r1 ?? 0.50));
+      setTxt('custRefMR3', fmtR(m.r3 ?? 1.00));
+      setTxt('custRefMR6', fmtR(m.r6 ?? 3.00));
+      setTxt('custRefMR10', fmtR(m.r10 ?? 5.00));
+
+      const shareUrl = refData.apkShareUrl || 'https://nothin-7d7i.onrender.com/?mode=customer';
+      const waText = `🔥 JPW Reach App join karein aur instant Reach order karein!
+🎁 Mera Referral Code: *${code}*
+📲 App Link: ${shareUrl}`;
+      const waBtn = document.getElementById('custRefWhatsappBtn');
+      if (waBtn) waBtn.href = 'https://wa.me/?text=' + encodeURIComponent(waText);
+
+      const fl = document.getElementById('custRefFriendsList');
+      if (fl) {
+        const friends = Array.isArray(refData.invitedFriends) ? refData.invitedFriends : [];
+        if (!friends.length) {
+          fl.innerHTML = '<p class="text-center py-2 text-[10px]">Abhi tak kisi dost ne aapke code se join nahi kiya hai.</p>';
+        } else {
+          fl.innerHTML = friends.map(f => {
+            const paid = Array.isArray(f.milestonesPaid) ? f.milestonesPaid : [];
+            const badges = ['REG', 'R1', 'R3', 'R6', 'R10'].map(k => {
+              const lbl = k === 'REG' ? 'Reg' : (k === 'R1' ? '1st' : (k === 'R3' ? '3rd' : (k === 'R6' ? '6th×3' : '10th')));
+              const done = paid.includes(k);
+              return `<span class="px-1.5 py-0.5 rounded text-[9px] font-black ${done ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-400/50' : 'bg-slate-800 text-slate-500'}">${done ? '✓ ' : ''}${lbl}</span>`;
+            }).join(' ');
+            return `
+              <div class="p-2.5 rounded-xl bg-[#111b30] border border-slate-700/70 space-y-1.5">
+                <div class="flex items-center justify-between">
+                  <span class="font-extrabold text-white">👤 ${escBroadcastHtml(f.friendId)}</span>
+                  <span class="text-[10px] font-bold text-cyan-300">${Number(f.rechargeCount || 0)}/10 Recharges</span>
+                </div>
+                <div class="flex flex-wrap gap-1">${badges}</div>
+              </div>
+            `;
+          }).join('');
+        }
+      }
+
+      // Trigger real notification when a brand-new Referral Bonus is credited!
+      const bonuses = Array.isArray(refData.recentBonuses) ? refData.recentBonuses : [];
+      if (state.customerApkMode && bonuses.length > 0) {
+        const latest = bonuses[0];
+        const bId = String(latest.id || '');
+        const lastNotifiedRef = localStorage.getItem('jpw_last_ref_bonus_id') || '';
+        if (bId && lastNotifiedRef && lastNotifiedRef !== bId) {
+          localStorage.setItem('jpw_last_ref_bonus_id', bId);
+          const nTitle = '🎁 Referral Bonus Credited!';
+          const nBody = `+${Number(latest.bonusReach || 0).toFixed(2)} Reach (${latest.milestoneLabel || 'Bonus'}) — Friend ${latest.friendId || ''}`;
+          try {
+            if (typeof playOrderCompleteSound === 'function') playOrderCompleteSound();
+            if (typeof showTopHeadsUpBanner === 'function') showTopHeadsUpBanner(nTitle, nBody);
+            if (window.AndroidSmsBridge && typeof window.AndroidSmsBridge.showOrderNotification === 'function') {
+              window.AndroidSmsBridge.showOrderNotification(nTitle, nBody);
+            }
+          } catch (e) {}
+        } else if (bId && !lastNotifiedRef) {
+          localStorage.setItem('jpw_last_ref_bonus_id', bId);
+        }
+      }
+    }
+
+    const openRefBtn = document.getElementById('custApkOpenReferBtn');
+    const closeRefBtn = document.getElementById('custApkCloseReferBtn');
+    const refDrawer = document.getElementById('custApkReferDrawer');
+    if (openRefBtn && refDrawer) {
+      openRefBtn.addEventListener('click', () => {
+        refDrawer.classList.toggle('hidden');
+        if (!refDrawer.classList.contains('hidden')) {
+          if (state.customerReferral) renderCustomerReferralUI(state.customerReferral);
+          else if (typeof syncCustomerMeWithServer === 'function') syncCustomerMeWithServer();
+        }
+      });
+    }
+    if (closeRefBtn && refDrawer) {
+      closeRefBtn.addEventListener('click', () => refDrawer.classList.add('hidden'));
+    }
+
+    const copyRefBtn = document.getElementById('custRefCopyBtn');
+    if (copyRefBtn) {
+      copyRefBtn.addEventListener('click', () => {
+        const code = (document.getElementById('custRefCodeText')?.textContent || '').trim();
+        if (!code || code === 'RS---') return;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(code).catch(() => {});
+        }
+        showToast('📋 Referral Code copied: ' + code);
+      });
+    }
+
   </script>
 </body>
 </html>
