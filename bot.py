@@ -90,6 +90,25 @@ DEFAULT_STATE = {
         "supportWhatsapp": os.environ.get("SUPPORT_WHATSAPP", "https://wa.me/919876543210"),
         "supportTelegram": os.environ.get("SUPPORT_TELEGRAM", "https://t.me/jpw_support"),
         "adminPassword": os.environ.get("ADMIN_PASSWORD", "786786"),
+        "broadcast": {
+            "id": "",
+            "title": "",
+            "message": "",
+            "active": False,
+            "style": "promo",
+            "sentAt": "",
+            "sentAtTs": 0,
+        },
+        "referral": {
+            "enabled": True,
+            "minRecharge": 20,
+            "regBonusReach": 1.00,
+            "r1BonusReach": 0.50,
+            "r3BonusReach": 1.00,
+            "r6BonusReach": 3.00,
+            "r10BonusReach": 5.00,
+            "apkShareUrl": "https://nothin-7d7i.onrender.com/?mode=customer",
+        },
     },
     "stats": {
         "collected": 60,
@@ -160,6 +179,20 @@ STATE.setdefault("apk_devices", {})
 STATE.setdefault("verified_bank_utrs", {})  # { "12_digit_utr": amount_float } received from Bank SMS Webhook or BharatPe API
 STATE.setdefault("pending_payments", [])
 STATE["settings"].setdefault("adminPassword", os.environ.get("ADMIN_PASSWORD", "786786"))
+STATE["settings"].setdefault("broadcast", {"id": "", "title": "", "message": "", "active": False, "style": "promo", "sentAt": "", "sentAtTs": 0})
+STATE["settings"].setdefault("referral", {
+    "enabled": True,
+    "minRecharge": 20,
+    "regBonusReach": 1.00,
+    "r1BonusReach": 0.50,
+    "r3BonusReach": 1.00,
+    "r6BonusReach": 3.00,
+    "r10BonusReach": 5.00,
+    "apkShareUrl": "https://nothin-7d7i.onrender.com/?mode=customer",
+})
+STATE.setdefault("referral_logs", [])
+STATE.setdefault("referral_claimed_devices", [])
+STATE.setdefault("referral_claimed_ips", [])
 STATE["settings"].setdefault("supportWhatsapp", os.environ.get("SUPPORT_WHATSAPP", "https://wa.me/919876543210"))
 STATE["settings"].setdefault("supportTelegram", os.environ.get("SUPPORT_TELEGRAM", "https://t.me/jpw_support"))
 STATE["settings"].setdefault("reachPrice", 20)
@@ -1437,6 +1470,344 @@ async def api_admin_auth(request: web.Request) -> web.Response:
     except Exception as exc:
         return web.json_response({"ok": False, "message": str(exc)}, status=400)
 
+async def api_broadcast_latest(request: web.Request) -> web.Response:
+    """Ultra-lightweight endpoint polled by Customer APK (foreground & Android background JobService) for Swiggy/Zomato-style push alerts & live notice banner."""
+    bcast = STATE.get("settings", {}).get("broadcast") or {}
+    return web.json_response({
+        "ok": True,
+        "id": str(bcast.get("id") or ""),
+        "title": str(bcast.get("title") or ""),
+        "message": str(bcast.get("message") or ""),
+        "active": bool(bcast.get("active", False)),
+        "style": str(bcast.get("style") or "promo"),
+        "sentAt": str(bcast.get("sentAt") or ""),
+        "sentAtTs": int(bcast.get("sentAtTs") or 0),
+    })
+
+
+async def api_admin_broadcast(request: web.Request) -> web.Response:
+    """Admin endpoint to send or clear a Live Notice Banner + Push Notification for all Customer APK users."""
+    try:
+        body = await request.json()
+    except Exception:
+        return web.json_response({"ok": False, "message": "Invalid JSON body"}, status=400)
+
+    req_pin = (request.headers.get("X-Admin-Pin") or body.get("adminPin") or "").strip()
+    if not is_valid_admin_pin(req_pin):
+        return web.json_response({"ok": False, "locked": True, "message": "🔒 Invalid Admin PIN!"}, status=401)
+
+    action = str(body.get("action") or "send").strip().lower()
+    cur = STATE["settings"].get("broadcast") or {}
+
+    if action == "clear":
+        updated = {
+            "id": str(cur.get("id") or ""),
+            "title": "",
+            "message": "",
+            "active": False,
+            "style": "promo",
+            "sentAt": "",
+            "sentAtTs": 0,
+        }
+        STATE["settings"]["broadcast"] = updated
+        save_state(STATE)
+        return web.json_response({"ok": True, "message": "🗑️ Notice banner hidden for all users.", "broadcast": updated})
+
+    title = str(body.get("title") or "").strip()[:120]
+    message = str(body.get("message") or "").strip()[:400]
+    style = str(body.get("style") or "promo").strip().lower()
+    if style not in ("promo", "alert", "info"):
+        style = "promo"
+    if not title and not message:
+        return web.json_response({"ok": False, "message": "⚠️ Title ya Message zaroor likhein!"}, status=400)
+    if not title:
+        title = "📢 JPW Reach Update"
+
+    now_ts = int(time.time())
+    bcast_id = f"BCAST_{int(time.time() * 1000)}"
+    sent_at = datetime.utcfromtimestamp(time.time() + 19800).strftime("%d %b, %I:%M %p")
+    updated = {
+        "id": bcast_id,
+        "title": title,
+        "message": message,
+        "active": True,
+        "style": style,
+        "sentAt": sent_at,
+        "sentAtTs": now_ts,
+    }
+    STATE["settings"]["broadcast"] = updated
+    save_state(STATE)
+    return web.json_response({
+        "ok": True,
+        "message": "📢 Push Notification & Live Banner sent to all Customer APK users!",
+        "broadcast": updated,
+    })
+
+def get_referral_settings() -> dict:
+    defaults = {
+        "enabled": True,
+        "minRecharge": 20,
+        "regBonusReach": 1.00,
+        "r1BonusReach": 0.50,
+        "r3BonusReach": 1.00,
+        "r6BonusReach": 3.00,
+        "r10BonusReach": 5.00,
+        "apkShareUrl": "https://nothin-7d7i.onrender.com/?mode=customer",
+    }
+    raw = STATE.get("settings", {}).get("referral")
+    if not isinstance(raw, dict):
+        STATE["settings"]["referral"] = dict(defaults)
+        return STATE["settings"]["referral"]
+    for k, v in defaults.items():
+        raw.setdefault(k, v)
+    return raw
+
+
+
+def get_client_ip(request: web.Request) -> str:
+    try:
+        xff = str(request.headers.get("X-Forwarded-For") or "").strip()
+        if xff:
+            return xff.split(",")[0].strip()[:64]
+        xri = str(request.headers.get("X-Real-IP") or "").strip()
+        if xri:
+            return xri[:64]
+        return str(getattr(request, "remote", "") or "").strip()[:64]
+    except Exception:
+        return ""
+
+
+def make_restore_sig(tech_id: str, balance: int, total_orders: int, ref_code: str = "") -> str:
+    secret = (os.environ.get("BOT_TOKEN") or get_current_admin_password() or "jpw_secret_key").encode("utf-8")
+    msg = f"{str(tech_id).strip()}|{int(balance)}|{int(total_orders)}|{str(ref_code or '').strip().upper()}".encode("utf-8")
+    return hmac.new(secret, msg, hashlib.sha256).hexdigest()[:32]
+
+
+def verify_restore_sig(tech_id: str, balance: int, total_orders: int, ref_code: str, sig: str) -> bool:
+    if not sig:
+        return False
+    expected = make_restore_sig(tech_id, balance, total_orders, ref_code)
+    return hmac.compare_digest(expected, str(sig).strip())
+
+
+def ensure_customer_referral_code(cust: dict) -> str:
+    """Assigns & persists a clean sequential referral code (RS001, RS002, RS003...) per customer."""
+    if not isinstance(cust, dict):
+        return ""
+    existing = str(cust.get("referralCode") or "").strip().upper()
+    if re.fullmatch(r"RS\d{3,}", existing):
+        return existing
+    max_num = int(STATE.get("settings", {}).get("referralSeq") or 0)
+    for c in STATE.get("customers", []):
+        rc = str(c.get("referralCode") or "").strip().upper()
+        m = re.fullmatch(r"RS(\d+)", rc)
+        if m:
+            max_num = max(max_num, int(m.group(1)))
+    next_num = max_num + 1
+    new_code = f"RS{next_num:03d}"
+    cust["referralCode"] = new_code
+    STATE.setdefault("settings", {})["referralSeq"] = next_num
+    try:
+        save_state(STATE)
+    except Exception:
+        pass
+    return new_code
+
+
+def make_referral_code(tech_id: str) -> str:
+    tid = str(tech_id or "").strip()
+    if not tid:
+        return ""
+    cust = next((c for c in STATE.get("customers", []) if str(c.get("techId")) == tid), None)
+    if cust:
+        return ensure_customer_referral_code(cust)
+    return ""
+
+
+def find_referrer_by_code(ref_code: str, exclude_tech_id: str = "") -> dict | None:
+    raw = re.sub(r"[^A-Za-z0-9]", "", str(ref_code or "").strip()).upper()
+    if not raw:
+        return None
+    ex_clean = str(exclude_tech_id or "").strip().upper()
+    for c in STATE.get("customers", []):
+        ctid = str(c.get("techId") or "").strip()
+        if not ctid or ctid.upper() == ex_clean:
+            continue
+        c_code = ensure_customer_referral_code(c)
+        if c_code == raw:
+            return c
+    return None
+
+
+def award_referral_milestone(friend_cust: dict, milestone_key: str, device_id: str = "", client_ip: str = "") -> dict | None:
+    """Awards a tiered Refer & Earn bonus (REG, R1, R3, R6 x3, R10) once per friend milestone with anti-fraud device lock for REG."""
+    cfg = get_referral_settings()
+    if not cfg.get("enabled", True):
+        return None
+    if not isinstance(friend_cust, dict):
+        return None
+    ref_tid = str(friend_cust.get("referredBy") or "").strip()
+    friend_tid = str(friend_cust.get("techId") or "").strip()
+    if not ref_tid or not friend_tid or ref_tid.lower() == friend_tid.lower():
+        return None
+
+    referrer = next((c for c in STATE.get("customers", []) if str(c.get("techId")) == ref_tid), None)
+    if not referrer:
+        return None
+
+    paid_list = friend_cust.setdefault("referralMilestonesPaid", [])
+    if milestone_key in paid_list:
+        return None
+
+    # Strict Anti-Fraud for Register bonus:
+    # 1) Must have a valid device_id (blocks curl/API bots)
+    # 2) Cannot match referrer's own deviceId or IP (blocks self-referral on same phone/WiFi)
+    # 3) Max 1 REG bonus per unique phone deviceId AND per unique IP (blocks Clear Data & Incognito farming)
+    # 4) Max 5 REG bonuses per referrer per IST day
+    if milestone_key == "REG":
+        did = str(device_id or "").strip()
+        cip = str(client_ip or "").strip()
+        if not did or len(did) < 5:
+            return None
+        ref_did = str(referrer.get("deviceId") or "").strip()
+        ref_ip = str(referrer.get("lastIp") or "").strip()
+        if ref_did and did == ref_did:
+            return None
+        if cip and ref_ip and cip == ref_ip:
+            return None
+        claimed_devs = STATE.setdefault("referral_claimed_devices", [])
+        claimed_ips = STATE.setdefault("referral_claimed_ips", [])
+        if did in claimed_devs:
+            return None
+        if cip and cip in claimed_ips:
+            return None
+        today_ist = datetime.utcfromtimestamp(time.time() + 19800).strftime("%d %b")
+        today_reg_count = sum(
+            1 for x in STATE.get("referral_logs", [])
+            if str(x.get("referrerId") or "") == ref_tid
+            and x.get("milestone") == "REG"
+            and str(x.get("timeStr") or "").startswith(today_ist)
+        )
+        if today_reg_count >= 5:
+            return None
+        claimed_devs.append(did)
+        if cip:
+            claimed_ips.append(cip)
+
+    cfg_map = {
+        "REG": ("regBonusReach", "Friend Register Bonus"),
+        "R1": ("r1BonusReach", "1st Recharge Bonus"),
+        "R3": ("r3BonusReach", "3rd Recharge Bonus"),
+        "R6": ("r6BonusReach", "6th Recharge ×3 Bonus"),
+        "R10": ("r10BonusReach", "10th Recharge Mega Bonus"),
+    }
+    if milestone_key not in cfg_map:
+        return None
+    cfg_key, label = cfg_map[milestone_key]
+    try:
+        bonus_reach = float(cfg.get(cfg_key) or 0)
+    except Exception:
+        bonus_reach = 0.0
+    if bonus_reach <= 0:
+        return None
+
+    reach_price = max(1, int(STATE["settings"].get("reachPrice") or 20))
+    bonus_rupees = max(1, int(round(bonus_reach * reach_price)))
+
+    referrer["balance"] = int(referrer.get("balance", 0)) + bonus_rupees
+    referrer["referralEarnedRupees"] = int(referrer.get("referralEarnedRupees", 0)) + bonus_rupees
+    referrer["referralEarnedReach"] = round(float(referrer.get("referralEarnedReach", 0.0)) + bonus_reach, 2)
+    paid_list.append(milestone_key)
+
+    now_ts = int(time.time())
+    time_str = datetime.utcfromtimestamp(now_ts + 19800).strftime("%d %b, %I:%M %p")
+    entry = {
+        "id": f"REF_{int(time.time() * 1000)}_{milestone_key}",
+        "referrerId": ref_tid,
+        "friendId": friend_tid,
+        "milestone": milestone_key,
+        "milestoneLabel": label,
+        "bonusReach": round(bonus_reach, 2),
+        "bonusRupees": bonus_rupees,
+        "timeStr": time_str,
+        "ts": now_ts,
+    }
+    STATE.setdefault("referral_logs", []).insert(0, entry)
+    if len(STATE["referral_logs"]) > 500:
+        STATE["referral_logs"] = STATE["referral_logs"][:500]
+
+    log_user_activity(
+        ref_tid,
+        "REFERRAL",
+        "SUCCESS",
+        f"🎁 +{bonus_reach:.2f} Reach ({label}) from Friend {friend_tid} • New Bal: ₹{referrer['balance']}",
+    )
+    return entry
+
+
+def build_customer_referral_summary(tech_id: str) -> dict:
+    cfg = get_referral_settings()
+    tid = str(tech_id or "").strip()
+    friends = [c for c in STATE.get("customers", []) if str(c.get("referredBy") or "").strip() == tid]
+    my_logs = [x for x in STATE.get("referral_logs", []) if str(x.get("referrerId") or "") == tid]
+    cust = next((c for c in STATE.get("customers", []) if str(c.get("techId")) == tid), None)
+    earned_reach = round(float(cust.get("referralEarnedReach", 0.0)), 2) if cust else 0.0
+    return {
+        "enabled": bool(cfg.get("enabled", True)),
+        "myCode": make_referral_code(tid),
+        "apkShareUrl": str(cfg.get("apkShareUrl") or "https://nothin-7d7i.onrender.com/?mode=customer"),
+        "minRecharge": int(cfg.get("minRecharge") or 20),
+        "milestones": {
+            "reg": float(cfg.get("regBonusReach") or 0),
+            "r1": float(cfg.get("r1BonusReach") or 0),
+            "r3": float(cfg.get("r3BonusReach") or 0),
+            "r6": float(cfg.get("r6BonusReach") or 0),
+            "r10": float(cfg.get("r10BonusReach") or 0),
+        },
+        "invitedCount": len(friends),
+        "earnedReach": earned_reach,
+        "invitedFriends": [
+            {
+                "friendId": str(f.get("techId") or ""),
+                "rechargeCount": int(f.get("rechargeCount") or 0),
+                "milestonesPaid": list(f.get("referralMilestonesPaid") or []),
+                "createdAt": str(f.get("createdAt") or ""),
+            }
+            for f in friends[:30]
+        ],
+        "recentBonuses": my_logs[:20],
+    }
+
+
+async def api_admin_referral_settings(request: web.Request) -> web.Response:
+    """Admin endpoint to update Refer & Earn 5-milestone rewards & ON/OFF toggle."""
+    try:
+        body = await request.json()
+    except Exception:
+        return web.json_response({"ok": False, "message": "Invalid JSON body"}, status=400)
+
+    req_pin = (request.headers.get("X-Admin-Pin") or body.get("adminPin") or "").strip()
+    if not is_valid_admin_pin(req_pin):
+        return web.json_response({"ok": False, "locked": True, "message": "🔒 Invalid Admin PIN!"}, status=401)
+
+    cfg = get_referral_settings()
+    cfg["enabled"] = bool(body.get("enabled", True))
+    cfg["minRecharge"] = max(1, int(float(body.get("minRecharge") or 20)))
+    for k in ("regBonusReach", "r1BonusReach", "r3BonusReach", "r6BonusReach", "r10BonusReach"):
+        if k in body:
+            try:
+                cfg[k] = max(0.0, round(float(body.get(k) or 0), 2))
+            except Exception:
+                pass
+    share_url = str(body.get("apkShareUrl") or "").strip()
+    if share_url:
+        cfg["apkShareUrl"] = share_url
+    STATE["settings"]["referral"] = cfg
+    save_state(STATE)
+    return web.json_response({"ok": True, "message": "🎁 Refer & Earn settings saved!", "referral": cfg})
+
+
+
 
 async def api_state_get(request: web.Request) -> web.Response:
     """Returns STATE ONLY when valid X-Admin-Pin is provided; otherwise returns public settings only!"""
@@ -1453,6 +1824,7 @@ async def api_state_get(request: web.Request) -> web.Response:
                 "pkgPrices": pub_set.get("pkgPrices") or {"1": 20, "3": 60, "5": 100, "10": 200, "20": 400},
                 "supportWhatsapp": pub_set.get("supportWhatsapp", ""),
                 "supportTelegram": pub_set.get("supportTelegram", ""),
+                "broadcast": pub_set.get("broadcast") or {"id": "", "title": "", "message": "", "active": False, "style": "promo", "sentAt": "", "sentAtTs": 0},
             },
         }, status=401)
 
@@ -1562,6 +1934,12 @@ async def api_state_post(request: web.Request) -> web.Response:
                 for k, v in incoming_settings.items():
                     if k in ("gmailAppPassword", "freechargeCookie", "bharatpeToken", "razorpayKeySecret"):
                         if not v or str(v).strip() == "****************":
+                            continue
+                    if k == "broadcast" and isinstance(v, dict):
+                        cur_b = STATE["settings"].get("broadcast") or {}
+                        cur_bts = int(cur_b.get("sentAtTs") or 0)
+                        inc_bts = int(v.get("sentAtTs") or 0)
+                        if cur_b.get("id") and inc_bts <= cur_bts:
                             continue
                     if v is not None and v != "":
                         STATE["settings"][k] = v
@@ -1700,6 +2078,16 @@ def get_customer_payment_history(tech_id: str) -> list[dict]:
             "time": t_str,
             "createdAt": c_at,
         })
+    for rl in STATE.get("referral_logs", []):
+        if str(rl.get("referrerId") or "") == tid:
+            my_list.append({
+                "orderId": f"🎁 {rl.get('milestoneLabel', 'Referral Bonus')} ({rl.get('friendId', '')})",
+                "amount": int(rl.get("bonusRupees") or 0),
+                "walletCredit": int(rl.get("bonusRupees") or 0),
+                "status": "SUCCESS",
+                "time": str(rl.get("timeStr") or ""),
+                "createdAt": float(rl.get("ts") or 0.0),
+            })
     my_list.sort(key=lambda x: float(x.get("createdAt") or 0.0), reverse=True)
     return my_list[:35]
 
@@ -1720,6 +2108,7 @@ async def api_customer_me(request: web.Request) -> web.Response:
     pkg_prices = STATE["settings"].get("pkgPrices") or {"1": 20, "3": 60, "5": 100, "10": 200, "20": 400}
     sup_wa = STATE["settings"].get("supportWhatsapp") or "https://wa.me/919876543210"
     sup_tg = STATE["settings"].get("supportTelegram") or "https://t.me/jpw_support"
+    bcast = STATE["settings"].get("broadcast") or {"id": "", "title": "", "message": "", "active": False, "style": "promo", "sentAt": "", "sentAtTs": 0}
     if not tech_id:
         return web.json_response({
             "ok": True,
@@ -1729,6 +2118,7 @@ async def api_customer_me(request: web.Request) -> web.Response:
             "pkgPrices": pkg_prices,
             "supportWhatsapp": sup_wa,
             "supportTelegram": sup_tg,
+            "broadcast": bcast,
         })
 
     cust = next((c for c in STATE.get("customers", []) if str(c.get("techId")) == tech_id), None)
@@ -1743,6 +2133,8 @@ async def api_customer_me(request: web.Request) -> web.Response:
             "name": cust.get("name"),
             "balance": int(cust.get("balance", 0)),
             "totalOrders": int(cust.get("totalOrders", 0)),
+            "referralCode": ensure_customer_referral_code(cust),
+            "restoreSig": make_restore_sig(tech_id, int(cust.get("balance", 0)), int(cust.get("totalOrders", 0)), ensure_customer_referral_code(cust)),
         },
         "orders": my_orders[:20],
         "payments": get_customer_payment_history(tech_id),
@@ -1752,6 +2144,8 @@ async def api_customer_me(request: web.Request) -> web.Response:
         "pkgPrices": pkg_prices,
         "supportWhatsapp": sup_wa,
         "supportTelegram": sup_tg,
+        "broadcast": bcast,
+        "referral": build_customer_referral_summary(tech_id),
     })
 
 
@@ -1763,6 +2157,7 @@ async def api_customer_auth(request: web.Request) -> web.Response:
         password = str(body.get("password") or "").strip()
         device_id = str(body.get("deviceId") or "").strip()
         device_model = str(body.get("deviceModel") or "").strip()
+        client_ip = get_client_ip(request)
         if device_id and tech_id:
             record_apk_device_ping(device_id, device_model, tech_id)
         if not tech_id or not password:
@@ -1775,19 +2170,46 @@ async def api_customer_auth(request: web.Request) -> web.Response:
                 log_user_activity(tech_id, "LOGIN", "FAILED", f"Wrong password entered ({password})")
                 save_state(STATE)
                 return web.json_response({"ok": False, "message": "❌ Wrong Password for this Technician ID!"}, status=401)
+            ensure_customer_referral_code(cust)
+            if device_id and not cust.get("deviceId"):
+                cust["deviceId"] = device_id
+            if client_ip:
+                cust["lastIp"] = client_ip
             log_user_activity(tech_id, "LOGIN", "SUCCESS", f"Logged in (Wallet: ₹{cust.get('balance', 0)})")
         else:
-            restored_bal = max(0, int(body.get("restoredBalance") or 0)) if body.get("restoreFromApk") is True else 0
-            restored_ords = max(0, int(body.get("restoredTotalOrders") or 0)) if body.get("restoreFromApk") is True else 0
+            is_verified_restore = False
+            req_r_bal = max(0, int(body.get("restoredBalance") or 0))
+            req_r_ords = max(0, int(body.get("restoredTotalOrders") or 0))
+            req_r_rc = str(body.get("restoredReferralCode") or "").strip().upper()
+            if body.get("restoreFromApk") is True:
+                is_verified_restore = verify_restore_sig(tech_id, req_r_bal, req_r_ords, req_r_rc, str(body.get("restoreSig") or ""))
+            restored_bal = req_r_bal if is_verified_restore else 0
+            restored_ords = req_r_ords if is_verified_restore else 0
+            restored_rc = req_r_rc if is_verified_restore else ""
+            ref_code_in = str(body.get("referralCode") or "").strip()
+            referrer_obj = None
+            if ref_code_in and body.get("restoreFromApk") is not True:
+                referrer_obj = find_referrer_by_code(ref_code_in, exclude_tech_id=tech_id)
             cust = {
                 "techId": tech_id,
                 "password": password,
                 "name": str(body.get("name") or f"Tech_{tech_id[-4:]}"),
                 "balance": restored_bal,
                 "totalOrders": restored_ords,
+                "rechargeCount": 0,
+                "referralCode": restored_rc if re.fullmatch(r"RS\d{3,}", restored_rc) else "",
+                "referredBy": str(referrer_obj.get("techId")) if referrer_obj else "",
+                "deviceId": device_id,
+                "lastIp": client_ip,
+                "referralMilestonesPaid": [],
+                "referralEarnedRupees": 0,
+                "referralEarnedReach": 0.0,
                 "createdAt": datetime.utcfromtimestamp(time.time() + 19800).strftime("%Y-%m-%d %H:%M"),
             }
+            ensure_customer_referral_code(cust)
             customers.insert(0, cust)
+            if referrer_obj:
+                award_referral_milestone(cust, "REG", device_id=device_id, client_ip=client_ip)
             # Also restore any local orders of this customer if server restarted
             inc_cust_orders = body.get("restoredOrders")
             if body.get("restoreFromApk") is True and isinstance(inc_cust_orders, list):
@@ -1814,6 +2236,8 @@ async def api_customer_auth(request: web.Request) -> web.Response:
             "orders": my_orders[:20],
             "upiId": STATE["settings"].get("upiId", "jpwportal@ybl"),
             "appTitle": STATE["settings"].get("appTitle", "JPW Portal"),
+            "referral": build_customer_referral_summary(tech_id),
+            "restoreSig": make_restore_sig(tech_id, int(cust.get("balance", 0)), int(cust.get("totalOrders", 0)), ensure_customer_referral_code(cust)),
         })
     except Exception as exc:
         return web.json_response({"ok": False, "message": str(exc)}, status=400)
@@ -2531,6 +2955,19 @@ def credit_customer_verified_utr(cust: dict, utr: str, amount: int, source_label
             used_utrs.append(k)
 
         cust["balance"] = int(cust.get("balance", 0)) + amount
+        cust["totalPaidRupees"] = int(cust.get("totalPaidRupees", 0)) + amount
+        ref_cfg = get_referral_settings()
+        if amount >= int(ref_cfg.get("minRecharge") or 20):
+            rc = int(cust.get("rechargeCount", 0)) + 1
+            cust["rechargeCount"] = rc
+            if rc == 1:
+                award_referral_milestone(cust, "R1")
+            elif rc == 3:
+                award_referral_milestone(cust, "R3")
+            elif rc == 6:
+                award_referral_milestone(cust, "R6")
+            elif rc == 10:
+                award_referral_milestone(cust, "R10")
         log_user_activity(
             str(cust.get("techId", "")),
             "PAYMENT",
@@ -2576,6 +3013,18 @@ def complete_payment_session_atomically(sess: dict, cust: dict, ref_id: str, sou
         reaches_n = int(sess.get("reaches") or max(1, credit_amount // max(1, int(STATE["settings"].get("reachPrice") or 20))))
         cust["balance"] = int(cust.get("balance", 0)) + credit_amount
         cust["totalPaidRupees"] = int(cust.get("totalPaidRupees", 0)) + paid_amount
+        ref_cfg = get_referral_settings()
+        if paid_amount >= int(ref_cfg.get("minRecharge") or 20):
+            rc = int(cust.get("rechargeCount", 0)) + 1
+            cust["rechargeCount"] = rc
+            if rc == 1:
+                award_referral_milestone(cust, "R1")
+            elif rc == 3:
+                award_referral_milestone(cust, "R3")
+            elif rc == 6:
+                award_referral_milestone(cust, "R6")
+            elif rc == 10:
+                award_referral_milestone(cust, "R10")
         log_user_activity(
             str(cust.get("techId", "")),
             "PAYMENT",
@@ -3756,6 +4205,9 @@ def create_app() -> web.Application:
     app.router.add_post("/api/admin/fc-verify-otp", api_admin_fc_verify_otp)
     app.router.add_post("/api/admin/fc-test", api_admin_fc_test)
     app.router.add_post("/api/admin/auth", api_admin_auth)
+    app.router.add_get("/api/broadcast/latest", api_broadcast_latest)
+    app.router.add_post("/api/admin/broadcast", api_admin_broadcast)
+    app.router.add_post("/api/admin/referral-settings", api_admin_referral_settings)
     app.router.add_post("/api/admin/gmail-test", api_admin_gmail_test)
     app.router.add_post("/api/admin/mark-session", api_admin_mark_session)
     app.router.add_get("/api/admin/fc-logs", api_admin_fc_logs)
